@@ -1,8 +1,9 @@
-from datetime import timedelta
+from datetime import timedelta, datetime, timezone as dt_timezone
 
 from django.test import TestCase
 from django.utils import timezone
 from rest_framework.test import APIClient
+from django.core.management import call_command
 
 from accounts.models import User
 from tenants.models import Municipality
@@ -153,6 +154,75 @@ class FullApplicationTests(TestCase):
         self.assertEqual(vehicle.status, Vehicle.Status.MAINTENANCE)
         summary = MonthlyOdometer.objects.get(vehicle=vehicle, year=departure.year, month=departure.month)
         self.assertEqual(summary.kilometers, 180)
+
+    def test_vehicle_in_maintenance_rejects_trip(self):
+        vehicle = self._make_vehicle(
+            self.muni_a,
+            license_plate="AAA0303",
+            odometer_current=200,
+            odometer_initial=200,
+            status=Vehicle.Status.MAINTENANCE,
+        )
+        driver = self._make_driver(self.muni_a, cpf="333.333.333-33", name="Driver M")
+        self.client.force_authenticate(self.admin_a)
+        departure = timezone.now()
+        resp = self.client.post(
+            "/api/trips/",
+            {
+                "vehicle": vehicle.id,
+                "driver": driver.id,
+                "origin": "Origem",
+                "destination": "Destino",
+                "departure_datetime": departure,
+                "return_datetime_expected": departure + timedelta(hours=1),
+                "odometer_start": 200,
+                "passengers_count": 2,
+            },
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 400)
+
+    def test_rebuild_monthly_odometer_command(self):
+        vehicle = self._make_vehicle(self.muni_a, license_plate="AAA0404", odometer_current=100, odometer_initial=100)
+        driver = self._make_driver(self.muni_a, cpf="444.444.444-44", name="Driver O")
+        self.client.force_authenticate(self.admin_a)
+
+        jan_departure = datetime(2024, 1, 15, 12, 0, tzinfo=dt_timezone.utc)
+        feb_departure = datetime(2024, 2, 10, 12, 0, tzinfo=dt_timezone.utc)
+
+        Trip.objects.create(
+            municipality=self.muni_a,
+            vehicle=vehicle,
+            driver=driver,
+            origin="A",
+            destination="B",
+            departure_datetime=jan_departure,
+            return_datetime_expected=jan_departure + timedelta(hours=1),
+            odometer_start=100,
+            odometer_end=130,
+            passengers_count=2,
+            status=Trip.Status.COMPLETED,
+        )
+        Trip.objects.create(
+            municipality=self.muni_a,
+            vehicle=vehicle,
+            driver=driver,
+            origin="C",
+            destination="D",
+            departure_datetime=feb_departure,
+            return_datetime_expected=feb_departure + timedelta(hours=1),
+            odometer_start=130,
+            odometer_end=170,
+            passengers_count=2,
+            status=Trip.Status.COMPLETED,
+        )
+
+        call_command("rebuild_monthly_odometer")
+
+        jan_summary = MonthlyOdometer.objects.get(vehicle=vehicle, year=2024, month=1)
+        feb_summary = MonthlyOdometer.objects.get(vehicle=vehicle, year=2024, month=2)
+        self.assertEqual(jan_summary.kilometers, 30)
+        self.assertEqual(feb_summary.kilometers, 40)
 
     def test_reports_endpoints_return_scoped_data(self):
         vehicle = self._make_vehicle(self.muni_a, license_plate="AAA0202", odometer_current=500, odometer_initial=500)

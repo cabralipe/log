@@ -1,0 +1,7 @@
+[tool.ruff]
+line-length = 120
+extend-select = ["I"]
+target-version = "py311"
+
+[tool.ruff.lint]
+ignore = ["E501"]

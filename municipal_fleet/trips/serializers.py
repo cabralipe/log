@@ -25,6 +25,8 @@ class TripSerializer(serializers.ModelSerializer):
         odometer_start = attrs.get("odometer_start", getattr(self.instance, "odometer_start", None))
         odometer_end = attrs.get("odometer_end", getattr(self.instance, "odometer_end", None))
 
+        if vehicle and vehicle.status == Vehicle.Status.MAINTENANCE:
+            raise serializers.ValidationError("Veículo em manutenção não pode receber novas viagens.")
         if vehicle and passengers and passengers > vehicle.max_passengers:
             raise serializers.ValidationError("Quantidade de passageiros excede a capacidade do veículo.")
         if vehicle and driver and vehicle.municipality_id != driver.municipality_id:

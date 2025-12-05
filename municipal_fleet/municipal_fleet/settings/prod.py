@@ -1,0 +1,17 @@
+from .base import *
+
+DEBUG = False
+ALLOWED_HOSTS = os.environ.get("DJANGO_ALLOWED_HOSTS", "localhost").split(",")
+
+CORS_ALLOW_ALL_ORIGINS = env_bool("CORS_ALLOW_ALL", False)
+CORS_ALLOWED_ORIGINS = os.environ.get("CORS_ALLOWED_ORIGINS", "").split(",") if not CORS_ALLOW_ALL_ORIGINS else []
+
+# Security headers for production-like environments
+SECURE_SSL_REDIRECT = env_bool("DJANGO_SECURE_SSL_REDIRECT", True)
+SESSION_COOKIE_SECURE = env_bool("SESSION_COOKIE_SECURE", True)
+CSRF_COOKIE_SECURE = env_bool("CSRF_COOKIE_SECURE", True)
+SECURE_HSTS_SECONDS = int(os.environ.get("SECURE_HSTS_SECONDS", "31536000"))
+SECURE_HSTS_INCLUDE_SUBDOMAINS = env_bool("SECURE_HSTS_INCLUDE_SUBDOMAINS", True)
+SECURE_HSTS_PRELOAD = env_bool("SECURE_HSTS_PRELOAD", True)
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+

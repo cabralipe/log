@@ -1,11 +1,16 @@
 import os
-from pathlib import Path
 from datetime import timedelta
+from pathlib import Path
 
-BASE_DIR = Path(__file__).resolve().parent.parent
+
+def env_bool(key: str, default: bool = False) -> bool:
+    return os.environ.get(key, str(default)) == "True"
+
+
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "change-me")
-DEBUG = os.environ.get("DJANGO_DEBUG", "False") == "True"
+DEBUG = env_bool("DJANGO_DEBUG", False)
 ALLOWED_HOSTS = os.environ.get("DJANGO_ALLOWED_HOSTS", "*").split(",")
 
 INSTALLED_APPS = [
@@ -37,6 +42,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "municipal_fleet.middleware.JsonErrorMiddleware",
 ]
 
 ROOT_URLCONF = "municipal_fleet.urls"
@@ -58,8 +64,9 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = "municipal_fleet.wsgi.application"
+ASGI_APPLICATION = "municipal_fleet.asgi.application"
 
-if os.environ.get("USE_SQLITE_FOR_TESTS") == "True":
+if env_bool("USE_SQLITE_FOR_TESTS"):
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.sqlite3",
@@ -91,6 +98,10 @@ USE_I18N = True
 USE_TZ = True
 
 STATIC_URL = "/static/"
+STATIC_ROOT = BASE_DIR / "staticfiles"
+MEDIA_URL = "/media/"
+MEDIA_ROOT = BASE_DIR / "media"
+
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 AUTH_USER_MODEL = "accounts.User"
 
@@ -101,6 +112,16 @@ REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": (
         "rest_framework.permissions.IsAuthenticated",
     ),
+    "DEFAULT_THROTTLE_CLASSES": [
+        "rest_framework.throttling.AnonRateThrottle",
+        "rest_framework.throttling.UserRateThrottle",
+        "rest_framework.throttling.ScopedRateThrottle",
+    ],
+    "DEFAULT_THROTTLE_RATES": {
+        "anon": os.environ.get("THROTTLE_ANON_RATE", "100/min"),
+        "user": os.environ.get("THROTTLE_USER_RATE", "1000/min"),
+        "login": os.environ.get("THROTTLE_LOGIN_RATE", "5/min"),
+    },
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
 }
 
@@ -111,7 +132,7 @@ SIMPLE_JWT = {
     "BLACKLIST_AFTER_ROTATION": True,
 }
 
-CORS_ALLOW_ALL_ORIGINS = os.environ.get("CORS_ALLOW_ALL", "True") == "True"
+CORS_ALLOW_ALL_ORIGINS = env_bool("CORS_ALLOW_ALL", True)
 CORS_ALLOWED_ORIGINS = os.environ.get("CORS_ALLOWED_ORIGINS", "").split(",") if not CORS_ALLOW_ALL_ORIGINS else []
 
 SPECTACULAR_SETTINGS = {

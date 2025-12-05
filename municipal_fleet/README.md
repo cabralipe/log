@@ -3,10 +3,10 @@
 ## Setup rápido
 1. `python -m venv .venv && source .venv/bin/activate`
 2. `pip install -r requirements.txt`
-3. Configure `.env` (exemplo abaixo) e exporte as variáveis.
+3. Configure `.env` (exemplo em `.env.example`) e exporte as variáveis.
 4. `python manage.py makemigrations && python manage.py migrate`
 5. `python manage.py createsuperuser`
-6. `python manage.py runserver`
+6. `python manage.py runserver` (usa `municipal_fleet.settings.dev` por padrão)
 
 ### Variáveis de ambiente
 ```
@@ -20,6 +20,31 @@ POSTGRES_HOST=localhost
 POSTGRES_PORT=5432
 CORS_ALLOW_ALL=True
 ```
+
+Config prod sugerida (override variáveis):
+```
+DJANGO_SETTINGS_MODULE=municipal_fleet.settings.prod
+DJANGO_ALLOWED_HOSTS=seu-dominio.com
+CORS_ALLOW_ALL=False
+CORS_ALLOWED_ORIGINS=https://frontend.seu-dominio.com
+DJANGO_SECURE_SSL_REDIRECT=True
+SESSION_COOKIE_SECURE=True
+CSRF_COOKIE_SECURE=True
+SECURE_HSTS_SECONDS=31536000
+SECURE_HSTS_INCLUDE_SUBDOMAINS=True
+SECURE_HSTS_PRELOAD=True
+THROTTLE_LOGIN_RATE=5/min
+```
+
+### Healthcheck
+- `/api/health/` retorna 200 se o banco responder; 503 se não.
+
+### Ambientes (settings)
+- Dev: `municipal_fleet.settings.dev` (default) — CORS liberado.
+- Prod: `municipal_fleet.settings.prod` — CORS restrito (`CORS_ALLOW_ALL=False`, `CORS_ALLOWED_ORIGINS`), headers de segurança (`SECURE_SSL_REDIRECT`, cookies `Secure`, HSTS).
+- Troque o settings definindo `DJANGO_SETTINGS_MODULE`.
+- Erros não tratados retornam JSON 500 quando `DEBUG=False`.
+- Login limitado via throttle (`THROTTLE_LOGIN_RATE`, padrão `5/min`).
 
 ## Endpoints principais
 - Auth: `/api/auth/login/`, `/api/auth/refresh/`, `/api/auth/logout/`, `/api/auth/users/`
@@ -38,3 +63,19 @@ CORS_ALLOW_ALL=True
 
 ## Testes
 - Backend (SQLite para evitar configurar Postgres): `USE_SQLITE_FOR_TESTS=True python manage.py test`
+- Recalcular odômetro mensal (apoio/virada de mês): `python manage.py rebuild_monthly_odometer`
+
+## Docker / docker-compose (dev)
+1. `docker compose up --build`
+2. Backend em `http://localhost:8000` (docs em `/api/docs/`, health em `/api/health/`).
+3. Frontend em `http://localhost:5173` (env `VITE_API_URL` já apontando para o backend do compose).
+4. Volumes: `pgdata` (DB), `staticfiles`, `media`. `collectstatic` roda no start do backend.
+5. Para servir frontend buildado + proxy reverso: suba `frontend-build` e `nginx` (`docker compose up frontend-build nginx backend db`). Nginx expõe em `http://localhost:8080`, proxyando `/api/` para o backend e servindo `dist` em `/`.
+
+## CI
+- Workflow em `.github/workflows/ci.yml` roda `ruff check .`, `python manage.py test` com SQLite e `npm run build` no frontend em pushes/PRs.
+
+## Ferramentas locais
+- Pre-commit disponível (`.pre-commit-config.yaml`) com ruff lint/format (`pre-commit install`).
+- Frontend: `.env.example` em `frontend/` com `VITE_API_URL`.
+- Build frontend: `cd frontend && npm run build` (usa config do Vite).

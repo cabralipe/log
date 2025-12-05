@@ -6,6 +6,7 @@ from fleet.models import Vehicle
 from drivers.models import Driver
 from django.utils import timezone
 from trips.models import Trip
+from rest_framework.test import APIClient
 
 
 class UserPermissionTests(TestCase):
@@ -78,6 +79,22 @@ class FleetPermissionTests(TestCase):
         self.client.force_authenticate(self.admin)
         resp = self.client.post("/api/vehicles/", payload, format="json")
         self.assertEqual(resp.status_code, 201)
+
+    def test_municipality_delete_blocked_with_dependencies(self):
+        Vehicle.objects.create(
+            municipality=self.muni,
+            license_plate="DEL1234",
+            model="Van",
+            brand="Ford",
+            year=2020,
+            max_passengers=10,
+            odometer_current=1000,
+            odometer_initial=900,
+            odometer_monthly_limit=2000,
+        )
+        self.client.force_authenticate(self.admin)
+        resp = self.client.delete(f"/api/municipalities/{self.muni.id}/")
+        self.assertEqual(resp.status_code, 403)
 
 
 class TripBusinessRulesTests(TestCase):

@@ -3,6 +3,10 @@ import react from "@vitejs/plugin-react";
 
 export default defineConfig({
   plugins: [react()],
+  build: {
+    outDir: "dist",
+    sourcemap: false,
+  },
   server: {
     port: 5173,
     host: true, // allow access from outside the container/WSL for local browsers
