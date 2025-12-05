@@ -1,0 +1,16 @@
+.kpi-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.kpi-header {
+  display: flex;
+  justify-content: space-between;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.kpi-card strong {
+  font-size: 1.6rem;
+}

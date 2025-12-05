@@ -1,0 +1,20 @@
+.table table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table th,
+.table td {
+  text-align: left;
+  padding: 0.75rem 0.5rem;
+}
+
+.table thead {
+  color: var(--muted);
+  font-size: 0.9rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.table tbody tr:not(:last-child) td {
+  border-bottom: 1px solid var(--border);
+}
