@@ -1,5 +1,5 @@
 import urllib.parse
-from rest_framework import viewsets, permissions, response, decorators
+from rest_framework import viewsets, permissions, response, decorators, filters
 from trips.models import Trip
 from trips.serializers import TripSerializer
 from tenants.mixins import MunicipalityQuerysetMixin
@@ -10,6 +10,8 @@ class TripViewSet(MunicipalityQuerysetMixin, viewsets.ModelViewSet):
     queryset = Trip.objects.select_related("vehicle", "driver", "municipality")
     serializer_class = TripSerializer
     permission_classes = [permissions.IsAuthenticated, IsMunicipalityAdminOrReadOnly]
+    filter_backends = [filters.SearchFilter]
+    search_fields = ["origin", "destination", "vehicle__license_plate", "driver__name"]
 
     def get_queryset(self):
         qs = super().get_queryset()

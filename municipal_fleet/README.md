@@ -37,7 +37,7 @@ THROTTLE_LOGIN_RATE=5/min
 ```
 
 ### Healthcheck
-- `/api/health/` retorna 200 se o banco responder; 503 se não.
+- `/api/health/` retorna 200 se o banco responder; 503 se não. Inclui `version`/`commit` se `APP_VERSION`/`APP_COMMIT` estiverem no ambiente.
 
 ### Ambientes (settings)
 - Dev: `municipal_fleet.settings.dev` (default) — CORS liberado.
@@ -71,6 +71,7 @@ THROTTLE_LOGIN_RATE=5/min
 3. Frontend em `http://localhost:5173` (env `VITE_API_URL` já apontando para o backend do compose).
 4. Volumes: `pgdata` (DB), `staticfiles`, `media`. `collectstatic` roda no start do backend.
 5. Para servir frontend buildado + proxy reverso: suba `frontend-build` e `nginx` (`docker compose up frontend-build nginx backend db`). Nginx expõe em `http://localhost:8080`, proxyando `/api/` para o backend e servindo `dist` em `/`.
+6. Nginx envia cabeçalhos de segurança básicos (X-Content-Type-Options, Referrer-Policy, Permissions-Policy). Ajuste conforme necessidade de CSP.
 
 ## CI
 - Workflow em `.github/workflows/ci.yml` roda `ruff check .`, `python manage.py test` com SQLite e `npm run build` no frontend em pushes/PRs.
@@ -79,3 +80,9 @@ THROTTLE_LOGIN_RATE=5/min
 - Pre-commit disponível (`.pre-commit-config.yaml`) com ruff lint/format (`pre-commit install`).
 - Frontend: `.env.example` em `frontend/` com `VITE_API_URL`.
 - Build frontend: `cd frontend && npm run build` (usa config do Vite).
+
+## Operação/segredos
+- Defina `DJANGO_SECRET_KEY`, `ALLOWED_HOSTS` e credenciais de DB reais em produção (não use defaults do compose).
+- Mantenha `CORS_ALLOW_ALL=False` e liste domínios do frontend em `CORS_ALLOWED_ORIGINS`.
+- Para HTTPS atrás de proxy, mantenha `SECURE_PROXY_SSL_HEADER` (já configurado no settings.prod) e force SSL com `DJANGO_SECURE_SSL_REDIRECT=True`.
+- Faça backup do Postgres (ex.: `pg_dump`) e preserve volumes `pgdata`/`media`/`staticfiles` conforme estratégia de backup.

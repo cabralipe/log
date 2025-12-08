@@ -1,4 +1,4 @@
-from rest_framework import viewsets, permissions, response
+from rest_framework import viewsets, permissions, response, filters
 from tenants.models import Municipality
 from tenants.serializers import MunicipalitySerializer
 from accounts.permissions import IsSuperAdmin
@@ -13,6 +13,8 @@ class MunicipalityViewSet(MunicipalityQuerysetMixin, viewsets.ModelViewSet):
     queryset = Municipality.objects.all()
     serializer_class = MunicipalitySerializer
     permission_classes = [permissions.IsAuthenticated]
+    filter_backends = [filters.SearchFilter]
+    search_fields = ["name", "city"]
 
     def get_permissions(self):
         if self.action in ["create", "update", "partial_update", "destroy", "list"]:

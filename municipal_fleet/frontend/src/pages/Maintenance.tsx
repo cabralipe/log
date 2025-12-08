@@ -2,25 +2,23 @@ import { useEffect, useState } from "react";
 import { api, type Paginated } from "../lib/api";
 import { Table } from "../components/Table";
 import { Button } from "../components/Button";
-import { StatusBadge } from "../components/StatusBadge";
 import { Pagination } from "../components/Pagination";
 
-type Driver = {
+type Vehicle = { id: number; license_plate: string; brand: string; model: string };
+type Maintenance = {
   id: number;
-  name: string;
-  cpf: string;
-  phone: string;
-  status: string;
-  cnh_number: string;
-  cnh_category: string;
-  cnh_expiration_date: string;
+  vehicle: number;
+  vehicle__license_plate?: string;
+  description: string;
+  date: string;
+  mileage: number;
 };
 
-export const DriversPage = () => {
-  const [drivers, setDrivers] = useState<Driver[]>([]);
-  const [form, setForm] = useState<Partial<Driver>>({
-    status: "ACTIVE",
-    cnh_category: "B",
+export const MaintenancePage = () => {
+  const [records, setRecords] = useState<Maintenance[]>([]);
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [form, setForm] = useState<Partial<Maintenance>>({
+    date: new Date().toISOString().slice(0, 10),
   });
   const [editingId, setEditingId] = useState<number | null>(null);
   const [search, setSearch] = useState("");
@@ -31,19 +29,25 @@ export const DriversPage = () => {
 
   const load = (nextPage = page, nextSearch = search, nextPageSize = pageSize) => {
     api
-      .get<Paginated<Driver>>("/drivers/", { params: { page: nextPage, page_size: nextPageSize, search: nextSearch } })
+      .get<Paginated<Maintenance>>("/vehicles/maintenance/", {
+        params: { page: nextPage, page_size: nextPageSize, search: nextSearch },
+      })
       .then((res) => {
         const data = res.data as any;
         if (Array.isArray(data)) {
-          setDrivers(data);
+          setRecords(data);
           setTotal(data.length);
         } else {
-          setDrivers(data.results);
+          setRecords(data.results);
           setTotal(data.count);
         }
         setError(null);
       })
-      .catch((err) => setError(err.response?.data?.detail || "Erro ao carregar motoristas."));
+      .catch((err) => setError(err.response?.data?.detail || "Erro ao carregar manutenções."));
+    api.get<Paginated<Vehicle>>("/vehicles/", { params: { page_size: 1000 } }).then((res) => {
+      const data = res.data as any;
+      setVehicles(Array.isArray(data) ? data : data.results);
+    });
   };
 
   useEffect(() => {
@@ -53,46 +57,48 @@ export const DriversPage = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (editingId) {
-      await api.patch(`/drivers/${editingId}/`, form);
+      await api.patch(`/vehicles/maintenance/${editingId}/`, form);
     } else {
-      await api.post("/drivers/", form);
+      await api.post("/vehicles/maintenance/", form);
     }
-    setForm({ status: "ACTIVE", cnh_category: "B" });
+    setForm({ date: new Date().toISOString().slice(0, 10) });
     setEditingId(null);
     load();
   };
 
-  const handleEdit = (driver: Driver) => {
-    setEditingId(driver.id);
+  const handleEdit = (row: Maintenance) => {
+    setEditingId(row.id);
     setForm({
-      name: driver.name,
-      cpf: driver.cpf,
-      phone: driver.phone,
-      status: driver.status,
-      cnh_number: driver.cnh_number,
-      cnh_category: driver.cnh_category,
-      cnh_expiration_date: driver.cnh_expiration_date,
+      vehicle: row.vehicle,
+      description: row.description,
+      date: row.date,
+      mileage: row.mileage,
     });
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm("Deseja remover este motorista?")) return;
+    if (!confirm("Deseja remover este registro?")) return;
     try {
-      await api.delete(`/drivers/${id}/`);
+      await api.delete(`/vehicles/maintenance/${id}/`);
       load();
     } catch (err: any) {
-      setError(err.response?.data?.detail || "Erro ao remover motorista.");
+      setError(err.response?.data?.detail || "Erro ao remover manutenção.");
     }
+  };
+
+  const vehicleLabel = (id: number) => {
+    const v = vehicles.find((item) => item.id === id);
+    return v ? `${v.license_plate} - ${v.brand} ${v.model}` : id;
   };
 
   return (
     <div className="grid" style={{ gridTemplateColumns: "2fr 1fr" }}>
       <div>
-        <h2>Motoristas</h2>
+        <h2>Histórico de Manutenções</h2>
         {error && <div className="card" style={{ color: "#f87171" }}>{error}</div>}
         <div style={{ marginBottom: "0.75rem" }}>
           <input
-            placeholder="Buscar por nome ou CPF"
+            placeholder="Buscar por veículo ou descrição"
             value={search}
             onChange={(e) => {
               setSearch(e.target.value);
@@ -123,10 +129,10 @@ export const DriversPage = () => {
         </div>
         <Table
           columns={[
-            { key: "name", label: "Nome" },
-            { key: "cpf", label: "CPF" },
-            { key: "phone", label: "Telefone" },
-            { key: "status", label: "Status", render: (row) => <StatusBadge status={row.status} /> },
+            { key: "vehicle", label: "Veículo", render: (row) => vehicleLabel(row.vehicle) },
+            { key: "description", label: "Descrição" },
+            { key: "date", label: "Data" },
+            { key: "mileage", label: "KM" },
             {
               key: "actions",
               label: "Ações",
@@ -142,7 +148,7 @@ export const DriversPage = () => {
               ),
             },
           ]}
-          data={drivers}
+          data={records}
         />
         <Pagination
           page={page}
@@ -155,35 +161,44 @@ export const DriversPage = () => {
         />
       </div>
       <div className="card">
-        <h3>{editingId ? "Editar motorista" : "Novo motorista"}</h3>
+        <h3>{editingId ? "Editar manutenção" : "Registrar manutenção"}</h3>
         <form className="grid" style={{ gap: "0.6rem" }} onSubmit={handleSubmit}>
-          <input placeholder="Nome" required value={form.name ?? ""} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
-          <input placeholder="CPF" required value={form.cpf ?? ""} onChange={(e) => setForm((f) => ({ ...f, cpf: e.target.value }))} />
-          <input placeholder="Telefone" required value={form.phone ?? ""} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} />
-          <input placeholder="CNH" required value={form.cnh_number ?? ""} onChange={(e) => setForm((f) => ({ ...f, cnh_number: e.target.value }))} />
+          <select
+            value={form.vehicle ?? ""}
+            onChange={(e) => setForm((f) => ({ ...f, vehicle: Number(e.target.value) }))}
+            required
+          >
+            <option value="">Veículo</option>
+            {vehicles.map((v) => (
+              <option key={v.id} value={v.id}>
+                {v.license_plate} - {v.brand} {v.model}
+              </option>
+            ))}
+          </select>
+          <input
+            placeholder="Descrição"
+            required
+            value={form.description ?? ""}
+            onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+          />
           <label>
-            Validade CNH
+            Data
             <input
               type="date"
               required
-              value={form.cnh_expiration_date ?? ""}
-              onChange={(e) => setForm((f) => ({ ...f, cnh_expiration_date: e.target.value }))}
+              value={form.date ?? ""}
+              onChange={(e) => setForm((f) => ({ ...f, date: e.target.value }))}
             />
           </label>
           <label>
-            Categoria CNH
-            <select value={form.cnh_category} onChange={(e) => setForm((f) => ({ ...f, cnh_category: e.target.value }))}>
-              <option value="A">A</option>
-              <option value="B">B</option>
-              <option value="C">C</option>
-              <option value="D">D</option>
-              <option value="E">E</option>
-            </select>
+            Quilometragem
+            <input
+              type="number"
+              required
+              value={form.mileage ?? ""}
+              onChange={(e) => setForm((f) => ({ ...f, mileage: Number(e.target.value) }))}
+            />
           </label>
-          <select value={form.status} onChange={(e) => setForm((f) => ({ ...f, status: e.target.value }))}>
-            <option value="ACTIVE">Ativo</option>
-            <option value="INACTIVE">Inativo</option>
-          </select>
           <div className="grid" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "0.5rem" }}>
             <Button type="submit">{editingId ? "Atualizar" : "Salvar"}</Button>
             {editingId && (
@@ -192,7 +207,7 @@ export const DriversPage = () => {
                 variant="ghost"
                 onClick={() => {
                   setEditingId(null);
-                  setForm({ status: "ACTIVE", cnh_category: "B" });
+                  setForm({ date: new Date().toISOString().slice(0, 10) });
                 }}
               >
                 Cancelar

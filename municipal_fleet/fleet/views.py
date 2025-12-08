@@ -1,4 +1,4 @@
-from rest_framework import viewsets, permissions
+from rest_framework import viewsets, permissions, filters
 from fleet.models import Vehicle, VehicleMaintenance
 from fleet.serializers import VehicleSerializer, VehicleMaintenanceSerializer
 from tenants.mixins import MunicipalityQuerysetMixin
@@ -9,6 +9,8 @@ class VehicleViewSet(MunicipalityQuerysetMixin, viewsets.ModelViewSet):
     queryset = Vehicle.objects.all()
     serializer_class = VehicleSerializer
     permission_classes = [permissions.IsAuthenticated, IsMunicipalityAdminOrReadOnly]
+    filter_backends = [filters.SearchFilter]
+    search_fields = ["license_plate", "brand", "model"]
 
     def perform_create(self, serializer):
         user = self.request.user
@@ -26,3 +28,5 @@ class VehicleMaintenanceViewSet(MunicipalityQuerysetMixin, viewsets.ModelViewSet
     serializer_class = VehicleMaintenanceSerializer
     permission_classes = [permissions.IsAuthenticated, IsMunicipalityAdminOrReadOnly]
     municipality_field = "vehicle__municipality"
+    filter_backends = [filters.SearchFilter]
+    search_fields = ["vehicle__license_plate", "description"]

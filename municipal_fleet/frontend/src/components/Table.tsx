@@ -1,6 +1,6 @@
 import "./Table.css";
 
-type Column<T> = { key: keyof T; label: string; render?: (row: T) => React.ReactNode };
+type Column<T> = { key: keyof T | string; label: string; render?: (row: T) => React.ReactNode };
 
 type Props<T> = {
   columns: Column<T>[];
@@ -22,7 +22,7 @@ export function Table<T extends { id: number | string }>({ columns, data }: Prop
           {data.map((row) => (
             <tr key={row.id}>
               {columns.map((col) => (
-                <td key={String(col.key)}>{col.render ? col.render(row) : (row[col.key] as React.ReactNode)}</td>
+                <td key={String(col.key)}>{col.render ? col.render(row) : ((row as any)[col.key] as React.ReactNode)}</td>
               ))}
             </tr>
           ))}

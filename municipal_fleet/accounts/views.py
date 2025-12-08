@@ -1,7 +1,7 @@
 from django.contrib.auth import get_user_model
-from rest_framework import viewsets, permissions, status
+from rest_framework import viewsets, permissions, status, filters
 from rest_framework.response import Response
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, permission_classes, action
 from rest_framework.exceptions import PermissionDenied
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView
@@ -19,6 +19,8 @@ class LoginView(TokenObtainPairView):
 class UserViewSet(MunicipalityQuerysetMixin, viewsets.ModelViewSet):
     serializer_class = UserSerializer
     queryset = User.objects.all()
+    filter_backends = [filters.SearchFilter]
+    search_fields = ["email", "role"]
 
     def get_permissions(self):
         if self.action in ["create", "destroy", "update", "partial_update", "list"]:
@@ -43,6 +45,11 @@ class UserViewSet(MunicipalityQuerysetMixin, viewsets.ModelViewSet):
             serializer.save(municipality=user.municipality)
         else:
             serializer.save()
+
+    @action(detail=False, methods=["get"])
+    def me(self, request):
+        serializer = self.get_serializer(request.user)
+        return Response(serializer.data)
 
 
 @api_view(["POST"])

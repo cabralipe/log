@@ -6,6 +6,9 @@ import { VehiclesPage } from "./pages/Vehicles";
 import { DriversPage } from "./pages/Drivers";
 import { TripsPage } from "./pages/Trips";
 import { ReportsPage } from "./pages/Reports";
+import { MaintenancePage } from "./pages/Maintenance";
+import { MunicipalitiesPage } from "./pages/Municipalities";
+import { UsersPage } from "./pages/Users";
 import { Layout } from "./components/Layout";
 
 const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
@@ -25,9 +28,12 @@ const AppRoutes = () => (
             <Routes>
               <Route path="/dashboard" element={<DashboardPage />} />
               <Route path="/vehicles" element={<VehiclesPage />} />
+              <Route path="/maintenance" element={<MaintenancePage />} />
               <Route path="/drivers" element={<DriversPage />} />
               <Route path="/trips" element={<TripsPage />} />
               <Route path="/reports" element={<ReportsPage />} />
+              <Route path="/municipalities" element={<MunicipalitiesPage />} />
+              <Route path="/users" element={<UsersPage />} />
               <Route path="*" element={<Navigate to="/dashboard" />} />
             </Routes>
           </Layout>
