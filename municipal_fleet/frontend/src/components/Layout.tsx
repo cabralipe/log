@@ -1,7 +1,7 @@
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import { useSidebar } from "../stores/sidebar";
-import { Menu, X, Home, Truck, Wrench, Users, MapPin, BarChart3, Building2, UserCircle } from "lucide-react";
+import { Menu, X, Home, Truck, Wrench, Users, MapPin, BarChart3, Building2, UserCircle, Fuel } from "lucide-react";
 import { useEffect } from "react";
 import "./Layout.css";
 
@@ -15,17 +15,8 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
     navigate("/login");
   };
 
-<<<<<<< HEAD
   const isAdmin = user?.role === "SUPERADMIN" || user?.role === "ADMIN_MUNICIPALITY";
-  const navItems = [
-    { to: "/dashboard", label: "Dashboard" },
-    { to: "/vehicles", label: "Veículos" },
-    { to: "/maintenance", label: "Manutenções" },
-    { to: "/drivers", label: "Motoristas" },
-    ...(isAdmin ? [{ to: "/fuel-stations", label: "Postos" }] : []),
-    { to: "/trips", label: "Viagens" },
-    { to: "/reports", label: "Relatórios" },
-=======
+
   // Auto-collapse on small screens
   useEffect(() => {
     const media = window.matchMedia("(max-width: 768px)");
@@ -40,9 +31,9 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
     { to: "/vehicles", label: "Veículos", icon: Truck },
     { to: "/maintenance", label: "Manutenções", icon: Wrench },
     { to: "/drivers", label: "Motoristas", icon: Users },
+    ...(isAdmin ? [{ to: "/fuel-stations", label: "Postos", icon: Fuel }] : []),
     { to: "/trips", label: "Viagens", icon: MapPin },
     { to: "/reports", label: "Relatórios", icon: BarChart3 },
->>>>>>> 0182e1b9771ad5ccd53cfd6ae10ff6eaec855dab
   ];
   const adminItems =
     user?.role === "SUPERADMIN"
