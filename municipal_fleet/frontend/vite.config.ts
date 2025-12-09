@@ -9,6 +9,9 @@ export default defineConfig({
   },
   server: {
     port: 5173,
-    host: true, // allow access from outside the container/WSL for local browsers
+    host: true,
+    hmr: {
+      overlay: false,
+    },
   },
 });
