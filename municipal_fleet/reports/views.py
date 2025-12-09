@@ -1,9 +1,10 @@
-from datetime import date
+from datetime import date, timedelta
 from django.db.models import Count, Sum, F, ExpressionWrapper, IntegerField
 from django.utils import timezone
 from rest_framework import permissions, response, views
 from fleet.models import Vehicle, FuelLog
 from trips.models import Trip, MonthlyOdometer
+from contracts.models import Contract, RentalPeriod
 
 
 class DashboardView(views.APIView):
@@ -152,3 +153,102 @@ class FuelReportView(views.APIView):
             ).order_by("-filled_at", "-id")
         )
         return response.Response({"summary": summary, "logs": logs})
+
+
+class ContractsReportView(views.APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        days = int(request.query_params.get("expiring_in", 30))
+        qs = Contract.objects.all()
+        if user.role != "SUPERADMIN":
+            qs = qs.filter(municipality=user.municipality)
+        expiring_limit = timezone.localdate() + timedelta(days=days)
+        data = []
+        for contract in qs:
+            data.append(
+                {
+                    "id": contract.id,
+                    "contract_number": contract.contract_number,
+                    "provider_name": contract.provider_name,
+                    "status": contract.status if not contract.is_expired else Contract.Status.EXPIRED,
+                    "start_date": contract.start_date,
+                    "end_date": contract.end_date,
+                    "type": contract.type,
+                    "billing_model": contract.billing_model,
+                    "expiring_soon": contract.end_date <= expiring_limit,
+                }
+            )
+        return response.Response({"contracts": data})
+
+
+class ContractUsageReportView(views.APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        contract_id = request.query_params.get("contract_id")
+        start = request.query_params.get("start_date")
+        end = request.query_params.get("end_date")
+        qs = RentalPeriod.objects.select_related("contract", "vehicle")
+        if user.role != "SUPERADMIN":
+            qs = qs.filter(municipality=user.municipality)
+        if contract_id:
+            qs = qs.filter(contract_id=contract_id)
+        if start:
+            qs = qs.filter(start_datetime__date__gte=start)
+        if end:
+            qs = qs.filter(start_datetime__date__lte=end)
+
+        total_km = qs.aggregate(total=Sum("billed_km"))["total"] or 0
+        total_amount = qs.aggregate(total=Sum("billed_amount"))["total"] or 0
+        vehicles = (
+            qs.exclude(vehicle__isnull=True)
+            .values("vehicle_id", "vehicle__license_plate")
+            .distinct()
+        )
+        return response.Response(
+            {
+                "total_km": total_km,
+                "total_amount": total_amount,
+                "cost_per_km": (float(total_amount) / float(total_km)) if total_km else None,
+                "vehicles": list(vehicles),
+                "periods": list(
+                    qs.values(
+                        "id",
+                        "status",
+                        "start_datetime",
+                        "end_datetime",
+                        "vehicle_id",
+                        "vehicle__license_plate",
+                        "billed_km",
+                        "billed_amount",
+                    ).order_by("-start_datetime")
+                ),
+            }
+        )
+
+
+class ExpiringContractsReportView(views.APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        days = int(request.query_params.get("days", 30))
+        limit = timezone.localdate() + timedelta(days=days)
+        qs = Contract.objects.filter(end_date__lte=limit)
+        if user.role != "SUPERADMIN":
+            qs = qs.filter(municipality=user.municipality)
+        return response.Response(
+            list(
+                qs.values(
+                    "id",
+                    "contract_number",
+                    "provider_name",
+                    "end_date",
+                    "status",
+                    "municipality_id",
+                ).order_by("end_date")
+            )
+        )

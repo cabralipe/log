@@ -3,6 +3,7 @@ from django.db import transaction
 from django.utils import timezone
 from rest_framework import serializers
 from trips.models import Trip, MonthlyOdometer
+from contracts.models import Contract
 from fleet.models import Vehicle
 from drivers.models import Driver
 
@@ -21,6 +22,8 @@ class TripSerializer(serializers.ModelSerializer):
         user = getattr(request, "user", None)
         vehicle = attrs.get("vehicle", getattr(self.instance, "vehicle", None))
         driver = attrs.get("driver", getattr(self.instance, "driver", None))
+        contract = attrs.get("contract", getattr(self.instance, "contract", None))
+        rental_period = attrs.get("rental_period", getattr(self.instance, "rental_period", None))
         passengers_details = attrs.get("passengers_details", getattr(self.instance, "passengers_details", []))
         passengers = attrs.get("passengers_count", getattr(self.instance, "passengers_count", 0))
         status = attrs.get("status", getattr(self.instance, "status", Trip.Status.PLANNED))
@@ -97,11 +100,36 @@ class TripSerializer(serializers.ModelSerializer):
         if category == Trip.Category.OBJECT:
             attrs["passengers_count"] = 0
             attrs["passengers_details"] = []
+
+        if rental_period:
+            if contract and rental_period.contract_id != getattr(contract, "id", None):
+                raise serializers.ValidationError("Período de locação pertence a outro contrato.")
+            contract = contract or rental_period.contract
+            attrs["contract"] = contract
+            if rental_period.vehicle and vehicle and rental_period.vehicle_id != vehicle.id:
+                raise serializers.ValidationError("Período de locação vinculado a outro veículo.")
+            if departure and rental_period.start_datetime and departure < rental_period.start_datetime:
+                raise serializers.ValidationError("Viagem começa antes do período de locação.")
+            if return_expected and rental_period.end_datetime and return_expected > rental_period.end_datetime:
+                raise serializers.ValidationError("Viagem termina após o período de locação.")
+
+        if contract:
+            if contract.status != Contract.Status.ACTIVE:
+                raise serializers.ValidationError("Contrato informado precisa estar ativo.")
+            if contract.end_date and contract.end_date < timezone.localdate():
+                raise serializers.ValidationError("Contrato informado está vencido.")
+            if vehicle and contract.municipality_id != vehicle.municipality_id:
+                raise serializers.ValidationError("Contrato precisa ser da mesma prefeitura do veículo.")
+            if driver and contract.municipality_id != driver.municipality_id:
+                raise serializers.ValidationError("Contrato precisa ser da mesma prefeitura do motorista.")
+
         if user and user.role != "SUPERADMIN":
             if vehicle and vehicle.municipality_id != user.municipality_id:
                 raise serializers.ValidationError("Veículo precisa pertencer à prefeitura do usuário.")
             if driver and driver.municipality_id != user.municipality_id:
                 raise serializers.ValidationError("Motorista precisa pertencer à prefeitura do usuário.")
+            if contract and contract.municipality_id != user.municipality_id:
+                raise serializers.ValidationError("Contrato precisa pertencer à prefeitura do usuário.")
         if status == Trip.Status.COMPLETED:
             if odometer_end is None:
                 raise serializers.ValidationError("odometer_end é obrigatório para concluir a viagem.")
@@ -127,6 +155,10 @@ class TripSerializer(serializers.ModelSerializer):
     @transaction.atomic
     def create(self, validated_data):
         user = self.context["request"].user
+        vehicle = validated_data.get("vehicle")
+        contract = validated_data.get("contract")
+        if not contract and vehicle and vehicle.current_contract and vehicle.current_contract.status == Contract.Status.ACTIVE:
+            validated_data["contract"] = vehicle.current_contract
         validated_data["municipality"] = user.municipality if user.role != "SUPERADMIN" else validated_data.get("municipality")
         trip = super().create(validated_data)
         self._update_odometer(trip)

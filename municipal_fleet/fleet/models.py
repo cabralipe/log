@@ -2,6 +2,12 @@ from django.db import models
 
 
 class Vehicle(models.Model):
+    class OwnershipType(models.TextChoices):
+        OWNED = "OWNED", "Próprio"
+        LEASED = "LEASED", "Leasing"
+        RENTED = "RENTED", "Alugado"
+        THIRD_PARTY = "THIRD_PARTY", "Terceiro"
+
     class Status(models.TextChoices):
         AVAILABLE = "AVAILABLE", "Disponivel"
         IN_USE = "IN_USE", "Em uso"
@@ -21,6 +27,14 @@ class Vehicle(models.Model):
     next_service_date = models.DateField(null=True, blank=True)
     last_oil_change_date = models.DateField(null=True, blank=True)
     next_oil_change_date = models.DateField(null=True, blank=True)
+    ownership_type = models.CharField(max_length=20, choices=OwnershipType.choices, default=OwnershipType.OWNED)
+    current_contract = models.ForeignKey(
+        "contracts.Contract",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="vehicles_in_use",
+    )
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.AVAILABLE)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

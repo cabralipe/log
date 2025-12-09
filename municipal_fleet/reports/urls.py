@@ -1,9 +1,20 @@
 from django.urls import path
-from reports.views import DashboardView, OdometerReportView, TripReportView, FuelReportView
+from reports.views import (
+    DashboardView,
+    OdometerReportView,
+    TripReportView,
+    FuelReportView,
+    ContractsReportView,
+    ContractUsageReportView,
+    ExpiringContractsReportView,
+)
 
 urlpatterns = [
     path("dashboard/", DashboardView.as_view(), name="dashboard-report"),
     path("odometer/", OdometerReportView.as_view(), name="odometer-report"),
     path("trips/", TripReportView.as_view(), name="trip-report"),
     path("fuel/", FuelReportView.as_view(), name="fuel-report"),
+    path("contracts/", ContractsReportView.as_view(), name="contracts-report"),
+    path("contracts/usage/", ContractUsageReportView.as_view(), name="contracts-usage-report"),
+    path("contracts/expiring/", ExpiringContractsReportView.as_view(), name="expiring-contracts-report"),
 ]

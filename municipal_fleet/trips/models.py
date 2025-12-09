@@ -17,6 +17,12 @@ class Trip(models.Model):
     municipality = models.ForeignKey("tenants.Municipality", on_delete=models.CASCADE, related_name="trips")
     vehicle = models.ForeignKey("fleet.Vehicle", on_delete=models.PROTECT, related_name="trips")
     driver = models.ForeignKey("drivers.Driver", on_delete=models.PROTECT, related_name="trips")
+    contract = models.ForeignKey(
+        "contracts.Contract", on_delete=models.SET_NULL, null=True, blank=True, related_name="trips"
+    )
+    rental_period = models.ForeignKey(
+        "contracts.RentalPeriod", on_delete=models.SET_NULL, null=True, blank=True, related_name="trips"
+    )
     origin = models.CharField(max_length=255)
     destination = models.CharField(max_length=255)
     departure_datetime = models.DateTimeField()

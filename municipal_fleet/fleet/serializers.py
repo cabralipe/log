@@ -1,5 +1,6 @@
 import datetime
 from rest_framework import serializers
+from django.utils import timezone
 from fleet.models import Vehicle, VehicleMaintenance, FuelLog, FuelStation
 
 
@@ -19,8 +20,20 @@ class VehicleSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         odometer_current = attrs.get("odometer_current", getattr(self.instance, "odometer_current", 0))
         odometer_initial = attrs.get("odometer_initial", getattr(self.instance, "odometer_initial", 0))
+        current_contract = attrs.get("current_contract", getattr(self.instance, "current_contract", None))
+        municipality = attrs.get("municipality", getattr(self.instance, "municipality", None))
+
         if odometer_current < odometer_initial:
             raise serializers.ValidationError("Quilometragem atual não pode ser menor que a inicial.")
+
+        if current_contract:
+            if municipality and current_contract.municipality_id != municipality.id:
+                raise serializers.ValidationError("Contrato atual deve ser da mesma prefeitura do veículo.")
+            if current_contract.status != current_contract.Status.ACTIVE:
+                raise serializers.ValidationError("Contrato atual precisa estar ativo.")
+            if current_contract.end_date and current_contract.end_date < timezone.localdate():
+                raise serializers.ValidationError("Contrato atual está vencido.")
+
         return attrs
 
 
@@ -43,7 +56,10 @@ class FuelLogSerializer(serializers.ModelSerializer):
         model = FuelLog
         fields = "__all__"
         read_only_fields = ["id", "created_at", "municipality"]
-        extra_kwargs = {"receipt_image": {"required": False}}
+        extra_kwargs = {
+            "receipt_image": {"required": False},
+            "driver": {"required": False},
+        }
 
     def validate(self, attrs):
         request = self.context.get("request")
@@ -61,9 +77,9 @@ class FuelLogSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Motorista e veículo precisam ser da mesma prefeitura.")
 
         if portal_driver:
-            if driver and driver.id != portal_driver.id:
-                raise serializers.ValidationError("Motorista inválido para este token.")
-            if vehicle and vehicle.municipality_id != portal_driver.municipality_id:
+            if not vehicle:
+                raise serializers.ValidationError("Selecione o veículo abastecido.")
+            if vehicle.municipality_id != portal_driver.municipality_id:
                 raise serializers.ValidationError("Veículo precisa pertencer à prefeitura do motorista.")
             if station:
                 if station.municipality_id != portal_driver.municipality_id:
@@ -77,6 +93,8 @@ class FuelLogSerializer(serializers.ModelSerializer):
             attrs["municipality"] = portal_driver.municipality
             return attrs
 
+        if not driver:
+            raise serializers.ValidationError({"driver": "Motorista é obrigatório."})
         if user and getattr(user, "role", None) != "SUPERADMIN":
             if driver and driver.municipality_id != user.municipality_id:
                 raise serializers.ValidationError("Motorista precisa pertencer à prefeitura do usuário.")

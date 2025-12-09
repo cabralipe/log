@@ -34,6 +34,7 @@ INSTALLED_APPS = [
     "drivers.apps.DriversConfig",
     "trips.apps.TripsConfig",
     "reports.apps.ReportsConfig",
+    "contracts.apps.ContractsConfig",
 ]
 
 MIDDLEWARE = [
