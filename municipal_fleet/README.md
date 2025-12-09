@@ -94,4 +94,4 @@ THROTTLE_LOGIN_RATE=5/min
 - Defina `DJANGO_SECRET_KEY`, `ALLOWED_HOSTS` e credenciais de DB reais em produção (não use defaults do compose).
 - Mantenha `CORS_ALLOW_ALL=False` e liste domínios do frontend em `CORS_ALLOWED_ORIGINS`.
 - Para HTTPS atrás de proxy, mantenha `SECURE_PROXY_SSL_HEADER` (já configurado no settings.prod) e force SSL com `DJANGO_SECURE_SSL_REDIRECT=True`.
-- Faça backup do Postgres (ex.: `pg_dump`) e preserve volumes `pgdata`/`media`/`staticfiles` conforme estratégia de backup.
+- Faça backup do Postgres (ex.: `pg_dump`) e preserve volumes `pgdata`/`media`/`staticfiles` conforme estratégia de backup .
