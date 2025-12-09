@@ -1,7 +1,7 @@
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import { useSidebar } from "../stores/sidebar";
-import { Menu, X, Home, Truck, Wrench, Users, MapPin, BarChart3, Building2, UserCircle, Fuel } from "lucide-react";
+import { Menu, X, Home, Truck, Wrench, Users, MapPin, BarChart3, Building2, UserCircle, Fuel, FileText, Clock3 } from "lucide-react";
 import { useEffect } from "react";
 import "./Layout.css";
 
@@ -31,6 +31,8 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
     { to: "/vehicles", label: "Veículos", icon: Truck },
     { to: "/maintenance", label: "Manutenções", icon: Wrench },
     { to: "/drivers", label: "Motoristas", icon: Users },
+    { to: "/contracts", label: "Contratos", icon: FileText },
+    { to: "/rental-periods", label: "Locações", icon: Clock3 },
     ...(isAdmin ? [{ to: "/fuel-stations", label: "Postos", icon: Fuel }] : []),
     { to: "/trips", label: "Viagens", icon: MapPin },
     { to: "/reports", label: "Relatórios", icon: BarChart3 },

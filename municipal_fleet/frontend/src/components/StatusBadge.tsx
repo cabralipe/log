@@ -10,6 +10,10 @@ const palette: Record<string, string> = {
   IN_PROGRESS: "warn",
   COMPLETED: "ok",
   CANCELLED: "danger",
+  EXPIRED: "danger",
+  OPEN: "warn",
+  CLOSED: "ok",
+  INVOICED: "ok",
 };
 
 export const StatusBadge = ({ status }: { status: string }) => {
