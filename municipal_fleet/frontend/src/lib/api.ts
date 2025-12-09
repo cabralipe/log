@@ -1,6 +1,7 @@
 import axios from "axios";
 
-const API_URL = import.meta.env.VITE_API_URL ?? "http://localhost:8000/api";
+const RAW_API_URL = import.meta.env.VITE_API_URL ?? "http://127.0.0.1:8000/api";
+const API_URL = RAW_API_URL.replace(/^https:\/\//, "http://");
 
 export const api = axios.create({
   baseURL: API_URL,
@@ -10,18 +11,6 @@ api.interceptors.request.use((config) => {
   const token = localStorage.getItem("access");
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
-});
-
-export const driverPortalApi = axios.create({
-  baseURL: API_URL,
-});
-
-driverPortalApi.interceptors.request.use((config) => {
-  const token = localStorage.getItem("driver_portal_token");
-  if (token) {
-    config.headers["X-Driver-Token"] = token;
   }
   return config;
 });
@@ -43,7 +32,11 @@ api.interceptors.response.use(
         localStorage.removeItem("access");
         localStorage.removeItem("refresh");
         window.location.href = "/login";
+        return Promise.reject(e);
       }
+    }
+    if (error.code === 'ERR_NETWORK' || error.message?.includes('Network Error')) {
+        console.error('Erro de rede detectado:', error);
     }
     return Promise.reject(error);
   }
@@ -55,3 +48,15 @@ export type Paginated<T> = {
   previous: string | null;
   results: T[];
 };
+
+export const driverPortalApi = axios.create({
+  baseURL: API_URL,
+});
+
+driverPortalApi.interceptors.request.use((config) => {
+  const token = localStorage.getItem("driver_portal_token");
+  if (token) {
+    (config.headers as any)["X-Driver-Token"] = token;
+  }
+  return config;
+});
