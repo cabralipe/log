@@ -27,10 +27,13 @@ type FuelLogPortal = {
   filled_at: string;
   liters: string;
   fuel_station: string;
+  fuel_station_ref_id?: number | null;
   notes?: string;
   receipt_image?: string;
   vehicle__license_plate: string;
 };
+
+type FuelStation = { id: number; name: string; address?: string };
 
 export const DriverPortalPage = () => {
   const [code, setCode] = useState("");
@@ -38,11 +41,12 @@ export const DriverPortalPage = () => {
   const [driverName, setDriverName] = useState<string>("");
   const [trips, setTrips] = useState<TripPortal[]>([]);
   const [fuelLogs, setFuelLogs] = useState<FuelLogPortal[]>([]);
-  const [fuelForm, setFuelForm] = useState<{ vehicle: number | ""; filled_at: string; liters: string; fuel_station: string; notes: string; receipt_image: File | null }>({
+  const [stations, setStations] = useState<FuelStation[]>([]);
+  const [fuelForm, setFuelForm] = useState<{ vehicle: number | ""; fuel_station_id: number | ""; filled_at: string; liters: string; notes: string; receipt_image: File | null }>({
     vehicle: "",
+    fuel_station_id: "",
     filled_at: "",
     liters: "",
-    fuel_station: "",
     notes: "",
     receipt_image: null,
   });
@@ -64,10 +68,12 @@ export const DriverPortalPage = () => {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const { data } = await api.post("/drivers/portal/login/", { code });
+      const normalizedCode = code.trim().toUpperCase();
+      const { data } = await api.post("/drivers/portal/login/", { code: normalizedCode });
       localStorage.setItem("driver_portal_token", data.token);
       setToken(data.token);
       setDriverName(data.driver.name);
+      setCode(normalizedCode);
       setError(null);
       loadPortalData();
     } catch (err: any) {
@@ -82,6 +88,8 @@ export const DriverPortalPage = () => {
       setTrips(tripsRes.data.trips);
       const fuelRes = await driverPortalApi.get<{ logs: FuelLogPortal[] }>("/drivers/portal/fuel_logs/");
       setFuelLogs(fuelRes.data.logs);
+      const stationsRes = await driverPortalApi.get<{ stations: FuelStation[] }>("/drivers/portal/fuel_stations/");
+      setStations(stationsRes.data.stations);
       setError(null);
     } catch (err: any) {
       setError(err.response?.data?.detail || "Sessão expirada ou código inválido. Entre novamente.");
@@ -96,18 +104,22 @@ export const DriverPortalPage = () => {
       setError("Escolha o veículo abastecido.");
       return;
     }
+    if (!fuelForm.fuel_station_id) {
+      setError("Escolha um posto credenciado.");
+      return;
+    }
     const fd = new FormData();
     fd.append("vehicle", String(fuelForm.vehicle));
+    fd.append("fuel_station_id", String(fuelForm.fuel_station_id));
     fd.append("filled_at", fuelForm.filled_at);
     fd.append("liters", fuelForm.liters);
-    fd.append("fuel_station", fuelForm.fuel_station);
     if (fuelForm.notes) fd.append("notes", fuelForm.notes);
     if (fuelForm.receipt_image) fd.append("receipt_image", fuelForm.receipt_image);
     try {
       await driverPortalApi.post("/drivers/portal/fuel_logs/", fd, {
         headers: { "Content-Type": "multipart/form-data" },
       });
-      setFuelForm({ vehicle: fuelForm.vehicle, filled_at: "", liters: "", fuel_station: "", notes: "", receipt_image: null });
+      setFuelForm({ vehicle: fuelForm.vehicle, fuel_station_id: "", filled_at: "", liters: "", notes: "", receipt_image: null });
       setInfo("Abastecimento registrado.");
       loadPortalData();
     } catch (err: any) {
@@ -198,6 +210,18 @@ export const DriverPortalPage = () => {
                 </option>
               ))}
             </select>
+            <select
+              value={fuelForm.fuel_station_id}
+              onChange={(e) => setFuelForm((f) => ({ ...f, fuel_station_id: Number(e.target.value) }))}
+              required
+            >
+              <option value="">Posto credenciado</option>
+              {stations.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+            </select>
             <label>
               Data do abastecimento
               <input type="date" value={fuelForm.filled_at} onChange={(e) => setFuelForm((f) => ({ ...f, filled_at: e.target.value }))} required />
@@ -210,7 +234,6 @@ export const DriverPortalPage = () => {
               onChange={(e) => setFuelForm((f) => ({ ...f, liters: e.target.value }))}
               required
             />
-            <input placeholder="Posto" value={fuelForm.fuel_station} onChange={(e) => setFuelForm((f) => ({ ...f, fuel_station: e.target.value }))} required />
             <textarea placeholder="Observações" value={fuelForm.notes} onChange={(e) => setFuelForm((f) => ({ ...f, notes: e.target.value }))} rows={2} />
             <label>
               Comprovante (foto)

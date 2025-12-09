@@ -5,24 +5,18 @@ import { Button } from "../components/Button";
 import { StatusBadge } from "../components/StatusBadge";
 import { Pagination } from "../components/Pagination";
 
-type Driver = {
+type FuelStation = {
   id: number;
   name: string;
-  cpf: string;
-  phone: string;
-  status: string;
-  cnh_number: string;
-  cnh_category: string;
-  cnh_expiration_date: string;
-  access_code: string;
+  cnpj: string;
+  address: string;
+  active: boolean;
+  municipality: number;
 };
 
-export const DriversPage = () => {
-  const [drivers, setDrivers] = useState<Driver[]>([]);
-  const [form, setForm] = useState<Partial<Driver>>({
-    status: "ACTIVE",
-    cnh_category: "B",
-  });
+export const FuelStationsPage = () => {
+  const [stations, setStations] = useState<FuelStation[]>([]);
+  const [form, setForm] = useState<Partial<FuelStation>>({ active: true });
   const [editingId, setEditingId] = useState<number | null>(null);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
@@ -32,19 +26,21 @@ export const DriversPage = () => {
 
   const load = (nextPage = page, nextSearch = search, nextPageSize = pageSize) => {
     api
-      .get<Paginated<Driver>>("/drivers/", { params: { page: nextPage, page_size: nextPageSize, search: nextSearch } })
+      .get<Paginated<FuelStation>>("/vehicles/fuel_stations/", {
+        params: { page: nextPage, page_size: nextPageSize, search: nextSearch },
+      })
       .then((res) => {
         const data = res.data as any;
         if (Array.isArray(data)) {
-          setDrivers(data);
+          setStations(data);
           setTotal(data.length);
         } else {
-          setDrivers(data.results);
+          setStations(data.results);
           setTotal(data.count);
         }
         setError(null);
       })
-      .catch((err) => setError(err.response?.data?.detail || "Erro ao carregar motoristas."));
+      .catch((err) => setError(err.response?.data?.detail || "Erro ao carregar postos."));
   };
 
   useEffect(() => {
@@ -53,54 +49,62 @@ export const DriversPage = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (editingId) {
-      await api.patch(`/drivers/${editingId}/`, form);
-    } else {
-      await api.post("/drivers/", form);
+    try {
+      if (editingId) {
+        await api.patch(`/vehicles/fuel_stations/${editingId}/`, form);
+      } else {
+        await api.post("/vehicles/fuel_stations/", form);
+      }
+      setForm({ active: true });
+      setEditingId(null);
+      load();
+    } catch (err: any) {
+      setError(err.response?.data?.detail || "Erro ao salvar posto.");
     }
-    setForm({ status: "ACTIVE", cnh_category: "B" });
-    setEditingId(null);
-    load();
   };
 
-  const handleEdit = (driver: Driver) => {
-    setEditingId(driver.id);
+  const handleEdit = (station: FuelStation) => {
+    setEditingId(station.id);
     setForm({
-      name: driver.name,
-      cpf: driver.cpf,
-      phone: driver.phone,
-      status: driver.status,
-      cnh_number: driver.cnh_number,
-      cnh_category: driver.cnh_category,
-      cnh_expiration_date: driver.cnh_expiration_date,
+      name: station.name,
+      cnpj: station.cnpj,
+      address: station.address,
+      active: station.active,
     });
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm("Deseja remover este motorista?")) return;
+    if (!confirm("Deseja remover este posto?")) return;
     try {
-      await api.delete(`/drivers/${id}/`);
+      await api.delete(`/vehicles/fuel_stations/${id}/`);
       load();
     } catch (err: any) {
-      setError(err.response?.data?.detail || "Erro ao remover motorista.");
+      setError(err.response?.data?.detail || "Erro ao remover posto.");
     }
   };
 
   return (
     <div className="grid" style={{ gridTemplateColumns: "2fr 1fr" }}>
       <div>
-        <h2>Motoristas</h2>
+        <h2>Postos credenciados</h2>
         {error && <div className="card" style={{ color: "#f87171" }}>{error}</div>}
         <div style={{ marginBottom: "0.75rem" }}>
           <input
-            placeholder="Buscar por nome ou CPF"
+            placeholder="Buscar por nome ou CNPJ"
             value={search}
             onChange={(e) => {
               setSearch(e.target.value);
               setPage(1);
               load(1, e.target.value);
             }}
-            style={{ width: "100%", padding: "0.6rem", borderRadius: 10, border: "1px solid var(--border)", background: "#0f1724", color: "var(--text)" }}
+            style={{
+              width: "100%",
+              padding: "0.6rem",
+              borderRadius: 10,
+              border: "1px solid var(--border)",
+              background: "#0f1724",
+              color: "var(--text)",
+            }}
           />
           <div style={{ marginTop: "0.5rem", display: "flex", gap: "0.5rem", alignItems: "center" }}>
             <span style={{ color: "var(--muted)", fontSize: "0.9rem" }}>Itens por página</span>
@@ -125,10 +129,9 @@ export const DriversPage = () => {
         <Table
           columns={[
             { key: "name", label: "Nome" },
-            { key: "cpf", label: "CPF" },
-            { key: "phone", label: "Telefone" },
-            { key: "access_code", label: "Código" },
-            { key: "status", label: "Status", render: (row) => <StatusBadge status={row.status} /> },
+            { key: "cnpj", label: "CNPJ" },
+            { key: "address", label: "Endereço" },
+            { key: "active", label: "Status", render: (row) => <StatusBadge status={row.active ? "ACTIVE" : "INACTIVE"} /> },
             {
               key: "actions",
               label: "Ações",
@@ -144,7 +147,7 @@ export const DriversPage = () => {
               ),
             },
           ]}
-          data={drivers}
+          data={stations}
         />
         <Pagination
           page={page}
@@ -157,34 +160,14 @@ export const DriversPage = () => {
         />
       </div>
       <div className="card">
-        <h3>{editingId ? "Editar motorista" : "Novo motorista"}</h3>
+        <h3>{editingId ? "Editar posto" : "Novo posto credenciado"}</h3>
         <form className="grid" style={{ gap: "0.6rem" }} onSubmit={handleSubmit}>
           <input placeholder="Nome" required value={form.name ?? ""} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
-          <input placeholder="CPF" required value={form.cpf ?? ""} onChange={(e) => setForm((f) => ({ ...f, cpf: e.target.value }))} />
-          <input placeholder="Telefone" required value={form.phone ?? ""} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} />
-          <input placeholder="CNH" required value={form.cnh_number ?? ""} onChange={(e) => setForm((f) => ({ ...f, cnh_number: e.target.value }))} />
-          <label>
-            Validade CNH
-            <input
-              type="date"
-              required
-              value={form.cnh_expiration_date ?? ""}
-              onChange={(e) => setForm((f) => ({ ...f, cnh_expiration_date: e.target.value }))}
-            />
-          </label>
-          <label>
-            Categoria CNH
-            <select value={form.cnh_category} onChange={(e) => setForm((f) => ({ ...f, cnh_category: e.target.value }))}>
-              <option value="A">A</option>
-              <option value="B">B</option>
-              <option value="C">C</option>
-              <option value="D">D</option>
-              <option value="E">E</option>
-            </select>
-          </label>
-          <select value={form.status} onChange={(e) => setForm((f) => ({ ...f, status: e.target.value }))}>
-            <option value="ACTIVE">Ativo</option>
-            <option value="INACTIVE">Inativo</option>
+          <input placeholder="CNPJ" value={form.cnpj ?? ""} onChange={(e) => setForm((f) => ({ ...f, cnpj: e.target.value }))} />
+          <input placeholder="Endereço" value={form.address ?? ""} onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))} />
+          <select value={form.active ? "true" : "false"} onChange={(e) => setForm((f) => ({ ...f, active: e.target.value === "true" }))}>
+            <option value="true">Ativo</option>
+            <option value="false">Inativo</option>
           </select>
           <div className="grid" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "0.5rem" }}>
             <Button type="submit">{editingId ? "Atualizar" : "Salvar"}</Button>
@@ -194,7 +177,7 @@ export const DriversPage = () => {
                 variant="ghost"
                 onClick={() => {
                   setEditingId(null);
-                  setForm({ status: "ACTIVE", cnh_category: "B" });
+                  setForm({ active: true });
                 }}
               >
                 Cancelar

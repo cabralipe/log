@@ -11,11 +11,13 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
     navigate("/login");
   };
 
+  const isAdmin = user?.role === "SUPERADMIN" || user?.role === "ADMIN_MUNICIPALITY";
   const navItems = [
     { to: "/dashboard", label: "Dashboard" },
     { to: "/vehicles", label: "Veículos" },
     { to: "/maintenance", label: "Manutenções" },
     { to: "/drivers", label: "Motoristas" },
+    ...(isAdmin ? [{ to: "/fuel-stations", label: "Postos" }] : []),
     { to: "/trips", label: "Viagens" },
     { to: "/reports", label: "Relatórios" },
   ];

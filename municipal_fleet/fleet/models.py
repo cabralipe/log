@@ -47,6 +47,23 @@ class VehicleMaintenance(models.Model):
         return f"{self.vehicle.license_plate} - {self.description}"
 
 
+class FuelStation(models.Model):
+    municipality = models.ForeignKey("tenants.Municipality", on_delete=models.CASCADE, related_name="fuel_stations")
+    name = models.CharField(max_length=255)
+    cnpj = models.CharField(max_length=18, blank=True)
+    address = models.CharField(max_length=255, blank=True)
+    active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ("municipality", "name")
+        ordering = ["name"]
+
+    def __str__(self):
+        return f"{self.name} ({self.municipality})"
+
+
 class FuelLog(models.Model):
     municipality = models.ForeignKey("tenants.Municipality", on_delete=models.CASCADE, related_name="fuel_logs")
     vehicle = models.ForeignKey(Vehicle, on_delete=models.PROTECT, related_name="fuel_logs")
@@ -54,6 +71,7 @@ class FuelLog(models.Model):
     filled_at = models.DateField()
     liters = models.DecimalField(max_digits=8, decimal_places=2)
     fuel_station = models.CharField(max_length=255)
+    fuel_station_ref = models.ForeignKey(FuelStation, null=True, blank=True, on_delete=models.PROTECT, related_name="fuel_logs")
     receipt_image = models.FileField(upload_to="fuel_receipts/", null=True, blank=True)
     notes = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)

@@ -4,7 +4,7 @@ from drivers.serializers import DriverSerializer
 from tenants.mixins import MunicipalityQuerysetMixin
 from accounts.permissions import IsMunicipalityAdminOrReadOnly
 from drivers.portal import generate_portal_token, resolve_portal_token
-from fleet.models import FuelLog
+from fleet.models import FuelLog, FuelStation
 from fleet.serializers import FuelLogSerializer
 
 
@@ -37,7 +37,10 @@ class DriverPortalLoginView(views.APIView):
     permission_classes = [permissions.AllowAny]
 
     def post(self, request):
-        code = request.data.get("code")
+        code_raw = request.data.get("code", "")
+        code = str(code_raw).strip().upper()
+        if not code:
+            return response.Response({"detail": "Código do motorista é obrigatório."}, status=status.HTTP_400_BAD_REQUEST)
         driver = Driver.objects.filter(access_code=code, status=Driver.Status.ACTIVE).select_related("municipality").first()
         if not driver:
             return response.Response({"detail": "Código inválido ou motorista inativo."}, status=status.HTTP_400_BAD_REQUEST)
@@ -97,6 +100,7 @@ class DriverPortalFuelLogView(DriverPortalAuthMixin, views.APIView):
                 "filled_at",
                 "liters",
                 "fuel_station",
+                "fuel_station_ref_id",
                 "notes",
                 "receipt_image",
                 "vehicle_id",
@@ -114,3 +118,16 @@ class DriverPortalFuelLogView(DriverPortalAuthMixin, views.APIView):
         serializer.is_valid(raise_exception=True)
         serializer.save(driver=driver, municipality=driver.municipality)
         return response.Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+class DriverPortalFuelStationsView(DriverPortalAuthMixin, views.APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        driver = self.get_portal_driver(request)
+        stations = (
+            FuelStation.objects.filter(municipality=driver.municipality, active=True)
+            .order_by("name")
+            .values("id", "name", "address")
+        )
+        return response.Response({"stations": list(stations)})

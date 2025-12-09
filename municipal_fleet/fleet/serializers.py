@@ -1,6 +1,6 @@
 import datetime
 from rest_framework import serializers
-from fleet.models import Vehicle, VehicleMaintenance, FuelLog
+from fleet.models import Vehicle, VehicleMaintenance, FuelLog, FuelStation
 
 
 class VehicleSerializer(serializers.ModelSerializer):
@@ -32,6 +32,13 @@ class VehicleMaintenanceSerializer(serializers.ModelSerializer):
 
 
 class FuelLogSerializer(serializers.ModelSerializer):
+    fuel_station_id = serializers.PrimaryKeyRelatedField(
+        queryset=FuelStation.objects.all(),
+        source="fuel_station_ref",
+        required=False,
+        allow_null=True,
+    )
+
     class Meta:
         model = FuelLog
         fields = "__all__"
@@ -45,6 +52,7 @@ class FuelLogSerializer(serializers.ModelSerializer):
         driver = attrs.get("driver", getattr(self.instance, "driver", None))
         vehicle = attrs.get("vehicle", getattr(self.instance, "vehicle", None))
         liters = attrs.get("liters", getattr(self.instance, "liters", 0))
+        station = attrs.get("fuel_station_ref", getattr(self.instance, "fuel_station_ref", None))
 
         if liters is not None and liters <= 0:
             raise serializers.ValidationError("Quantidade de litros deve ser maior que zero.")
@@ -57,6 +65,14 @@ class FuelLogSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError("Motorista inválido para este token.")
             if vehicle and vehicle.municipality_id != portal_driver.municipality_id:
                 raise serializers.ValidationError("Veículo precisa pertencer à prefeitura do motorista.")
+            if station:
+                if station.municipality_id != portal_driver.municipality_id:
+                    raise serializers.ValidationError("Posto precisa pertencer à prefeitura do motorista.")
+                if not station.active:
+                    raise serializers.ValidationError("Posto indisponível.")
+                attrs["fuel_station"] = station.name
+            else:
+                raise serializers.ValidationError("Selecione um posto credenciado.")
             attrs["driver"] = portal_driver
             attrs["municipality"] = portal_driver.municipality
             return attrs
@@ -66,4 +82,18 @@ class FuelLogSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError("Motorista precisa pertencer à prefeitura do usuário.")
             if vehicle and vehicle.municipality_id != user.municipality_id:
                 raise serializers.ValidationError("Veículo precisa pertencer à prefeitura do usuário.")
+            if station and station.municipality_id != user.municipality_id:
+                raise serializers.ValidationError("Posto precisa pertencer à prefeitura do usuário.")
+        if station and not station.active:
+            raise serializers.ValidationError("Posto indisponível.")
+        if station and not attrs.get("fuel_station"):
+            attrs["fuel_station"] = station.name
         return attrs
+
+
+class FuelStationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = FuelStation
+        fields = "__all__"
+        read_only_fields = ["id", "created_at", "updated_at"]
+        extra_kwargs = {"municipality": {"read_only": True}}

@@ -1,6 +1,7 @@
 import os
 from datetime import timedelta
 from pathlib import Path
+from corsheaders.defaults import default_headers
 
 
 def env_bool(key: str, default: bool = False) -> bool:
@@ -138,6 +139,11 @@ SIMPLE_JWT = {
 
 CORS_ALLOW_ALL_ORIGINS = env_bool("CORS_ALLOW_ALL", True)
 CORS_ALLOWED_ORIGINS = os.environ.get("CORS_ALLOWED_ORIGINS", "").split(",") if not CORS_ALLOW_ALL_ORIGINS else []
+# Allow driver portal token header on CORS preflight.
+CORS_ALLOW_HEADERS = list(default_headers) + [
+    "X-Driver-Token",
+    "x-driver-token",
+]
 
 SPECTACULAR_SETTINGS = {
     "TITLE": "Municipal Fleet API",

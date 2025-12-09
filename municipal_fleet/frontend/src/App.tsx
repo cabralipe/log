@@ -5,6 +5,7 @@ import { DriverPortalPage } from "./pages/DriverPortal";
 import { DashboardPage } from "./pages/Dashboard";
 import { VehiclesPage } from "./pages/Vehicles";
 import { DriversPage } from "./pages/Drivers";
+import { FuelStationsPage } from "./pages/FuelStations";
 import { TripsPage } from "./pages/Trips";
 import { ReportsPage } from "./pages/Reports";
 import { MaintenancePage } from "./pages/Maintenance";
@@ -36,6 +37,7 @@ const AppRoutes = () => (
       <Route path="/vehicles" element={<VehiclesPage />} />
       <Route path="/maintenance" element={<MaintenancePage />} />
       <Route path="/drivers" element={<DriversPage />} />
+      <Route path="/fuel-stations" element={<FuelStationsPage />} />
       <Route path="/trips" element={<TripsPage />} />
       <Route path="/reports" element={<ReportsPage />} />
       <Route path="/municipalities" element={<MunicipalitiesPage />} />

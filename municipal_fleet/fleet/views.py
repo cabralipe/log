@@ -1,7 +1,7 @@
 from rest_framework import viewsets, permissions, filters
 from rest_framework import parsers
-from fleet.models import Vehicle, VehicleMaintenance, FuelLog
-from fleet.serializers import VehicleSerializer, VehicleMaintenanceSerializer, FuelLogSerializer
+from fleet.models import Vehicle, VehicleMaintenance, FuelLog, FuelStation
+from fleet.serializers import VehicleSerializer, VehicleMaintenanceSerializer, FuelLogSerializer, FuelStationSerializer
 from tenants.mixins import MunicipalityQuerysetMixin
 from accounts.permissions import IsMunicipalityAdminOrReadOnly
 
@@ -67,3 +67,19 @@ class FuelLogViewSet(MunicipalityQuerysetMixin, viewsets.ModelViewSet):
                 or getattr(serializer.validated_data.get("driver"), "municipality", None)
             )
         serializer.save(municipality=municipality)
+
+
+class FuelStationViewSet(MunicipalityQuerysetMixin, viewsets.ModelViewSet):
+    queryset = FuelStation.objects.select_related("municipality")
+    serializer_class = FuelStationSerializer
+    permission_classes = [permissions.IsAuthenticated, IsMunicipalityAdminOrReadOnly]
+    filter_backends = [filters.SearchFilter]
+    search_fields = ["name", "cnpj", "address"]
+
+    def perform_create(self, serializer):
+        user = self.request.user
+        serializer.save(
+            municipality=user.municipality
+            if user.role != "SUPERADMIN"
+            else serializer.validated_data.get("municipality")
+        )
