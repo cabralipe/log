@@ -1,7 +1,20 @@
+:root {
+  --sidebar-width: 240px;
+  --sidebar-collapsed-width: 72px;
+  --transition-duration: 300ms;
+  --border: #2a3342;
+  --muted: #94a3b8;
+  --text: #f1f5f9;
+  --accent: #4ade80;
+  --accent-strong: #22c55e;
+}
+
 .layout {
   display: grid;
-  grid-template-columns: 240px 1fr;
+  grid-template-columns: var(--sidebar-width) 1fr;
   min-height: 100vh;
+  will-change: grid-template-columns;
+  transition: grid-template-columns var(--transition-duration) ease;
 }
 
 aside {
@@ -11,12 +24,51 @@ aside {
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
+  width: var(--sidebar-width);
+  will-change: width;
+  transition: width var(--transition-duration) ease;
+  position: relative;
+  overflow: hidden;
+}
+
+aside.collapsed {
+  width: var(--sidebar-collapsed-width);
+  padding: 1rem;
+}
+
+.toggle {
+  display: none;
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 0.25rem;
+  border-radius: 6px;
+  transition: color 0.2s ease, background 0.2s ease;
+}
+
+.toggle:hover {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.05);
 }
 
 .logo {
   font-weight: 700;
   font-size: 1.2rem;
   letter-spacing: 0.03em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  will-change: opacity;
+  transition: opacity var(--transition-duration) ease;
+}
+
+aside.collapsed .logo {
+  opacity: 0;
+  pointer-events: none;
 }
 
 nav {
@@ -25,29 +77,79 @@ nav {
   gap: 0.75rem;
 }
 
-.divider {
-  height: 1px;
-  background: var(--border);
-  margin: 0.25rem 0;
-}
-
 nav a {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
   padding: 0.75rem 1rem;
   border-radius: 10px;
   color: var(--muted);
   border: 1px solid transparent;
   transition: all 0.2s ease;
+  will-change: transform, background, color;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Ensure icons remain visible and don't shrink */
+nav a svg {
+  flex-shrink: 0;
+  color: currentColor;
+}
+
+nav a.active svg {
+  color: var(--text);
 }
 
 nav a:hover {
   background: #111a26;
   color: var(--text);
+  transform: translateX(2px);
 }
 
 nav a.active {
   background: #132033;
   color: var(--text);
   border-color: var(--border);
+}
+
+nav a .label {
+  will-change: opacity, max-width;
+  transition: opacity var(--transition-duration) ease, max-width var(--transition-duration) ease;
+  max-width: 200px;
+  opacity: 1;
+  display: inline-block;
+}
+
+aside.collapsed nav a .label {
+  opacity: 0;
+  max-width: 0;
+  width: 0;
+  pointer-events: none;
+  display: none; /* remove o item do fluxo flex para centralização perfeita do ícone */
+}
+
+aside.collapsed nav a {
+  justify-content: center;
+  gap: 0; /* remove espaço entre ícone e label oculto para centralizar ícone */
+}
+
+aside.collapsed nav a svg {
+  margin: 0 auto;
+}
+
+.divider {
+  height: 1px;
+  background: var(--border);
+  margin: 0.25rem 0;
+  will-change: opacity;
+  transition: opacity var(--transition-duration) ease;
+}
+
+aside.collapsed .divider {
+  opacity: 0;
+  pointer-events: none;
 }
 
 .user {
@@ -57,6 +159,13 @@ nav a.active {
   gap: 0.5rem;
   font-size: 0.9rem;
   color: var(--muted);
+  will-change: opacity;
+  transition: opacity var(--transition-duration) ease;
+}
+
+aside.collapsed .user {
+  opacity: 0;
+  pointer-events: none;
 }
 
 .user button {
@@ -67,10 +176,18 @@ nav a.active {
   padding: 0.65rem 0.9rem;
   font-weight: 600;
   cursor: pointer;
+  will-change: transform;
+  transition: transform 0.2s ease, background 0.2s ease;
+}
+
+.user button:hover {
+  transform: scale(1.03);
+  background: #16a34a;
 }
 
 main {
   padding: 1.5rem 2rem;
+  min-width: 0;
 }
 
 header {
@@ -87,4 +204,61 @@ header {
   padding: 0.45rem 0.7rem;
   border-radius: 10px;
   font-size: 0.85rem;
+}
+
+/* Mobile: show toggle and auto-collapse */
+@media (max-width: 768px) {
+  .toggle {
+    display: block;
+  }
+
+  .layout {
+    grid-template-columns: var(--sidebar-collapsed-width) 1fr;
+  }
+
+  aside {
+    width: var(--sidebar-collapsed-width);
+    padding: 1rem;
+  }
+
+  aside.collapsed {
+    width: var(--sidebar-collapsed-width);
+  }
+
+  aside:not(.collapsed) {
+    width: var(--sidebar-width);
+    padding: 1.5rem;
+  }
+
+  nav a {
+    justify-content: center;
+  }
+
+  nav a .label {
+    opacity: 0;
+    max-width: 0;
+    pointer-events: none;
+  }
+
+  aside:not(.collapsed) nav a .label {
+    opacity: 1;
+    max-width: 200px;
+  }
+
+  aside:not(.collapsed) nav a {
+    justify-content: flex-start;
+  }
+
+  .logo,
+  .user,
+  .divider {
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  aside:not(.collapsed) .logo,
+  aside:not(.collapsed) .user,
+  aside:not(.collapsed) .divider {
+    opacity: 1;
+  }
 }
