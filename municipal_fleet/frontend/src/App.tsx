@@ -13,6 +13,10 @@ import { MunicipalitiesPage } from "./pages/Municipalities";
 import { UsersPage } from "./pages/Users";
 import { ContractsPage } from "./pages/Contracts";
 import { RentalPeriodsPage } from "./pages/RentalPeriods";
+import { PublicFormPage } from "./pages/PublicForm";
+import { FormSubmissionsPage } from "./pages/FormSubmissions";
+import { StudentCardsPage } from "./pages/StudentCards";
+import { FormTemplatesPage } from "./pages/FormTemplates";
 import { Layout } from "./components/Layout";
 
 const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
@@ -26,6 +30,7 @@ const AppRoutes = () => (
   <Routes>
     <Route path="/login" element={<LoginPage />} />
     <Route path="/driver-portal" element={<DriverPortalPage />} />
+    <Route path="/public/forms/:slug" element={<PublicFormPage />} />
     <Route
       element={
         <PrivateRoute>
@@ -46,6 +51,9 @@ const AppRoutes = () => (
       <Route path="/reports" element={<ReportsPage />} />
       <Route path="/municipalities" element={<MunicipalitiesPage />} />
       <Route path="/users" element={<UsersPage />} />
+      <Route path="/form-templates" element={<FormTemplatesPage />} />
+      <Route path="/form-submissions" element={<FormSubmissionsPage />} />
+      <Route path="/student-cards" element={<StudentCardsPage />} />
       <Route path="/" element={<Navigate to="/dashboard" replace />} />
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Route>
