@@ -391,7 +391,7 @@ export const ContractsPage = () => {
               ]}
               data={contractVehicles}
             />
-            <form className="grid" style={{ gap: "0.6rem", marginTop: "0.75rem" }} onSubmit={handleLinkSubmit}>
+            <form className="grid form-grid responsive" style={{ marginTop: "0.75rem" }} onSubmit={handleLinkSubmit}>
               <select
                 required
                 value={linkForm.vehicle ?? ""}
@@ -465,7 +465,7 @@ export const ContractsPage = () => {
 
       <div className="card">
         <h3>{editingId ? "Editar contrato" : "Novo contrato"}</h3>
-        <form className="grid" style={{ gap: "0.6rem" }} onSubmit={handleSubmit}>
+        <form className="grid form-grid responsive" onSubmit={handleSubmit}>
           <input
             placeholder="Número do contrato"
             required

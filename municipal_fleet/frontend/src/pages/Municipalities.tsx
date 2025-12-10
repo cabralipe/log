@@ -156,7 +156,7 @@ export const MunicipalitiesPage = () => {
       </div>
       <div className="card">
         <h3>{editingId ? "Editar prefeitura" : "Nova prefeitura"}</h3>
-        <form className="grid" style={{ gap: "0.6rem" }} onSubmit={handleSubmit}>
+        <form className="grid form-grid responsive" onSubmit={handleSubmit}>
           <input placeholder="Nome" required value={form.name ?? ""} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
           <input placeholder="CNPJ" required value={form.cnpj ?? ""} onChange={(e) => setForm((f) => ({ ...f, cnpj: e.target.value }))} />
           <input placeholder="Endereço" required value={form.address ?? ""} onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))} />

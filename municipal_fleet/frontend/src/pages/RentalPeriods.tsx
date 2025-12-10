@@ -277,7 +277,7 @@ export const RentalPeriodsPage = () => {
         {closingId && (
           <div className="card">
             <h3>Encerrar período</h3>
-            <form className="grid" style={{ gap: "0.6rem" }} onSubmit={handleClose}>
+            <form className="grid form-grid responsive" onSubmit={handleClose}>
               <input
                 type="datetime-local"
                 required
@@ -318,7 +318,7 @@ export const RentalPeriodsPage = () => {
 
       <div className="card">
         <h3>Novo período</h3>
-        <form className="grid" style={{ gap: "0.6rem" }} onSubmit={handleSubmit}>
+        <form className="grid form-grid responsive" onSubmit={handleSubmit}>
           <select
             required
             value={form.contract ?? ""}

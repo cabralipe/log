@@ -30,7 +30,7 @@ export const LoginPage = () => {
       <div className="login-card card">
         <h1>Frotas</h1>
         <p>Entre para gerenciar veículos, viagens e motoristas.</p>
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} className="grid form-grid">
           <label>
             Email
             <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />

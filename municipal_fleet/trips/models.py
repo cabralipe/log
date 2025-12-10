@@ -50,6 +50,20 @@ class Trip(models.Model):
         return f"{self.origin} -> {self.destination} ({self.departure_datetime.date()})"
 
 
+class TripIncident(models.Model):
+    municipality = models.ForeignKey("tenants.Municipality", on_delete=models.CASCADE, related_name="trip_incidents")
+    trip = models.ForeignKey(Trip, on_delete=models.CASCADE, related_name="incidents")
+    driver = models.ForeignKey("drivers.Driver", on_delete=models.CASCADE, related_name="trip_incidents")
+    description = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"Ocorrência na viagem #{self.trip_id}"
+
+
 class MonthlyOdometer(models.Model):
     vehicle = models.ForeignKey("fleet.Vehicle", on_delete=models.CASCADE, related_name="odometer_monthly")
     year = models.IntegerField()

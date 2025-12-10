@@ -178,7 +178,7 @@ export const UsersPage = () => {
       </div>
       <div className="card">
         <h3>{editingId ? "Editar usuário" : "Novo usuário"}</h3>
-        <form className="grid" style={{ gap: "0.6rem" }} onSubmit={handleSubmit}>
+        <form className="grid form-grid responsive" onSubmit={handleSubmit}>
           <input
             placeholder="Email"
             type="email"

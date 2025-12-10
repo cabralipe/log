@@ -161,7 +161,7 @@ export const VehiclesPage = () => {
       </div>
       <div className="card">
         <h3>{editingId ? "Editar veículo" : "Novo veículo"}</h3>
-        <form className="grid" style={{ gap: "0.6rem" }} onSubmit={handleSubmit}>
+        <form className="grid form-grid responsive" onSubmit={handleSubmit}>
           <input placeholder="Placa" required value={form.license_plate ?? ""} onChange={(e) => setForm((f) => ({ ...f, license_plate: e.target.value }))} />
           <input placeholder="Marca" required value={form.brand ?? ""} onChange={(e) => setForm((f) => ({ ...f, brand: e.target.value }))} />
           <input placeholder="Modelo" required value={form.model ?? ""} onChange={(e) => setForm((f) => ({ ...f, model: e.target.value }))} />

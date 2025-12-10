@@ -3,7 +3,7 @@ from django.db.models import Count, Sum, F, ExpressionWrapper, IntegerField
 from django.utils import timezone
 from rest_framework import permissions, response, views
 from fleet.models import Vehicle, FuelLog
-from trips.models import Trip, MonthlyOdometer
+from trips.models import Trip, TripIncident, MonthlyOdometer
 from contracts.models import Contract, RentalPeriod
 
 
@@ -153,6 +153,27 @@ class FuelReportView(views.APIView):
             ).order_by("-filled_at", "-id")
         )
         return response.Response({"summary": summary, "logs": logs})
+
+
+class TripIncidentReportView(views.APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        qs = TripIncident.objects.select_related("trip", "driver", "municipality")
+        if user.role != "SUPERADMIN":
+            qs = qs.filter(municipality=user.municipality)
+        incidents = qs.values(
+            "id",
+            "trip_id",
+            "trip__origin",
+            "trip__destination",
+            "trip__departure_datetime",
+            "driver__name",
+            "description",
+            "created_at",
+        ).order_by("-created_at")
+        return response.Response({"incidents": list(incidents)})
 
 
 class ContractsReportView(views.APIView):

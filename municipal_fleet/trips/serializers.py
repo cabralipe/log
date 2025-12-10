@@ -2,7 +2,7 @@ from datetime import datetime
 from django.db import transaction
 from django.utils import timezone
 from rest_framework import serializers
-from trips.models import Trip, MonthlyOdometer
+from trips.models import Trip, TripIncident, MonthlyOdometer
 from contracts.models import Contract
 from fleet.models import Vehicle
 from drivers.models import Driver
@@ -130,7 +130,7 @@ class TripSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError("Motorista precisa pertencer à prefeitura do usuário.")
             if contract and contract.municipality_id != user.municipality_id:
                 raise serializers.ValidationError("Contrato precisa pertencer à prefeitura do usuário.")
-        if status == Trip.Status.COMPLETED:
+        if status == Trip.Status.COMPLETED and not self.context.get("portal_driver"):
             if odometer_end is None:
                 raise serializers.ValidationError("odometer_end é obrigatório para concluir a viagem.")
             if odometer_end < odometer_start:
@@ -186,3 +186,10 @@ class TripSerializer(serializers.ModelSerializer):
             # Simplified flag via vehicle status hint
             vehicle.status = Vehicle.Status.MAINTENANCE
             vehicle.save(update_fields=["status"])
+
+
+class TripIncidentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TripIncident
+        fields = ["id", "trip", "driver", "municipality", "description", "created_at"]
+        read_only_fields = ["id", "driver", "municipality", "created_at"]

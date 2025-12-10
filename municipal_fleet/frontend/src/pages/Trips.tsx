@@ -383,7 +383,7 @@ export const TripsPage = () => {
       </div>
       <div className="card">
         <h3>{editingId ? "Editar viagem" : "Nova viagem"}</h3>
-        <form className="grid" style={{ gap: "0.6rem" }} onSubmit={handleSubmit}>
+        <form className="grid form-grid responsive" onSubmit={handleSubmit}>
           <input placeholder="Origem" required value={form.origin ?? ""} onChange={(e) => setForm((f) => ({ ...f, origin: e.target.value }))} />
           <input placeholder="Destino" required value={form.destination ?? ""} onChange={(e) => setForm((f) => ({ ...f, destination: e.target.value }))} />
           <select
@@ -586,7 +586,7 @@ export const TripsPage = () => {
         </form>
         <div className="card" style={{ marginTop: "1rem" }}>
           <h4>Concluir viagem</h4>
-          <form className="grid" style={{ gap: "0.6rem" }} onSubmit={handleComplete}>
+          <form className="grid form-grid responsive" onSubmit={handleComplete}>
             <select
               value={completion.tripId}
               onChange={(e) => setCompletion((c) => ({ ...c, tripId: Number(e.target.value) || "" }))}

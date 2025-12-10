@@ -162,7 +162,7 @@ export const MaintenancePage = () => {
       </div>
       <div className="card">
         <h3>{editingId ? "Editar manutenção" : "Registrar manutenção"}</h3>
-        <form className="grid" style={{ gap: "0.6rem" }} onSubmit={handleSubmit}>
+        <form className="grid form-grid responsive" onSubmit={handleSubmit}>
           <select
             value={form.vehicle ?? ""}
             onChange={(e) => setForm((f) => ({ ...f, vehicle: Number(e.target.value) }))}

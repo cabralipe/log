@@ -1,4 +1,5 @@
 from rest_framework import viewsets, permissions, filters, views, response, exceptions, parsers, status
+from django.utils import timezone
 from drivers.models import Driver
 from drivers.serializers import DriverSerializer
 from tenants.mixins import MunicipalityQuerysetMixin
@@ -6,6 +7,8 @@ from accounts.permissions import IsMunicipalityAdminOrReadOnly
 from drivers.portal import generate_portal_token, resolve_portal_token
 from fleet.models import FuelLog, FuelStation
 from fleet.serializers import FuelLogSerializer
+from trips.models import Trip, TripIncident
+from trips.serializers import TripSerializer, TripIncidentSerializer
 
 
 class DriverViewSet(MunicipalityQuerysetMixin, viewsets.ModelViewSet):
@@ -83,6 +86,43 @@ class DriverPortalTripsView(DriverPortalAuthMixin, views.APIView):
             )
         )
         return response.Response({"driver": driver.name, "trips": list(trips)})
+
+
+class DriverPortalTripCompleteView(DriverPortalAuthMixin, views.APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request, trip_id: int):
+        driver = self.get_portal_driver(request)
+        trip = driver.trips.filter(id=trip_id).first()
+        if not trip:
+            return response.Response({"detail": "Viagem não encontrada."}, status=status.HTTP_404_NOT_FOUND)
+        serializer = TripSerializer(
+            trip,
+            data={"status": Trip.Status.COMPLETED, "return_datetime_actual": timezone.now()},
+            partial=True,
+            context={"request": request, "portal_driver": driver},
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return response.Response(serializer.data)
+
+
+class DriverPortalTripIncidentView(DriverPortalAuthMixin, views.APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request, trip_id: int):
+        driver = self.get_portal_driver(request)
+        trip = driver.trips.filter(id=trip_id).first()
+        if not trip:
+            return response.Response({"detail": "Viagem não encontrada."}, status=status.HTTP_404_NOT_FOUND)
+        description = str(request.data.get("description", "")).strip()
+        if not description:
+            return response.Response({"detail": "Descrição é obrigatória."}, status=status.HTTP_400_BAD_REQUEST)
+        incident = TripIncident.objects.create(
+            municipality=driver.municipality, trip=trip, driver=driver, description=description
+        )
+        serializer = TripIncidentSerializer(incident)
+        return response.Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
 class DriverPortalFuelLogView(DriverPortalAuthMixin, views.APIView):
