@@ -1,0 +1,48 @@
+.contracts-layout {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: 2fr 1fr;
+}
+
+@media (max-width: 767px) {
+  .contracts-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1023px) {
+  .contracts-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.contracts-filters {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+@media (max-width: 767px) {
+  .contracts-filters {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 767px) {
+  .fab-button {
+    position: fixed;
+    top: 0.75rem;
+    right: 0.75rem;
+    z-index: 1100;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.6rem 0.85rem;
+    border-radius: 999px;
+    background: linear-gradient(120deg, var(--accent-strong), #34d399);
+    color: #031308;
+    box-shadow: 0 12px 24px rgba(52, 211, 153, 0.25);
+    border: none;
+    cursor: pointer;
+  }
+}

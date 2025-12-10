@@ -4,6 +4,9 @@ import { Table } from "../components/Table";
 import { Button } from "../components/Button";
 import { StatusBadge } from "../components/StatusBadge";
 import { Pagination } from "../components/Pagination";
+import { useMediaQuery } from "../hooks/useMediaQuery";
+import { Modal } from "../components/Modal";
+import { FloatingActionButton } from "../components/FloatingActionButton";
 
 type Driver = {
   id: number;
@@ -29,6 +32,8 @@ export const DriversPage = () => {
   const [pageSize, setPageSize] = useState(8);
   const [total, setTotal] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const { isMobile, isTablet, isDesktop } = useMediaQuery();
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const load = (nextPage = page, nextSearch = search, nextPageSize = pageSize) => {
     api
@@ -86,8 +91,58 @@ export const DriversPage = () => {
     }
   };
 
+  const formCard = (
+    <div className="card">
+      <h3>{editingId ? "Editar motorista" : "Novo motorista"}</h3>
+      <form className="grid form-grid responsive" onSubmit={handleSubmit}>
+        <input placeholder="Nome" required value={form.name ?? ""} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
+        <input placeholder="CPF" required value={form.cpf ?? ""} onChange={(e) => setForm((f) => ({ ...f, cpf: e.target.value }))} />
+        <input placeholder="Telefone" required value={form.phone ?? ""} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} />
+        <input placeholder="CNH" required value={form.cnh_number ?? ""} onChange={(e) => setForm((f) => ({ ...f, cnh_number: e.target.value }))} />
+        <label>
+          Validade CNH
+          <input
+            type="date"
+            required
+            value={form.cnh_expiration_date ?? ""}
+            onChange={(e) => setForm((f) => ({ ...f, cnh_expiration_date: e.target.value }))}
+          />
+        </label>
+        <label>
+          Categoria CNH
+          <select value={form.cnh_category} onChange={(e) => setForm((f) => ({ ...f, cnh_category: e.target.value }))}>
+            <option value="A">A</option>
+            <option value="B">B</option>
+            <option value="C">C</option>
+            <option value="D">D</option>
+            <option value="E">E</option>
+          </select>
+        </label>
+        <select value={form.status} onChange={(e) => setForm((f) => ({ ...f, status: e.target.value }))}>
+          <option value="ACTIVE">Ativo</option>
+          <option value="INACTIVE">Inativo</option>
+        </select>
+        <div className="grid" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "0.5rem" }}>
+          <Button type="submit">{editingId ? "Atualizar" : "Salvar"}</Button>
+          {editingId && (
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => {
+                setEditingId(null);
+                setForm({ status: "ACTIVE", cnh_category: "B" });
+              }}
+            >
+              Cancelar
+            </Button>
+          )}
+        </div>
+      </form>
+    </div>
+  );
+
   return (
-    <div className="grid" style={{ gridTemplateColumns: "2fr 1fr" }}>
+    <div className="grid" style={{ gridTemplateColumns: isMobile ? "1fr" : "2fr 1fr" }}>
       <div>
         <h2>Motoristas</h2>
         {error && <div className="card" style={{ color: "#f87171" }}>{error}</div>}
@@ -156,53 +211,16 @@ export const DriversPage = () => {
           }}
         />
       </div>
-      <div className="card">
-        <h3>{editingId ? "Editar motorista" : "Novo motorista"}</h3>
-        <form className="grid form-grid responsive" onSubmit={handleSubmit}>
-          <input placeholder="Nome" required value={form.name ?? ""} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
-          <input placeholder="CPF" required value={form.cpf ?? ""} onChange={(e) => setForm((f) => ({ ...f, cpf: e.target.value }))} />
-          <input placeholder="Telefone" required value={form.phone ?? ""} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} />
-          <input placeholder="CNH" required value={form.cnh_number ?? ""} onChange={(e) => setForm((f) => ({ ...f, cnh_number: e.target.value }))} />
-          <label>
-            Validade CNH
-            <input
-              type="date"
-              required
-              value={form.cnh_expiration_date ?? ""}
-              onChange={(e) => setForm((f) => ({ ...f, cnh_expiration_date: e.target.value }))}
-            />
-          </label>
-          <label>
-            Categoria CNH
-            <select value={form.cnh_category} onChange={(e) => setForm((f) => ({ ...f, cnh_category: e.target.value }))}>
-              <option value="A">A</option>
-              <option value="B">B</option>
-              <option value="C">C</option>
-              <option value="D">D</option>
-              <option value="E">E</option>
-            </select>
-          </label>
-          <select value={form.status} onChange={(e) => setForm((f) => ({ ...f, status: e.target.value }))}>
-            <option value="ACTIVE">Ativo</option>
-            <option value="INACTIVE">Inativo</option>
-          </select>
-          <div className="grid" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "0.5rem" }}>
-            <Button type="submit">{editingId ? "Atualizar" : "Salvar"}</Button>
-            {editingId && (
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={() => {
-                  setEditingId(null);
-                  setForm({ status: "ACTIVE", cnh_category: "B" });
-                }}
-              >
-                Cancelar
-              </Button>
-            )}
-          </div>
-        </form>
-      </div>
+      {!isMobile && formCard}
+
+      {isMobile && (
+        <>
+          <FloatingActionButton onClick={() => setIsModalOpen(true)} aria-label="Adicionar novo motorista" />
+          <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={editingId ? "Editar motorista" : "Novo motorista"}>
+            {formCard}
+          </Modal>
+        </>
+      )}
     </div>
   );
 };

@@ -1,6 +1,12 @@
+.table {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
 .table table {
   width: 100%;
   border-collapse: collapse;
+  min-width: 720px;
 }
 
 .table th,
@@ -17,4 +23,12 @@
 
 .table tbody tr:not(:last-child) td {
   border-bottom: 1px solid var(--border);
+}
+
+@media (max-width: 767px) {
+  .table th,
+  .table td {
+    padding: 0.6rem 0.4rem;
+    font-size: 0.9rem;
+  }
 }
