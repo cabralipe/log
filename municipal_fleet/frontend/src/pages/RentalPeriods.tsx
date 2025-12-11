@@ -60,6 +60,7 @@ export const RentalPeriodsPage = () => {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const contractLabel = useMemo(() => {
@@ -126,12 +127,28 @@ export const RentalPeriodsPage = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const payload = { ...form };
-    await api.post("/rental-periods/", payload);
-    setForm({
-      status: "OPEN",
-      start_datetime: new Date().toISOString().slice(0, 16),
-    });
-    loadPeriods();
+    setSubmitting(true);
+    try {
+      await api.post("/rental-periods/", payload);
+      setForm({
+        status: "OPEN",
+        start_datetime: new Date().toISOString().slice(0, 16),
+      });
+      setError(null);
+      loadPeriods();
+    } catch (err: any) {
+      const data = err?.response?.data;
+      const detail = data?.detail;
+      const fieldErrors = data && typeof data === "object"
+        ? Object.entries(data)
+            .filter(([k]) => k !== "detail")
+            .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(", ") : String(v)}`)
+            .join(" | ")
+        : null;
+      setError(detail || fieldErrors || "Erro ao iniciar período.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const prepareClose = (period: RentalPeriod) => {
@@ -217,7 +234,7 @@ export const RentalPeriodsPage = () => {
             </option>
           ))}
         </select>
-        <Button type="submit">Iniciar período</Button>
+        <Button type="submit" disabled={submitting}>Iniciar período</Button>
       </form>
     </div>
   );
