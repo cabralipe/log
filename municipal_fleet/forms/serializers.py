@@ -67,12 +67,34 @@ class FormTemplateSerializer(serializers.ModelSerializer):
             "updated_at",
         ]
         read_only_fields = ["id", "created_at", "updated_at"]
+        extra_kwargs = {
+            # Allow blank/omitted slug so backend auto-generates one.
+            "slug": {"allow_blank": True, "required": False},
+        }
+
+    @staticmethod
+    def _cleanup_slug(attrs):
+        """
+        Remove empty slug so model default kicks in.
+        """
+        if attrs.get("slug", None) == "":
+            attrs.pop("slug", None)
+        return attrs
 
     def validate(self, attrs):
         form_type = attrs.get("form_type", getattr(self.instance, "form_type", None))
+        attrs = self._cleanup_slug(attrs)
         if form_type == FormTemplate.FormType.STUDENT_CARD_APPLICATION:
             attrs["require_cpf"] = True
         return attrs
+
+    def create(self, validated_data):
+        validated_data = self._cleanup_slug(validated_data)
+        return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        validated_data = self._cleanup_slug(validated_data)
+        return super().update(instance, validated_data)
 
 
 class FormAnswerSerializer(serializers.ModelSerializer):
