@@ -31,17 +31,17 @@ export const MaintenancePage = () => {
       // Transform to MaintenanceRecord format
       const transformedRecords: MaintenanceRecord[] = maintenanceRecords.map((record: any) => ({
         id: record.id.toString(),
-        vehicleId: record.vehicle,
-        vehiclePlate: record.vehicle__license_plate || '',
-        serviceType: record.description || 'Manutenção',
-        description: record.description || '',
-        scheduledDate: record.date || new Date().toISOString().split('T')[0],
-        mileage: record.mileage || 0,
-        status: 'pending',
-        cost: 0,
-        nextMaintenanceDate: '',
-        createdAt: record.created_at || new Date().toISOString(),
-        updatedAt: record.updated_at || new Date().toISOString(),
+        vehicleId: record.vehicle?.toString() || record.vehicle_id?.toString() || '',
+        vehiclePlate: record.vehicle_plate || record.vehicle?.license_plate || 'N/A',
+        type: record.maintenance_type || (record.description?.includes('preventiva') ? 'preventive' : 'corrective'),
+        description: record.description || 'Manutenção programada',
+        status: record.status || (new Date(record.scheduled_date || record.date) < new Date() ? 'overdue' : 'scheduled'),
+        priority: record.priority || 'medium',
+        scheduledDate: record.scheduled_date || record.date || new Date().toISOString().split('T')[0],
+        completedDate: record.completed_date || undefined,
+        cost: record.cost || 0,
+        mechanic: record.mechanic_name || undefined,
+        notes: record.notes || undefined,
       }));
       
       setRecords(transformedRecords);
@@ -84,31 +84,47 @@ export const MaintenancePage = () => {
     load(newPage, search, pageSize);
   };
 
-  const handleCreateMaintenance = async (data: any) => {
+  const handleCreateMaintenance = async (data: { vehicle: number; description: string; date: string; mileage: number }) => {
     try {
       await api.post("/vehicles/maintenance/", {
         vehicle: data.vehicle,
         description: data.description,
-        date: data.scheduledDate,
+        date: data.date,
         mileage: data.mileage,
       });
       load(page, search, pageSize);
     } catch (err: any) {
-      setError(err.response?.data?.detail || "Erro ao criar manutenção.");
+      const resData = err?.response?.data;
+      const detail = resData?.detail;
+      const fieldErrors = resData && typeof resData === "object"
+        ? Object.entries(resData)
+            .filter(([k]) => k !== "detail")
+            .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(", ") : String(v)}`)
+            .join(" | ")
+        : null;
+      setError(detail || fieldErrors || "Erro ao criar manutenção.");
     }
   };
 
-  const handleUpdateMaintenance = async (id: string, data: any) => {
+  const handleUpdateMaintenance = async (id: string, data: { vehicle: number; description: string; date: string; mileage: number }) => {
     try {
       await api.patch(`/vehicles/maintenance/${id}/`, {
         vehicle: data.vehicle,
         description: data.description,
-        date: data.scheduledDate,
+        date: data.date,
         mileage: data.mileage,
       });
       load(page, search, pageSize);
     } catch (err: any) {
-      setError(err.response?.data?.detail || "Erro ao atualizar manutenção.");
+      const resData = err?.response?.data;
+      const detail = resData?.detail;
+      const fieldErrors = resData && typeof resData === "object"
+        ? Object.entries(resData)
+            .filter(([k]) => k !== "detail")
+            .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(", ") : String(v)}`)
+            .join(" | ")
+        : null;
+      setError(detail || fieldErrors || "Erro ao atualizar manutenção.");
     }
   };
 

@@ -4,6 +4,9 @@ import { Table } from "../components/Table";
 import { Button } from "../components/Button";
 import { StatusBadge } from "../components/StatusBadge";
 import { Pagination } from "../components/Pagination";
+import { useMediaQuery } from "../hooks/useMediaQuery";
+import { FloatingActionButton } from "../components/FloatingActionButton";
+import { Modal } from "../components/Modal";
 
 type FuelStation = {
   id: number;
@@ -15,6 +18,7 @@ type FuelStation = {
 };
 
 export const FuelStationsPage = () => {
+  const { isMobile } = useMediaQuery();
   const [stations, setStations] = useState<FuelStation[]>([]);
   const [form, setForm] = useState<Partial<FuelStation>>({ active: true });
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -23,6 +27,7 @@ export const FuelStationsPage = () => {
   const [pageSize, setPageSize] = useState(8);
   const [total, setTotal] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const load = (nextPage = page, nextSearch = search, nextPageSize = pageSize) => {
     api
@@ -83,8 +88,43 @@ export const FuelStationsPage = () => {
     }
   };
 
+  useEffect(() => {
+    if (isMobile && editingId) setIsModalOpen(true);
+  }, [isMobile, editingId]);
+
+  const FormCard = (
+    <div className="card" style={{ marginBottom: "1rem" }}>
+      <h3>{editingId ? "Editar posto" : "Novo posto credenciado"}</h3>
+      <form className="grid form-grid responsive" onSubmit={handleSubmit}>
+        <input placeholder="Nome" required value={form.name ?? ""} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
+        <input placeholder="CNPJ" value={form.cnpj ?? ""} onChange={(e) => setForm((f) => ({ ...f, cnpj: e.target.value }))} />
+        <input placeholder="Endereço" value={form.address ?? ""} onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))} />
+        <select value={form.active ? "true" : "false"} onChange={(e) => setForm((f) => ({ ...f, active: e.target.value === "true" }))}>
+          <option value="true">Ativo</option>
+          <option value="false">Inativo</option>
+        </select>
+        <div className="grid" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "0.5rem" }}>
+          <Button type="submit">{editingId ? "Atualizar" : "Salvar"}</Button>
+          {editingId && (
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => {
+                setEditingId(null);
+                setForm({ active: true });
+              }}
+            >
+              Cancelar
+            </Button>
+          )}
+        </div>
+      </form>
+    </div>
+  );
+
   return (
-    <div className="grid" style={{ gridTemplateColumns: "2fr 1fr" }}>
+    <div className="grid" style={{ gridTemplateColumns: "1fr" }}>
+      {!isMobile && FormCard}
       <div>
         <h2>Postos credenciados</h2>
         {error && <div className="card" style={{ color: "#f87171" }}>{error}</div>}
@@ -159,33 +199,24 @@ export const FuelStationsPage = () => {
           }}
         />
       </div>
-      <div className="card">
-        <h3>{editingId ? "Editar posto" : "Novo posto credenciado"}</h3>
-        <form className="grid form-grid responsive" onSubmit={handleSubmit}>
-          <input placeholder="Nome" required value={form.name ?? ""} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
-          <input placeholder="CNPJ" value={form.cnpj ?? ""} onChange={(e) => setForm((f) => ({ ...f, cnpj: e.target.value }))} />
-          <input placeholder="Endereço" value={form.address ?? ""} onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))} />
-          <select value={form.active ? "true" : "false"} onChange={(e) => setForm((f) => ({ ...f, active: e.target.value === "true" }))}>
-            <option value="true">Ativo</option>
-            <option value="false">Inativo</option>
-          </select>
-          <div className="grid" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "0.5rem" }}>
-            <Button type="submit">{editingId ? "Atualizar" : "Salvar"}</Button>
-            {editingId && (
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={() => {
-                  setEditingId(null);
-                  setForm({ active: true });
-                }}
-              >
-                Cancelar
-              </Button>
-            )}
-          </div>
-        </form>
-      </div>
+      {isMobile && (
+        <>
+          <FloatingActionButton
+            onClick={() => setIsModalOpen(true)}
+            aria-label="Novo posto credenciado"
+            ariaControls="fuel-station-modal"
+            ariaExpanded={isModalOpen}
+          />
+          <Modal
+            open={isModalOpen}
+            onClose={() => setIsModalOpen(false)}
+            title={editingId ? "Editar posto" : "Novo posto credenciado"}
+            id="fuel-station-modal"
+          >
+            {FormCard}
+          </Modal>
+        </>
+      )}
     </div>
   );
 };

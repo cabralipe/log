@@ -4,6 +4,9 @@ import { Table } from "../components/Table";
 import { Button } from "../components/Button";
 import { Pagination } from "../components/Pagination";
 import { StatusBadge } from "../components/StatusBadge";
+import { useMediaQuery } from "../hooks/useMediaQuery";
+import { FloatingActionButton } from "../components/FloatingActionButton";
+import { Modal } from "../components/Modal";
 
 type RentalPeriod = {
   id: number;
@@ -40,6 +43,7 @@ const formatMoney = (value?: number | null) => {
 };
 
 export const RentalPeriodsPage = () => {
+  const { isMobile } = useMediaQuery();
   const [periods, setPeriods] = useState<RentalPeriod[]>([]);
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
@@ -56,6 +60,7 @@ export const RentalPeriodsPage = () => {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const contractLabel = useMemo(() => {
     const map = new Map<number, string>();
@@ -166,9 +171,61 @@ export const RentalPeriodsPage = () => {
     loadPeriods();
   };
 
+  const FormNewPeriod = (
+    <div className="card">
+      <h3>Novo período</h3>
+      <form className="grid form-grid responsive" onSubmit={handleSubmit}>
+        <select
+          required
+          value={form.contract ?? ""}
+          onChange={(e) => setForm((f) => ({ ...f, contract: Number(e.target.value) }))}
+        >
+          <option value="">Contrato</option>
+          {contracts.map((c) => (
+            <option key={c.id} value={c.id}>
+              {contractLabel.get(c.id)}
+            </option>
+          ))}
+        </select>
+        <select
+          value={form.vehicle ?? ""}
+          onChange={(e) => setForm((f) => ({ ...f, vehicle: e.target.value === "" ? null : Number(e.target.value) }))}
+        >
+          <option value="">Veículo (opcional)</option>
+          {vehicles.map((v) => (
+            <option key={v.id} value={v.id}>
+              {vehicleLabel.get(v.id)}
+            </option>
+          ))}
+        </select>
+        <input
+          type="datetime-local"
+          required
+          value={form.start_datetime ?? ""}
+          onChange={(e) => setForm((f) => ({ ...f, start_datetime: e.target.value }))}
+        />
+        <input
+          type="number"
+          placeholder="Odômetro inicial (opcional)"
+          value={form.odometer_start ?? ""}
+          onChange={(e) => setForm((f) => ({ ...f, odometer_start: e.target.value === "" ? undefined : Number(e.target.value) }))}
+        />
+        <select value={form.status} onChange={(e) => setForm((f) => ({ ...f, status: e.target.value as RentalPeriod["status"] }))}>
+          {STATUS_OPTIONS.map((s) => (
+            <option key={s.value} value={s.value}>
+              {s.label}
+            </option>
+          ))}
+        </select>
+        <Button type="submit">Iniciar período</Button>
+      </form>
+    </div>
+  );
+
   return (
-    <div className="grid" style={{ gridTemplateColumns: "2fr 1fr", gap: "1rem" }}>
+    <div className="grid" style={{ gridTemplateColumns: "1fr", gap: "1rem" }}>
       <div className="grid" style={{ gap: "1rem" }}>
+        {!isMobile && FormNewPeriod}
         <div>
           <h2>Períodos de locação</h2>
           {error && <div className="card" style={{ color: "#f87171" }}>{error}</div>}
@@ -315,55 +372,24 @@ export const RentalPeriodsPage = () => {
           </div>
         )}
       </div>
-
-      <div className="card">
-        <h3>Novo período</h3>
-        <form className="grid form-grid responsive" onSubmit={handleSubmit}>
-          <select
-            required
-            value={form.contract ?? ""}
-            onChange={(e) => setForm((f) => ({ ...f, contract: Number(e.target.value) }))}
-          >
-            <option value="">Contrato</option>
-            {contracts.map((c) => (
-              <option key={c.id} value={c.id}>
-                {contractLabel.get(c.id)}
-              </option>
-            ))}
-          </select>
-          <select
-            value={form.vehicle ?? ""}
-            onChange={(e) => setForm((f) => ({ ...f, vehicle: e.target.value === "" ? null : Number(e.target.value) }))}
-          >
-            <option value="">Veículo (opcional)</option>
-            {vehicles.map((v) => (
-              <option key={v.id} value={v.id}>
-                {vehicleLabel.get(v.id)}
-              </option>
-            ))}
-          </select>
-          <input
-            type="datetime-local"
-            required
-            value={form.start_datetime ?? ""}
-            onChange={(e) => setForm((f) => ({ ...f, start_datetime: e.target.value }))}
+      {isMobile && (
+        <>
+          <FloatingActionButton
+            onClick={() => setIsModalOpen(true)}
+            aria-label="Novo período de locação"
+            ariaControls="rental-period-modal"
+            ariaExpanded={isModalOpen}
           />
-          <input
-            type="number"
-            placeholder="Odômetro inicial (opcional)"
-            value={form.odometer_start ?? ""}
-            onChange={(e) => setForm((f) => ({ ...f, odometer_start: e.target.value === "" ? undefined : Number(e.target.value) }))}
-          />
-          <select value={form.status} onChange={(e) => setForm((f) => ({ ...f, status: e.target.value as RentalPeriod["status"] }))}>
-            {STATUS_OPTIONS.map((s) => (
-              <option key={s.value} value={s.value}>
-                {s.label}
-              </option>
-            ))}
-          </select>
-          <Button type="submit">Iniciar período</Button>
-        </form>
-      </div>
+          <Modal
+            open={isModalOpen}
+            onClose={() => setIsModalOpen(false)}
+            title="Novo período"
+            id="rental-period-modal"
+          >
+            {FormNewPeriod}
+          </Modal>
+        </>
+      )}
     </div>
   );
 };

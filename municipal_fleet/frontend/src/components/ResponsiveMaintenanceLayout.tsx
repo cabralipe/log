@@ -162,14 +162,17 @@ export const ResponsiveMaintenanceLayout = ({
             
             <FloatingActionButton
               onClick={handleCreateClick}
-              aria-label="Adicionar nova manutenção"
+              aria-label="Registrar manutenção"
               icon={<Wrench size={24} />}
+              ariaControls="maintenance-modal"
+              ariaExpanded={isModalOpen}
             />
             
             <Modal
-              isOpen={isModalOpen}
+              open={isModalOpen}
               onClose={handleModalClose}
               title={editingRecord ? "Editar Manutenção" : "Registrar Manutenção"}
+              id="maintenance-modal"
             >
               {renderForm()}
             </Modal>
@@ -179,8 +182,11 @@ export const ResponsiveMaintenanceLayout = ({
         {/* Tablet Layout */}
         {isTablet && (
           <div className="tablet-layout">
-            <div className="tablet-content">
-              <div className="tablet-main">
+            <div className="responsive-maintenance-content">
+              <div className="maintenance-list-section">
+                <div className="form-container" style={{ marginBottom: "1rem" }}>
+                  {renderForm()}
+                </div>
                 <div className="maintenance-header">
                   <h2>Histórico de Manutenções</h2>
                   {error && <div className="error-message">{error}</div>}
@@ -225,11 +231,7 @@ export const ResponsiveMaintenanceLayout = ({
                 />
               </div>
               
-              <div className="tablet-sidebar">
-                <div className="form-container">
-                  {renderForm()}
-                </div>
-              </div>
+              
             </div>
           </div>
         )}
@@ -237,8 +239,11 @@ export const ResponsiveMaintenanceLayout = ({
         {/* Desktop Layout */}
         {isDesktop && (
           <div className="desktop-layout">
-            <div className="desktop-content">
-              <div className="desktop-main">
+            <div className="responsive-maintenance-content">
+              <div className="maintenance-list-section">
+                <div className="form-container" style={{ marginBottom: "1rem" }}>
+                  {renderForm()}
+                </div>
                 <div className="maintenance-header">
                   <h2>Histórico de Manutenções</h2>
                   {error && <div className="error-message">{error}</div>}
@@ -283,11 +288,7 @@ export const ResponsiveMaintenanceLayout = ({
                 />
               </div>
               
-              <div className="desktop-sidebar">
-                <div className="form-container">
-                  {renderForm()}
-                </div>
-              </div>
+              
             </div>
           </div>
         )}

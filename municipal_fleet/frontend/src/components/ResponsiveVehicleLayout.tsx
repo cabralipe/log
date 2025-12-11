@@ -1,9 +1,11 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMediaQuery } from "../hooks/useMediaQuery";
 import { Modal } from "./Modal";
 import { FloatingActionButton } from "./FloatingActionButton";
 import { VehicleForm, type VehicleFormData } from "./VehicleForm";
 import { VehicleList } from "./VehicleList";
+import { useAuth } from "../hooks/useAuth";
+import { api } from "../lib/api";
 import "./ResponsiveVehicleLayout.css";
 
 interface Vehicle extends VehicleFormData {
@@ -42,8 +44,31 @@ export const ResponsiveVehicleLayout = ({
   onDeleteVehicle,
 }: ResponsiveVehicleLayoutProps) => {
   const { isMobile, isTablet, isDesktop } = useMediaQuery();
+  const { user } = useAuth();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingVehicle, setEditingVehicle] = useState<Vehicle | null>(null);
+  const [municipalities, setMunicipalities] = useState<Array<{ id: number; name: string }>>([]);
+  const [selectedMunicipality, setSelectedMunicipality] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (user?.municipality) {
+      setSelectedMunicipality(user.municipality);
+    }
+    if (user && user.role === "SUPERADMIN") {
+      api
+        .get<any>("/municipalities/", { params: { page_size: 1000 } })
+        .then((res) => {
+          const data = res.data as any;
+          const items = Array.isArray(data) ? data : data.results || [];
+          const list = items.map((m: any) => ({ id: m.id, name: m.name }));
+          setMunicipalities(list);
+          if (!selectedMunicipality && list.length > 0) setSelectedMunicipality(list[0].id);
+        })
+        .catch(() => {
+          /* ignore */
+        });
+    }
+  }, [user]);
 
   const handleCreateClick = () => {
     setEditingVehicle(null);
@@ -65,7 +90,17 @@ export const ResponsiveVehicleLayout = ({
     if (editingVehicle) {
       onUpdateVehicle(editingVehicle.id, formData);
     } else {
-      onCreateVehicle(formData);
+      if (user?.role === "SUPERADMIN" && !selectedMunicipality) {
+        alert("Selecione a prefeitura para criar o veículo.");
+        return;
+      }
+      const payload: any = { ...formData };
+      if (user?.role === "SUPERADMIN") {
+        if (selectedMunicipality) {
+          payload.municipality = selectedMunicipality;
+        }
+      }
+      onCreateVehicle(payload);
     }
     setIsModalOpen(false);
     setEditingVehicle(null);
@@ -77,11 +112,31 @@ export const ResponsiveVehicleLayout = ({
   };
 
   const renderForm = () => (
-    <VehicleForm
-      initialData={editingVehicle || undefined}
-      onSubmit={handleFormSubmit}
-      onCancel={handleModalClose}
-    />
+    <div>
+      {user?.role === "SUPERADMIN" && (
+        <div className="grid" style={{ gridTemplateColumns: "1fr", gap: "0.5rem", marginBottom: "0.75rem" }}>
+          <label>
+            Prefeitura
+            <select
+              value={selectedMunicipality ?? ""}
+              onChange={(e) => setSelectedMunicipality(Number(e.target.value))}
+              style={{ width: "100%" }}
+            >
+              {municipalities.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+      )}
+      <VehicleForm
+        initialData={editingVehicle || undefined}
+        onSubmit={handleFormSubmit}
+        onClose={isMobile ? handleModalClose : undefined}
+      />
+    </div>
   );
 
   return (
@@ -109,7 +164,7 @@ export const ResponsiveVehicleLayout = ({
               aria-label="Adicionar novo veículo"
             />
             <Modal
-              isOpen={isModalOpen}
+              open={isModalOpen}
               onClose={handleModalClose}
               title={editingVehicle ? "Editar Veículo" : "Novo Veículo"}
             >
@@ -151,6 +206,10 @@ export const ResponsiveVehicleLayout = ({
           <div className="desktop-layout">
             <div className="desktop-content">
               <div className="desktop-main">
+                <div className="form-container card" style={{ marginBottom: "1rem" }}>
+                  <h3>{editingVehicle ? "Editar Veículo" : "Novo Veículo"}</h3>
+                  {renderForm()}
+                </div>
                 <VehicleList
                   vehicles={vehicles}
                   loading={loading}
@@ -165,12 +224,6 @@ export const ResponsiveVehicleLayout = ({
                   onEdit={handleEditClick}
                   onDelete={handleDeleteClick}
                 />
-              </div>
-              <div className="desktop-sidebar">
-                <div className="form-container card">
-                  <h3>{editingVehicle ? "Editar Veículo" : "Novo Veículo"}</h3>
-                  {renderForm()}
-                </div>
               </div>
             </div>
           </div>

@@ -62,7 +62,7 @@
 
 .desktop-content {
   display: grid;
-  grid-template-columns: 1fr 400px;
+  grid-template-columns: 1fr;
   gap: 2rem;
   align-items: start;
 }
@@ -72,9 +72,7 @@
 }
 
 .desktop-sidebar {
-  order: 2;
-  position: sticky;
-  top: 1rem;
+  display: none;
 }
 
 /* Responsive breakpoints */

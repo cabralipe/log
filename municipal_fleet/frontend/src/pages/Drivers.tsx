@@ -1,9 +1,13 @@
 import { useEffect, useState } from "react";
 import { api, type Paginated } from "../lib/api";
+import { useAuth } from "../hooks/useAuth";
 import { Table } from "../components/Table";
 import { Button } from "../components/Button";
 import { StatusBadge } from "../components/StatusBadge";
 import { Pagination } from "../components/Pagination";
+import { useMediaQuery } from "../hooks/useMediaQuery";
+import { Modal } from "../components/Modal";
+import { FloatingActionButton } from "../components/FloatingActionButton";
 
 type Driver = {
   id: number;
@@ -18,17 +22,24 @@ type Driver = {
 };
 
 export const DriversPage = () => {
+  const { user } = useAuth();
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [form, setForm] = useState<Partial<Driver>>({
     status: "ACTIVE",
     cnh_category: "B",
   });
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const [submitting, setSubmitting] = useState(false);
+  const [municipalities, setMunicipalities] = useState<Array<{ id: number; name: string }>>([]);
+  const [selectedMunicipality, setSelectedMunicipality] = useState<number | null>(null);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(8);
   const [total, setTotal] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const { isMobile, isTablet, isDesktop } = useMediaQuery();
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const load = (nextPage = page, nextSearch = search, nextPageSize = pageSize) => {
     api
@@ -51,16 +62,66 @@ export const DriversPage = () => {
     load();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  useEffect(() => {
+    if (user?.municipality) {
+      setSelectedMunicipality(user.municipality);
+    }
+    if (user && user.role === "SUPERADMIN") {
+      api
+        .get<any>("/municipalities/", { params: { page_size: 1000 } })
+        .then((res) => {
+          const data = res.data as any;
+          const items = Array.isArray(data) ? data : data.results || [];
+          const list = items.map((m: any) => ({ id: m.id, name: m.name }));
+          setMunicipalities(list);
+          if (!selectedMunicipality && list.length > 0) setSelectedMunicipality(list[0].id);
+        })
+        .catch(() => {
+          /* ignore */
+        });
+    }
+  }, [user]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (editingId) {
-      await api.patch(`/drivers/${editingId}/`, form);
-    } else {
-      await api.post("/drivers/", form);
+    const errors: Record<string, string> = {};
+    if (!form.name || !form.name.trim()) errors.name = "Nome é obrigatório";
+    if (!form.cpf || !form.cpf.trim()) errors.cpf = "CPF é obrigatório";
+    if (!form.phone || !form.phone.trim()) errors.phone = "Telefone é obrigatório";
+    if (!form.cnh_number || !form.cnh_number.trim()) errors.cnh_number = "CNH é obrigatória";
+    if (!form.cnh_expiration_date || !form.cnh_expiration_date.trim()) errors.cnh_expiration_date = "Validade CNH é obrigatória";
+    if (!form.cnh_category) errors.cnh_category = "Categoria CNH é obrigatória";
+    if (!form.status) errors.status = "Status é obrigatório";
+    if (user?.role === "SUPERADMIN" && !selectedMunicipality) errors.municipality = "Prefeitura é obrigatória";
+    setFormErrors(errors);
+    if (Object.keys(errors).length > 0) return;
+    setSubmitting(true);
+    try {
+      const payload = {
+        ...form,
+        ...(user?.role === "SUPERADMIN" && selectedMunicipality ? { municipality: selectedMunicipality } : {}),
+      };
+      if (editingId) {
+        await api.patch(`/drivers/${editingId}/`, payload);
+      } else {
+        await api.post("/drivers/", payload);
+      }
+      setForm({ status: "ACTIVE", cnh_category: "B" });
+      setEditingId(null);
+      load();
+    } catch (err: any) {
+      const data = err?.response?.data;
+      const detail = data?.detail;
+      const fieldErrors = data && typeof data === "object"
+        ? Object.entries(data)
+            .filter(([k]) => k !== "detail")
+            .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(", ") : String(v)}`)
+            .join(" | ")
+        : null;
+      setError(detail || fieldErrors || "Erro ao salvar motorista.");
+    } finally {
+      setSubmitting(false);
     }
-    setForm({ status: "ACTIVE", cnh_category: "B" });
-    setEditingId(null);
-    load();
   };
 
   const handleEdit = (driver: Driver) => {
@@ -86,9 +147,87 @@ export const DriversPage = () => {
     }
   };
 
+  const formCard = (
+    <div className="card">
+      <h3>{editingId ? "Editar motorista" : "Novo motorista"}</h3>
+      {user?.role === "SUPERADMIN" && (
+        <div className="grid" style={{ gridTemplateColumns: "1fr", gap: "0.5rem", marginBottom: "0.75rem" }}>
+          <label>
+            Prefeitura
+            <select
+              value={selectedMunicipality ?? ""}
+              onChange={(e) => setSelectedMunicipality(Number(e.target.value))}
+              style={{ width: "100%" }}
+              aria-invalid={!!formErrors.municipality}
+            >
+              {municipalities.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.name}
+                </option>
+              ))}
+            </select>
+            {formErrors.municipality && <span className="error-message">{formErrors.municipality}</span>}
+          </label>
+        </div>
+      )}
+      <form className="grid form-grid responsive" onSubmit={handleSubmit}>
+        <input placeholder="Nome" value={form.name ?? ""} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} aria-invalid={!!formErrors.name} />
+        {formErrors.name && <span className="error-message">{formErrors.name}</span>}
+        <input placeholder="CPF" value={form.cpf ?? ""} onChange={(e) => setForm((f) => ({ ...f, cpf: e.target.value }))} aria-invalid={!!formErrors.cpf} />
+        {formErrors.cpf && <span className="error-message">{formErrors.cpf}</span>}
+        <input placeholder="Telefone" value={form.phone ?? ""} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} aria-invalid={!!formErrors.phone} />
+        {formErrors.phone && <span className="error-message">{formErrors.phone}</span>}
+        <input placeholder="CNH" value={form.cnh_number ?? ""} onChange={(e) => setForm((f) => ({ ...f, cnh_number: e.target.value }))} aria-invalid={!!formErrors.cnh_number} />
+        {formErrors.cnh_number && <span className="error-message">{formErrors.cnh_number}</span>}
+        <label>
+          Validade CNH
+          <input
+            type="date"
+            value={form.cnh_expiration_date ?? ""}
+            onChange={(e) => setForm((f) => ({ ...f, cnh_expiration_date: e.target.value }))}
+            aria-invalid={!!formErrors.cnh_expiration_date}
+          />
+          {formErrors.cnh_expiration_date && <span className="error-message">{formErrors.cnh_expiration_date}</span>}
+        </label>
+        <label>
+          Categoria CNH
+          <select value={form.cnh_category} onChange={(e) => setForm((f) => ({ ...f, cnh_category: e.target.value }))} aria-invalid={!!formErrors.cnh_category}>
+            <option value="A">A</option>
+            <option value="B">B</option>
+            <option value="C">C</option>
+            <option value="D">D</option>
+            <option value="E">E</option>
+          </select>
+          {formErrors.cnh_category && <span className="error-message">{formErrors.cnh_category}</span>}
+        </label>
+        <select value={form.status} onChange={(e) => setForm((f) => ({ ...f, status: e.target.value }))} aria-invalid={!!formErrors.status}>
+          <option value="ACTIVE">Ativo</option>
+          <option value="INACTIVE">Inativo</option>
+        </select>
+        {formErrors.status && <span className="error-message">{formErrors.status}</span>}
+        <div className="grid" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "0.5rem" }}>
+          <Button type="submit" disabled={submitting}>{editingId ? "Atualizar" : "Salvar"}</Button>
+          {editingId && (
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => {
+                setEditingId(null);
+                setForm({ status: "ACTIVE", cnh_category: "B" });
+              }}
+            >
+              Cancelar
+            </Button>
+          )}
+        </div>
+      </form>
+    </div>
+  );
+
   return (
-    <div className="grid" style={{ gridTemplateColumns: "2fr 1fr" }}>
+    <div className="grid" style={{ gridTemplateColumns: "1fr" }}>
       <div>
+        {!isMobile && formCard}
         <h2>Motoristas</h2>
         {error && <div className="card" style={{ color: "#f87171" }}>{error}</div>}
         <div style={{ marginBottom: "0.75rem" }}>
@@ -156,53 +295,15 @@ export const DriversPage = () => {
           }}
         />
       </div>
-      <div className="card">
-        <h3>{editingId ? "Editar motorista" : "Novo motorista"}</h3>
-        <form className="grid form-grid responsive" onSubmit={handleSubmit}>
-          <input placeholder="Nome" required value={form.name ?? ""} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
-          <input placeholder="CPF" required value={form.cpf ?? ""} onChange={(e) => setForm((f) => ({ ...f, cpf: e.target.value }))} />
-          <input placeholder="Telefone" required value={form.phone ?? ""} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} />
-          <input placeholder="CNH" required value={form.cnh_number ?? ""} onChange={(e) => setForm((f) => ({ ...f, cnh_number: e.target.value }))} />
-          <label>
-            Validade CNH
-            <input
-              type="date"
-              required
-              value={form.cnh_expiration_date ?? ""}
-              onChange={(e) => setForm((f) => ({ ...f, cnh_expiration_date: e.target.value }))}
-            />
-          </label>
-          <label>
-            Categoria CNH
-            <select value={form.cnh_category} onChange={(e) => setForm((f) => ({ ...f, cnh_category: e.target.value }))}>
-              <option value="A">A</option>
-              <option value="B">B</option>
-              <option value="C">C</option>
-              <option value="D">D</option>
-              <option value="E">E</option>
-            </select>
-          </label>
-          <select value={form.status} onChange={(e) => setForm((f) => ({ ...f, status: e.target.value }))}>
-            <option value="ACTIVE">Ativo</option>
-            <option value="INACTIVE">Inativo</option>
-          </select>
-          <div className="grid" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "0.5rem" }}>
-            <Button type="submit">{editingId ? "Atualizar" : "Salvar"}</Button>
-            {editingId && (
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={() => {
-                  setEditingId(null);
-                  setForm({ status: "ACTIVE", cnh_category: "B" });
-                }}
-              >
-                Cancelar
-              </Button>
-            )}
-          </div>
-        </form>
-      </div>
+
+      {isMobile && (
+        <>
+          <FloatingActionButton onClick={() => setIsModalOpen(true)} aria-label="Adicionar novo motorista" />
+          <Modal open={isModalOpen} onClose={() => setIsModalOpen(false)} title={editingId ? "Editar motorista" : "Novo motorista"}>
+            {formCard}
+          </Modal>
+        </>
+      )}
     </div>
   );
 };
