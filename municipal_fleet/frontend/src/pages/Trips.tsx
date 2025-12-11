@@ -7,6 +7,7 @@ import { Pagination } from "../components/Pagination";
 import { useMediaQuery } from "../hooks/useMediaQuery";
 import { FloatingActionButton } from "../components/FloatingActionButton";
 import { Modal } from "../components/Modal";
+import { formatCpf } from "../utils/masks";
 
 type PassengerDetail = {
   name: string;
@@ -355,7 +356,7 @@ export const TripsPage = () => {
               {(form.passengers_details || []).map((p, idx) => (
                 <div key={idx} className="grid" style={{ gap: "0.4rem", marginBottom: "0.8rem", gridTemplateColumns: "repeat(2, minmax(0, 1fr))" }}>
                   <input placeholder="Nome completo" required value={p.name} onChange={(e) => updatePassenger(idx, { name: e.target.value })} />
-                  <input placeholder="CPF" required value={p.cpf} onChange={(e) => updatePassenger(idx, { cpf: e.target.value })} />
+                  <input placeholder="CPF" required value={p.cpf} onChange={(e) => updatePassenger(idx, { cpf: formatCpf(e.target.value) })} inputMode="numeric" maxLength={14} />
                   <input placeholder="Idade (opcional)" type="number" value={p.age ?? ""} onChange={(e) => updatePassenger(idx, { age: e.target.value ? Number(e.target.value) : undefined })} />
                   <select value={p.special_need} onChange={(e) => updatePassenger(idx, { special_need: e.target.value as PassengerDetail["special_need"] })}>
                     {specialNeedOptions.map((opt) => (

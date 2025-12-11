@@ -7,6 +7,7 @@ import { StatusBadge } from "../components/StatusBadge";
 import { Pagination } from "../components/Pagination";
 import { useMediaQuery } from "../hooks/useMediaQuery";
 import { Modal } from "../components/Modal";
+import { formatCpf } from "../utils/masks";
 import { FloatingActionButton } from "../components/FloatingActionButton";
 
 type Driver = {
@@ -173,7 +174,7 @@ export const DriversPage = () => {
       <form className="grid form-grid responsive" onSubmit={handleSubmit}>
         <input placeholder="Nome" value={form.name ?? ""} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} aria-invalid={!!formErrors.name} />
         {formErrors.name && <span className="error-message">{formErrors.name}</span>}
-        <input placeholder="CPF" value={form.cpf ?? ""} onChange={(e) => setForm((f) => ({ ...f, cpf: e.target.value }))} aria-invalid={!!formErrors.cpf} />
+        <input placeholder="CPF" value={form.cpf ?? ""} onChange={(e) => setForm((f) => ({ ...f, cpf: formatCpf(e.target.value) }))} aria-invalid={!!formErrors.cpf} inputMode="numeric" maxLength={14} />
         {formErrors.cpf && <span className="error-message">{formErrors.cpf}</span>}
         <input placeholder="Telefone" value={form.phone ?? ""} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} aria-invalid={!!formErrors.phone} />
         {formErrors.phone && <span className="error-message">{formErrors.phone}</span>}
