@@ -84,42 +84,47 @@ export const MaintenancePage = () => {
     load(newPage, search, pageSize);
   };
 
-  const handleCreateMaintenance = async (data: any) => {
+  const handleCreateMaintenance = async (data: { vehicle: number; description: string; date: string; mileage: number }) => {
     try {
       await api.post("/vehicles/maintenance/", {
-        vehicle: data.vehicleId,
-        maintenance_type: data.type,
+        vehicle: data.vehicle,
         description: data.description,
-        scheduled_date: data.scheduledDate,
-        cost: data.cost,
-        status: data.status,
-        priority: data.priority,
-        mechanic_name: data.mechanic,
-        notes: data.notes,
+        date: data.date,
+        mileage: data.mileage,
       });
       load(page, search, pageSize);
     } catch (err: any) {
-      setError(err.response?.data?.detail || "Erro ao criar manutenção.");
+      const resData = err?.response?.data;
+      const detail = resData?.detail;
+      const fieldErrors = resData && typeof resData === "object"
+        ? Object.entries(resData)
+            .filter(([k]) => k !== "detail")
+            .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(", ") : String(v)}`)
+            .join(" | ")
+        : null;
+      setError(detail || fieldErrors || "Erro ao criar manutenção.");
     }
   };
 
-  const handleUpdateMaintenance = async (id: string, data: any) => {
+  const handleUpdateMaintenance = async (id: string, data: { vehicle: number; description: string; date: string; mileage: number }) => {
     try {
       await api.patch(`/vehicles/maintenance/${id}/`, {
-        vehicle: data.vehicleId,
-        maintenance_type: data.type,
+        vehicle: data.vehicle,
         description: data.description,
-        scheduled_date: data.scheduledDate,
-        completed_date: data.completedDate,
-        cost: data.cost,
-        status: data.status,
-        priority: data.priority,
-        mechanic_name: data.mechanic,
-        notes: data.notes,
+        date: data.date,
+        mileage: data.mileage,
       });
       load(page, search, pageSize);
     } catch (err: any) {
-      setError(err.response?.data?.detail || "Erro ao atualizar manutenção.");
+      const resData = err?.response?.data;
+      const detail = resData?.detail;
+      const fieldErrors = resData && typeof resData === "object"
+        ? Object.entries(resData)
+            .filter(([k]) => k !== "detail")
+            .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(", ") : String(v)}`)
+            .join(" | ")
+        : null;
+      setError(detail || fieldErrors || "Erro ao atualizar manutenção.");
     }
   };
 

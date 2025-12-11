@@ -1,4 +1,5 @@
 from rest_framework import viewsets, permissions, filters, views, response, exceptions, parsers, status
+from rest_framework.exceptions import ValidationError
 from django.utils import timezone
 from drivers.models import Driver
 from drivers.serializers import DriverSerializer
@@ -20,7 +21,13 @@ class DriverViewSet(MunicipalityQuerysetMixin, viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         user = self.request.user
-        serializer.save(municipality=user.municipality if user.role != "SUPERADMIN" else serializer.validated_data.get("municipality"))
+        if user.role != "SUPERADMIN":
+            serializer.save(municipality=user.municipality)
+        else:
+            municipality = serializer.validated_data.get("municipality")
+            if not municipality:
+                raise ValidationError("Prefeitura é obrigatória para criação por SUPERADMIN.")
+            serializer.save(municipality=municipality)
 
 
 class DriverPortalAuthMixin:

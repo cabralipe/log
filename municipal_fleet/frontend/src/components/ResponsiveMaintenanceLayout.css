@@ -61,7 +61,7 @@
 /* Tablet Layout (768px - 1024px) */
 @media (min-width: 769px) and (max-width: 1024px) {
   .responsive-maintenance-content {
-    grid-template-columns: 350px 1fr;
+    grid-template-columns: 1fr;
     gap: 2rem;
   }
   
@@ -84,7 +84,7 @@
 /* Desktop Layout (>1024px) */
 @media (min-width: 1025px) {
   .responsive-maintenance-content {
-    grid-template-columns: 400px 1fr;
+    grid-template-columns: 1fr;
     gap: 2.5rem;
   }
   
