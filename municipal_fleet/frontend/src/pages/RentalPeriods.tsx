@@ -167,8 +167,56 @@ export const RentalPeriodsPage = () => {
   };
 
   return (
-    <div className="grid" style={{ gridTemplateColumns: "2fr 1fr", gap: "1rem" }}>
+    <div className="grid" style={{ gridTemplateColumns: "1fr", gap: "1rem" }}>
       <div className="grid" style={{ gap: "1rem" }}>
+        <div className="card">
+          <h3>Novo período</h3>
+          <form className="grid form-grid responsive" onSubmit={handleSubmit}>
+            <select
+              required
+              value={form.contract ?? ""}
+              onChange={(e) => setForm((f) => ({ ...f, contract: Number(e.target.value) }))}
+            >
+              <option value="">Contrato</option>
+              {contracts.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {contractLabel.get(c.id)}
+                </option>
+              ))}
+            </select>
+            <select
+              value={form.vehicle ?? ""}
+              onChange={(e) => setForm((f) => ({ ...f, vehicle: e.target.value === "" ? null : Number(e.target.value) }))}
+            >
+              <option value="">Veículo (opcional)</option>
+              {vehicles.map((v) => (
+                <option key={v.id} value={v.id}>
+                  {vehicleLabel.get(v.id)}
+                </option>
+              ))}
+            </select>
+            <input
+              type="datetime-local"
+              required
+              value={form.start_datetime ?? ""}
+              onChange={(e) => setForm((f) => ({ ...f, start_datetime: e.target.value }))}
+            />
+            <input
+              type="number"
+              placeholder="Odômetro inicial (opcional)"
+              value={form.odometer_start ?? ""}
+              onChange={(e) => setForm((f) => ({ ...f, odometer_start: e.target.value === "" ? undefined : Number(e.target.value) }))}
+            />
+            <select value={form.status} onChange={(e) => setForm((f) => ({ ...f, status: e.target.value as RentalPeriod["status"] }))}>
+              {STATUS_OPTIONS.map((s) => (
+                <option key={s.value} value={s.value}>
+                  {s.label}
+                </option>
+              ))}
+            </select>
+            <Button type="submit">Iniciar período</Button>
+          </form>
+        </div>
         <div>
           <h2>Períodos de locação</h2>
           {error && <div className="card" style={{ color: "#f87171" }}>{error}</div>}
@@ -314,55 +362,6 @@ export const RentalPeriodsPage = () => {
             </form>
           </div>
         )}
-      </div>
-
-      <div className="card">
-        <h3>Novo período</h3>
-        <form className="grid form-grid responsive" onSubmit={handleSubmit}>
-          <select
-            required
-            value={form.contract ?? ""}
-            onChange={(e) => setForm((f) => ({ ...f, contract: Number(e.target.value) }))}
-          >
-            <option value="">Contrato</option>
-            {contracts.map((c) => (
-              <option key={c.id} value={c.id}>
-                {contractLabel.get(c.id)}
-              </option>
-            ))}
-          </select>
-          <select
-            value={form.vehicle ?? ""}
-            onChange={(e) => setForm((f) => ({ ...f, vehicle: e.target.value === "" ? null : Number(e.target.value) }))}
-          >
-            <option value="">Veículo (opcional)</option>
-            {vehicles.map((v) => (
-              <option key={v.id} value={v.id}>
-                {vehicleLabel.get(v.id)}
-              </option>
-            ))}
-          </select>
-          <input
-            type="datetime-local"
-            required
-            value={form.start_datetime ?? ""}
-            onChange={(e) => setForm((f) => ({ ...f, start_datetime: e.target.value }))}
-          />
-          <input
-            type="number"
-            placeholder="Odômetro inicial (opcional)"
-            value={form.odometer_start ?? ""}
-            onChange={(e) => setForm((f) => ({ ...f, odometer_start: e.target.value === "" ? undefined : Number(e.target.value) }))}
-          />
-          <select value={form.status} onChange={(e) => setForm((f) => ({ ...f, status: e.target.value as RentalPeriod["status"] }))}>
-            {STATUS_OPTIONS.map((s) => (
-              <option key={s.value} value={s.value}>
-                {s.label}
-              </option>
-            ))}
-          </select>
-          <Button type="submit">Iniciar período</Button>
-        </form>
       </div>
     </div>
   );

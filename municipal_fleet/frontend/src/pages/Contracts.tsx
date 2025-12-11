@@ -271,7 +271,7 @@ export const ContractsPage = () => {
       <div className="grid" style={{ gap: "1rem" }}>
         <div>
           {!isMobile && (
-            <div className="card">
+            <div className="card contracts-form-card">
               <h3>{editingId ? "Editar contrato" : "Novo contrato"}</h3>
               <form className="grid form-grid responsive" onSubmit={handleSubmit}>
               <input

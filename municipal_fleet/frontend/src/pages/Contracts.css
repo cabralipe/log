@@ -46,3 +46,19 @@
     cursor: pointer;
   }
 }
+.contracts-form-card {
+  width: 100%;
+  margin: 0 auto;
+}
+
+@media (min-width: 768px) and (max-width: 1023px) {
+  .contracts-form-card {
+    max-width: 720px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .contracts-form-card {
+    max-width: 900px;
+  }
+}
