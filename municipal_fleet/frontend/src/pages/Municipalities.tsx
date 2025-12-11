@@ -6,6 +6,7 @@ import { Pagination } from "../components/Pagination";
 import { useMediaQuery } from "../hooks/useMediaQuery";
 import { FloatingActionButton } from "../components/FloatingActionButton";
 import { Modal } from "../components/Modal";
+import { formatPhone } from "../utils/masks";
 
 type Municipality = {
   id: number;
@@ -98,7 +99,7 @@ export const MunicipalitiesPage = () => {
         <input placeholder="Endereço" required value={form.address ?? ""} onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))} />
         <input placeholder="Cidade" required value={form.city ?? ""} onChange={(e) => setForm((f) => ({ ...f, city: e.target.value }))} />
         <input placeholder="UF" required maxLength={2} value={form.state ?? ""} onChange={(e) => setForm((f) => ({ ...f, state: e.target.value.toUpperCase() }))} />
-        <input placeholder="Telefone" required value={form.phone ?? ""} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} />
+        <input placeholder="Telefone" required value={form.phone ?? ""} onChange={(e) => setForm((f) => ({ ...f, phone: formatPhone(e.target.value) }))} inputMode="numeric" maxLength={15} />
         <div className="grid" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "0.5rem" }}>
           <Button type="submit">{editingId ? "Atualizar" : "Salvar"}</Button>
           {editingId && (
