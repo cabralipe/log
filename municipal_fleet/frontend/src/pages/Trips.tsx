@@ -275,113 +275,8 @@ export const TripsPage = () => {
   };
 
   return (
-    <div className="grid" style={{ gridTemplateColumns: "2fr 1fr" }}>
-      <div>
-        <h2>Viagens</h2>
-        {error && <div className="card" style={{ color: "#f87171" }}>{error}</div>}
-        <div className="grid" style={{ gridTemplateColumns: "2fr 1fr", marginBottom: "0.75rem", gap: "0.75rem" }}>
-          <input
-            placeholder="Buscar por origem ou destino"
-            value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setPage(1);
-              load(1, e.target.value, statusFilter);
-            }}
-            style={{ width: "100%", padding: "0.6rem", borderRadius: 10, border: "1px solid var(--border)", background: "#0f1724", color: "var(--text)" }}
-          />
-          <select
-            value={statusFilter}
-            onChange={(e) => {
-              setStatusFilter(e.target.value);
-              setPage(1);
-              load(1, search, e.target.value);
-            }}
-            style={{ padding: "0.6rem", borderRadius: 10, border: "1px solid var(--border)", background: "#0f1724", color: "var(--text)" }}
-          >
-            <option value="">Todos status</option>
-            <option value="PLANNED">Planejada</option>
-            <option value="IN_PROGRESS">Em andamento</option>
-            <option value="COMPLETED">Concluída</option>
-            <option value="CANCELLED">Cancelada</option>
-          </select>
-        </div>
-        <div style={{ marginBottom: "0.75rem", display: "flex", gap: "0.5rem", alignItems: "center" }}>
-          <span style={{ color: "var(--muted)", fontSize: "0.9rem" }}>Itens por página</span>
-          <select
-            value={pageSize}
-            onChange={(e) => {
-              const size = Number(e.target.value);
-              setPageSize(size);
-              setPage(1);
-              load(1, search, statusFilter, size);
-            }}
-            style={{ padding: "0.4rem", borderRadius: 8, border: "1px solid var(--border)", background: "#0f1724", color: "var(--text)" }}
-          >
-            {[5, 8, 10, 20, 50].map((n) => (
-              <option key={n} value={n}>
-                {n}
-              </option>
-            ))}
-          </select>
-        </div>
-        <Table
-          columns={[
-            { key: "origin", label: "Origem" },
-            { key: "destination", label: "Destino" },
-            { key: "category", label: "Categoria", render: (row) => categoryLabels[row.category as Trip["category"]] || row.category },
-            { key: "departure_datetime", label: "Saída" },
-            { key: "return_datetime_expected", label: "Retorno" },
-            { key: "passengers_count", label: "Passageiros" },
-            { key: "odometer_start", label: "Odômetro início" },
-            { key: "status", label: "Status", render: (row) => <StatusBadge status={row.status} /> },
-            {
-              key: "whatsapp",
-              label: "WhatsApp",
-              render: (row) => (
-                <Button variant="ghost" onClick={() => buildWhatsapp(row.id)}>
-                  Gerar link
-                </Button>
-              ),
-            },
-            {
-              key: "actions",
-              label: "Ações",
-              render: (row) => (
-                <div className="grid" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "0.3rem" }}>
-                  <Button variant="ghost" onClick={() => handleEdit(row)}>
-                    Editar
-                  </Button>
-                  <Button variant="ghost" onClick={() => handleDelete(row.id)}>
-                    Excluir
-                  </Button>
-                </div>
-              ),
-            },
-          ]}
-          data={trips}
-        />
-        <Pagination
-          page={page}
-          pageSize={pageSize}
-          total={total}
-          onChange={(p) => {
-            setPage(p);
-            load(p, search, statusFilter, pageSize);
-          }}
-        />
-        {message && (
-          <div className="card" style={{ marginTop: "1rem" }}>
-            <strong>Link WhatsApp</strong>
-            <p>
-              <a href={message} target="_blank" rel="noreferrer">
-                {message}
-              </a>
-            </p>
-          </div>
-        )}
-      </div>
-      <div className="card">
+    <div className="grid" style={{ gridTemplateColumns: "1fr" }}>
+      <div className="card" style={{ marginBottom: "1rem" }}>
         <h3>{editingId ? "Editar viagem" : "Nova viagem"}</h3>
         <form className="grid form-grid responsive" onSubmit={handleSubmit}>
           <input placeholder="Origem" required value={form.origin ?? ""} onChange={(e) => setForm((f) => ({ ...f, origin: e.target.value }))} />
@@ -622,6 +517,111 @@ export const TripsPage = () => {
             <Button type="submit">Concluir</Button>
           </form>
         </div>
+      </div>
+      <div>
+        <h2>Viagens</h2>
+        {error && <div className="card" style={{ color: "#f87171" }}>{error}</div>}
+        <div className="grid" style={{ gridTemplateColumns: "2fr 1fr", marginBottom: "0.75rem", gap: "0.75rem" }}>
+          <input
+            placeholder="Buscar por origem ou destino"
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+              load(1, e.target.value, statusFilter);
+            }}
+            style={{ width: "100%", padding: "0.6rem", borderRadius: 10, border: "1px solid var(--border)", background: "#0f1724", color: "var(--text)" }}
+          />
+          <select
+            value={statusFilter}
+            onChange={(e) => {
+              setStatusFilter(e.target.value);
+              setPage(1);
+              load(1, search, e.target.value);
+            }}
+            style={{ padding: "0.6rem", borderRadius: 10, border: "1px solid var(--border)", background: "#0f1724", color: "var(--text)" }}
+          >
+            <option value="">Todos status</option>
+            <option value="PLANNED">Planejada</option>
+            <option value="IN_PROGRESS">Em andamento</option>
+            <option value="COMPLETED">Concluída</option>
+            <option value="CANCELLED">Cancelada</option>
+          </select>
+        </div>
+        <div style={{ marginBottom: "0.75rem", display: "flex", gap: "0.5rem", alignItems: "center" }}>
+          <span style={{ color: "var(--muted)", fontSize: "0.9rem" }}>Itens por página</span>
+          <select
+            value={pageSize}
+            onChange={(e) => {
+              const size = Number(e.target.value);
+              setPageSize(size);
+              setPage(1);
+              load(1, search, statusFilter, size);
+            }}
+            style={{ padding: "0.4rem", borderRadius: 8, border: "1px solid var(--border)", background: "#0f1724", color: "var(--text)" }}
+          >
+            {[5, 8, 10, 20, 50].map((n) => (
+              <option key={n} value={n}>
+                {n}
+              </option>
+            ))}
+          </select>
+        </div>
+        <Table
+          columns={[
+            { key: "origin", label: "Origem" },
+            { key: "destination", label: "Destino" },
+            { key: "category", label: "Categoria", render: (row) => categoryLabels[row.category as Trip["category"]] || row.category },
+            { key: "departure_datetime", label: "Saída" },
+            { key: "return_datetime_expected", label: "Retorno" },
+            { key: "passengers_count", label: "Passageiros" },
+            { key: "odometer_start", label: "Odômetro início" },
+            { key: "status", label: "Status", render: (row) => <StatusBadge status={row.status} /> },
+            {
+              key: "whatsapp",
+              label: "WhatsApp",
+              render: (row) => (
+                <Button variant="ghost" onClick={() => buildWhatsapp(row.id)}>
+                  Gerar link
+                </Button>
+              ),
+            },
+            {
+              key: "actions",
+              label: "Ações",
+              render: (row) => (
+                <div className="grid" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "0.3rem" }}>
+                  <Button variant="ghost" onClick={() => handleEdit(row)}>
+                    Editar
+                  </Button>
+                  <Button variant="ghost" onClick={() => handleDelete(row.id)}>
+                    Excluir
+                  </Button>
+                </div>
+              ),
+            },
+          ]}
+          data={trips}
+        />
+        <Pagination
+          page={page}
+          pageSize={pageSize}
+          total={total}
+          onChange={(p) => {
+            setPage(p);
+            load(p, search, statusFilter, pageSize);
+          }}
+        />
+        {message && (
+          <div className="card" style={{ marginTop: "1rem" }}>
+            <strong>Link WhatsApp</strong>
+            <p>
+              <a href={message} target="_blank" rel="noreferrer">
+                {message}
+              </a>
+            </p>
+          </div>
+        )}
       </div>
     </div>
   );
