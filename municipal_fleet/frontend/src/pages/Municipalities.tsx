@@ -3,6 +3,9 @@ import { api, type Paginated } from "../lib/api";
 import { Table } from "../components/Table";
 import { Button } from "../components/Button";
 import { Pagination } from "../components/Pagination";
+import { useMediaQuery } from "../hooks/useMediaQuery";
+import { FloatingActionButton } from "../components/FloatingActionButton";
+import { Modal } from "../components/Modal";
 
 type Municipality = {
   id: number;
@@ -15,6 +18,7 @@ type Municipality = {
 };
 
 export const MunicipalitiesPage = () => {
+  const { isMobile } = useMediaQuery();
   const [items, setItems] = useState<Municipality[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [form, setForm] = useState<Partial<Municipality>>({ state: "SP" });
@@ -23,6 +27,7 @@ export const MunicipalitiesPage = () => {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(8);
   const [total, setTotal] = useState(0);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const load = (nextPage = page, nextSearch = search, nextPageSize = pageSize) => {
     api
@@ -80,35 +85,43 @@ export const MunicipalitiesPage = () => {
     }
   };
 
+  useEffect(() => {
+    if (isMobile && editingId) setIsModalOpen(true);
+  }, [isMobile, editingId]);
+
+  const FormCard = (
+    <div className="card" style={{ marginBottom: "1rem" }}>
+      <h3>{editingId ? "Editar prefeitura" : "Nova prefeitura"}</h3>
+      <form className="grid form-grid responsive" onSubmit={handleSubmit}>
+        <input placeholder="Nome" required value={form.name ?? ""} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
+        <input placeholder="CNPJ" required value={form.cnpj ?? ""} onChange={(e) => setForm((f) => ({ ...f, cnpj: e.target.value }))} />
+        <input placeholder="Endereço" required value={form.address ?? ""} onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))} />
+        <input placeholder="Cidade" required value={form.city ?? ""} onChange={(e) => setForm((f) => ({ ...f, city: e.target.value }))} />
+        <input placeholder="UF" required maxLength={2} value={form.state ?? ""} onChange={(e) => setForm((f) => ({ ...f, state: e.target.value.toUpperCase() }))} />
+        <input placeholder="Telefone" required value={form.phone ?? ""} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} />
+        <div className="grid" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "0.5rem" }}>
+          <Button type="submit">{editingId ? "Atualizar" : "Salvar"}</Button>
+          {editingId && (
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => {
+                setEditingId(null);
+                setForm({ state: "SP" });
+                setError(null);
+              }}
+            >
+              Cancelar
+            </Button>
+          )}
+        </div>
+      </form>
+    </div>
+  );
+
   return (
     <div className="grid" style={{ gridTemplateColumns: "1fr" }}>
-      <div className="card" style={{ marginBottom: "1rem" }}>
-        <h3>{editingId ? "Editar prefeitura" : "Nova prefeitura"}</h3>
-        <form className="grid form-grid responsive" onSubmit={handleSubmit}>
-          <input placeholder="Nome" required value={form.name ?? ""} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
-          <input placeholder="CNPJ" required value={form.cnpj ?? ""} onChange={(e) => setForm((f) => ({ ...f, cnpj: e.target.value }))} />
-          <input placeholder="Endereço" required value={form.address ?? ""} onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))} />
-          <input placeholder="Cidade" required value={form.city ?? ""} onChange={(e) => setForm((f) => ({ ...f, city: e.target.value }))} />
-          <input placeholder="UF" required maxLength={2} value={form.state ?? ""} onChange={(e) => setForm((f) => ({ ...f, state: e.target.value.toUpperCase() }))} />
-          <input placeholder="Telefone" required value={form.phone ?? ""} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} />
-          <div className="grid" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "0.5rem" }}>
-            <Button type="submit">{editingId ? "Atualizar" : "Salvar"}</Button>
-            {editingId && (
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={() => {
-                  setEditingId(null);
-                  setForm({ state: "SP" });
-                  setError(null);
-                }}
-              >
-                Cancelar
-              </Button>
-            )}
-          </div>
-        </form>
-      </div>
+      {!isMobile && FormCard}
       <div>
         <h2>Prefeituras</h2>
         {error && <div className="card" style={{ color: "#f87171" }}>{error}</div>}
@@ -181,6 +194,19 @@ export const MunicipalitiesPage = () => {
           </>
         )}
       </div>
+      {isMobile && (
+        <>
+          <FloatingActionButton
+            onClick={() => setIsModalOpen(true)}
+            aria-label="Nova prefeitura"
+            ariaControls="municipality-modal"
+            ariaExpanded={isModalOpen}
+          />
+          <Modal open={isModalOpen} onClose={() => setIsModalOpen(false)} title={editingId ? "Editar prefeitura" : "Nova prefeitura"} id="municipality-modal">
+            {FormCard}
+          </Modal>
+        </>
+      )}
     </div>
   );
 };
