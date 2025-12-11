@@ -70,6 +70,7 @@ class FormTemplateSerializer(serializers.ModelSerializer):
         extra_kwargs = {
             # Allow blank/omitted slug so backend auto-generates one.
             "slug": {"allow_blank": True, "required": False},
+            "municipality": {"required": False},
         }
 
     @staticmethod
@@ -82,8 +83,19 @@ class FormTemplateSerializer(serializers.ModelSerializer):
         return attrs
 
     def validate(self, attrs):
+        request = self.context.get("request")
+        user = getattr(request, "user", None)
+
         form_type = attrs.get("form_type", getattr(self.instance, "form_type", None))
         attrs = self._cleanup_slug(attrs)
+
+        if not attrs.get("municipality") and user and getattr(user, "role", None) != "SUPERADMIN":
+            # Municipal admins should not need to send municipality explicitly.
+            attrs["municipality"] = getattr(user, "municipality", None)
+
+        if not attrs.get("municipality"):
+            raise serializers.ValidationError({"municipality": "Informe a prefeitura."})
+
         if form_type == FormTemplate.FormType.STUDENT_CARD_APPLICATION:
             attrs["require_cpf"] = True
         return attrs
