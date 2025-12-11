@@ -105,7 +105,65 @@ export const UsersPage = () => {
   const disableMunicipalitySelect = current?.role !== "SUPERADMIN";
 
   return (
-    <div className="grid" style={{ gridTemplateColumns: "2fr 1fr" }}>
+    <div className="grid" style={{ gridTemplateColumns: "1fr", gap: "1rem" }}>
+      <div className="card">
+        <h3>{editingId ? "Editar usuário" : "Novo usuário"}</h3>
+        <form className="grid form-grid responsive" onSubmit={handleSubmit}>
+          <input
+            placeholder="Email"
+            type="email"
+            required
+            value={form.email ?? ""}
+            onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+            />
+          <input
+            placeholder="Senha"
+            type="password"
+            required={!editingId}
+            value={form.password ?? ""}
+            onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
+          />
+          <label>
+            Papel
+            <select value={form.role} onChange={(e) => setForm((f) => ({ ...f, role: e.target.value }))}>
+              <option value="ADMIN_MUNICIPALITY">Admin Prefeitura</option>
+              <option value="OPERATOR">Operador</option>
+              <option value="VIEWER">Visualizador</option>
+              {current?.role === "SUPERADMIN" && <option value="SUPERADMIN">Superadmin</option>}
+            </select>
+          </label>
+          <label>
+            Prefeitura
+            <select
+              value={form.municipality ?? ""}
+              onChange={(e) => setForm((f) => ({ ...f, municipality: e.target.value ? Number(e.target.value) : null }))}
+              disabled={disableMunicipalitySelect}
+            >
+              <option value="">Selecione</option>
+              {municipalities.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <div className="grid" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "0.5rem" }}>
+            <Button type="submit">{editingId ? "Atualizar" : "Salvar"}</Button>
+            {editingId && (
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => {
+                  setEditingId(null);
+                  setForm({ role: "VIEWER", municipality: current?.municipality ?? null });
+                }}
+              >
+                Cancelar
+              </Button>
+            )}
+          </div>
+        </form>
+      </div>
       <div>
         <h2>Usuários</h2>
         {error && <div className="card" style={{ color: "#f87171" }}>{error}</div>}
@@ -175,64 +233,6 @@ export const UsersPage = () => {
             />
           </>
         )}
-      </div>
-      <div className="card">
-        <h3>{editingId ? "Editar usuário" : "Novo usuário"}</h3>
-        <form className="grid form-grid responsive" onSubmit={handleSubmit}>
-          <input
-            placeholder="Email"
-            type="email"
-            required
-            value={form.email ?? ""}
-            onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
-            />
-          <input
-            placeholder="Senha"
-            type="password"
-            required={!editingId}
-            value={form.password ?? ""}
-            onChange={(e) => setForm((f) => ({ ...f, password: e.target.value }))}
-          />
-          <label>
-            Papel
-            <select value={form.role} onChange={(e) => setForm((f) => ({ ...f, role: e.target.value }))}>
-              <option value="ADMIN_MUNICIPALITY">Admin Prefeitura</option>
-              <option value="OPERATOR">Operador</option>
-              <option value="VIEWER">Visualizador</option>
-              {current?.role === "SUPERADMIN" && <option value="SUPERADMIN">Superadmin</option>}
-            </select>
-          </label>
-          <label>
-            Prefeitura
-            <select
-              value={form.municipality ?? ""}
-              onChange={(e) => setForm((f) => ({ ...f, municipality: e.target.value ? Number(e.target.value) : null }))}
-              disabled={disableMunicipalitySelect}
-            >
-              <option value="">Selecione</option>
-              {municipalities.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.name}
-                </option>
-              ))}
-            </select>
-          </label>
-          <div className="grid" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "0.5rem" }}>
-            <Button type="submit">{editingId ? "Atualizar" : "Salvar"}</Button>
-            {editingId && (
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={() => {
-                  setEditingId(null);
-                  setForm({ role: "VIEWER", municipality: current?.municipality ?? null });
-                }}
-              >
-                Cancelar
-              </Button>
-            )}
-          </div>
-        </form>
       </div>
     </div>
   );
