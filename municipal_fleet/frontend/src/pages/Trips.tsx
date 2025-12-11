@@ -4,6 +4,9 @@ import { Table } from "../components/Table";
 import { Button } from "../components/Button";
 import { StatusBadge } from "../components/StatusBadge";
 import { Pagination } from "../components/Pagination";
+import { useMediaQuery } from "../hooks/useMediaQuery";
+import { FloatingActionButton } from "../components/FloatingActionButton";
+import { Modal } from "../components/Modal";
 
 type PassengerDetail = {
   name: string;
@@ -41,6 +44,7 @@ type Trip = {
 };
 
 export const TripsPage = () => {
+  const { isMobile } = useMediaQuery();
   const specialNeedOptions = [
     { value: "NONE", label: "Nenhum" },
     { value: "TEA", label: "TEA" },
@@ -82,6 +86,7 @@ export const TripsPage = () => {
   const [total, setTotal] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [usePassengerList, setUsePassengerList] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
   const formatError = (payload: any) => {
     if (!payload) return "Erro ao salvar viagem.";
     if (typeof payload === "string") return payload;
@@ -274,11 +279,10 @@ export const TripsPage = () => {
     });
   };
 
-  return (
-    <div className="grid" style={{ gridTemplateColumns: "1fr" }}>
-      <div className="card" style={{ marginBottom: "1rem" }}>
-        <h3>{editingId ? "Editar viagem" : "Nova viagem"}</h3>
-        <form className="grid form-grid responsive" onSubmit={handleSubmit}>
+  const FormCard = (
+    <div className="card" style={{ marginBottom: "1rem" }}>
+      <h3>{editingId ? "Editar viagem" : "Nova viagem"}</h3>
+      <form className="grid form-grid responsive" onSubmit={handleSubmit}>
           <input placeholder="Origem" required value={form.origin ?? ""} onChange={(e) => setForm((f) => ({ ...f, origin: e.target.value }))} />
           <input placeholder="Destino" required value={form.destination ?? ""} onChange={(e) => setForm((f) => ({ ...f, destination: e.target.value }))} />
           <select
@@ -478,46 +482,13 @@ export const TripsPage = () => {
               </Button>
             )}
           </div>
-        </form>
-        <div className="card" style={{ marginTop: "1rem" }}>
-          <h4>Concluir viagem</h4>
-          <form className="grid form-grid responsive" onSubmit={handleComplete}>
-            <select
-              value={completion.tripId}
-              onChange={(e) => setCompletion((c) => ({ ...c, tripId: Number(e.target.value) || "" }))}
-              required
-            >
-              <option value="">Selecione a viagem</option>
-              {trips
-                .filter((t) => t.status !== "COMPLETED")
-                .map((t) => (
-                  <option key={t.id} value={t.id}>
-                    #{t.id} - {t.origin} → {t.destination}
-                  </option>
-                ))}
-            </select>
-            <label>
-              Odômetro final
-              <input
-                type="number"
-                required
-                value={completion.odometer_end}
-                onChange={(e) => setCompletion((c) => ({ ...c, odometer_end: Number(e.target.value) }))}
-              />
-            </label>
-            <label>
-              Retorno real
-              <input
-                type="datetime-local"
-                required
-                value={completion.return_datetime_actual}
-                onChange={(e) => setCompletion((c) => ({ ...c, return_datetime_actual: e.target.value }))}
-              />
-            </label>
-            <Button type="submit">Concluir</Button>
-          </form>
-        </div>
-      </div>
+      </form>
+    </div>
+  );
+
+  return (
+    <div className="grid" style={{ gridTemplateColumns: "1fr" }}>
+      {!isMobile && FormCard}
       <div>
         <h2>Viagens</h2>
         {error && <div className="card" style={{ color: "#f87171" }}>{error}</div>}
@@ -623,6 +594,57 @@ export const TripsPage = () => {
           </div>
         )}
       </div>
+      <div className="card" style={{ marginTop: "1rem" }}>
+        <h4>Concluir viagem</h4>
+        <form className="grid form-grid responsive" onSubmit={handleComplete}>
+          <select
+            value={completion.tripId}
+            onChange={(e) => setCompletion((c) => ({ ...c, tripId: Number(e.target.value) || "" }))}
+            required
+          >
+            <option value="">Selecione a viagem</option>
+            {trips
+              .filter((t) => t.status !== "COMPLETED")
+              .map((t) => (
+                <option key={t.id} value={t.id}>
+                  #{t.id} - {t.origin} → {t.destination}
+                </option>
+              ))}
+          </select>
+          <label>
+            Odômetro final
+            <input
+              type="number"
+              required
+              value={completion.odometer_end}
+              onChange={(e) => setCompletion((c) => ({ ...c, odometer_end: Number(e.target.value) }))}
+            />
+          </label>
+          <label>
+            Retorno real
+            <input
+              type="datetime-local"
+              required
+              value={completion.return_datetime_actual}
+              onChange={(e) => setCompletion((c) => ({ ...c, return_datetime_actual: e.target.value }))}
+            />
+          </label>
+          <Button type="submit">Concluir</Button>
+        </form>
+      </div>
+      {isMobile && (
+        <>
+          <FloatingActionButton
+            onClick={() => setIsModalOpen(true)}
+            aria-label="Nova viagem"
+            ariaControls="trip-modal"
+            ariaExpanded={isModalOpen}
+          />
+          <Modal open={isModalOpen} onClose={() => setIsModalOpen(false)} title={editingId ? "Editar viagem" : "Nova viagem"} id="trip-modal">
+            {FormCard}
+          </Modal>
+        </>
+      )}
     </div>
   );
 };
