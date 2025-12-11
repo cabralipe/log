@@ -7,6 +7,7 @@ import { Pagination } from "../components/Pagination";
 import { useMediaQuery } from "../hooks/useMediaQuery";
 import { FloatingActionButton } from "../components/FloatingActionButton";
 import { Modal } from "../components/Modal";
+import { useAuth } from "../hooks/useAuth";
 
 type FuelStation = {
   id: number;
@@ -16,9 +17,11 @@ type FuelStation = {
   active: boolean;
   municipality: number;
 };
+type Municipality = { id: number; name: string };
 
 export const FuelStationsPage = () => {
   const { isMobile } = useMediaQuery();
+  const { user: current } = useAuth();
   const [stations, setStations] = useState<FuelStation[]>([]);
   const [form, setForm] = useState<Partial<FuelStation>>({ active: true });
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -28,6 +31,7 @@ export const FuelStationsPage = () => {
   const [total, setTotal] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [municipalities, setMunicipalities] = useState<Municipality[]>([]);
 
   const load = (nextPage = page, nextSearch = search, nextPageSize = pageSize) => {
     api
@@ -51,6 +55,16 @@ export const FuelStationsPage = () => {
   useEffect(() => {
     load();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    api
+      .get<Paginated<Municipality>>("/municipalities/", { params: { page_size: 1000 } })
+      .then((res) => {
+        const data = res.data as any;
+        setMunicipalities(Array.isArray(data) ? data : data.results);
+      })
+      .catch(() => {});
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -103,6 +117,22 @@ export const FuelStationsPage = () => {
           <option value="true">Ativo</option>
           <option value="false">Inativo</option>
         </select>
+        {current?.role === "SUPERADMIN" && (
+          <label>
+            Prefeitura
+            <select
+              value={(form.municipality as number) ?? ""}
+              onChange={(e) => setForm((f) => ({ ...f, municipality: Number(e.target.value) }))}
+            >
+              <option value="">Selecione</option>
+              {municipalities.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
         <div className="grid" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "0.5rem" }}>
           <Button type="submit">{editingId ? "Atualizar" : "Salvar"}</Button>
           {editingId && (

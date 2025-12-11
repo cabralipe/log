@@ -81,8 +81,10 @@ class FuelStationViewSet(MunicipalityQuerysetMixin, viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         user = self.request.user
-        serializer.save(
-            municipality=user.municipality
-            if user.role != "SUPERADMIN"
-            else serializer.validated_data.get("municipality")
-        )
+        if user.role != "SUPERADMIN":
+            serializer.save(municipality=user.municipality)
+        else:
+            municipality = serializer.validated_data.get("municipality")
+            if not municipality:
+                raise ValidationError("Prefeitura é obrigatória para criação por SUPERADMIN.")
+            serializer.save(municipality=municipality)
