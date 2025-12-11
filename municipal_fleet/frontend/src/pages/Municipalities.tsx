@@ -81,7 +81,34 @@ export const MunicipalitiesPage = () => {
   };
 
   return (
-    <div className="grid" style={{ gridTemplateColumns: "2fr 1fr" }}>
+    <div className="grid" style={{ gridTemplateColumns: "1fr" }}>
+      <div className="card" style={{ marginBottom: "1rem" }}>
+        <h3>{editingId ? "Editar prefeitura" : "Nova prefeitura"}</h3>
+        <form className="grid form-grid responsive" onSubmit={handleSubmit}>
+          <input placeholder="Nome" required value={form.name ?? ""} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
+          <input placeholder="CNPJ" required value={form.cnpj ?? ""} onChange={(e) => setForm((f) => ({ ...f, cnpj: e.target.value }))} />
+          <input placeholder="Endereço" required value={form.address ?? ""} onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))} />
+          <input placeholder="Cidade" required value={form.city ?? ""} onChange={(e) => setForm((f) => ({ ...f, city: e.target.value }))} />
+          <input placeholder="UF" required maxLength={2} value={form.state ?? ""} onChange={(e) => setForm((f) => ({ ...f, state: e.target.value.toUpperCase() }))} />
+          <input placeholder="Telefone" required value={form.phone ?? ""} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} />
+          <div className="grid" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "0.5rem" }}>
+            <Button type="submit">{editingId ? "Atualizar" : "Salvar"}</Button>
+            {editingId && (
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => {
+                  setEditingId(null);
+                  setForm({ state: "SP" });
+                  setError(null);
+                }}
+              >
+                Cancelar
+              </Button>
+            )}
+          </div>
+        </form>
+      </div>
       <div>
         <h2>Prefeituras</h2>
         {error && <div className="card" style={{ color: "#f87171" }}>{error}</div>}
@@ -153,33 +180,6 @@ export const MunicipalitiesPage = () => {
             />
           </>
         )}
-      </div>
-      <div className="card">
-        <h3>{editingId ? "Editar prefeitura" : "Nova prefeitura"}</h3>
-        <form className="grid form-grid responsive" onSubmit={handleSubmit}>
-          <input placeholder="Nome" required value={form.name ?? ""} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
-          <input placeholder="CNPJ" required value={form.cnpj ?? ""} onChange={(e) => setForm((f) => ({ ...f, cnpj: e.target.value }))} />
-          <input placeholder="Endereço" required value={form.address ?? ""} onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))} />
-          <input placeholder="Cidade" required value={form.city ?? ""} onChange={(e) => setForm((f) => ({ ...f, city: e.target.value }))} />
-          <input placeholder="UF" required maxLength={2} value={form.state ?? ""} onChange={(e) => setForm((f) => ({ ...f, state: e.target.value.toUpperCase() }))} />
-          <input placeholder="Telefone" required value={form.phone ?? ""} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} />
-          <div className="grid" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "0.5rem" }}>
-            <Button type="submit">{editingId ? "Atualizar" : "Salvar"}</Button>
-            {editingId && (
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={() => {
-                  setEditingId(null);
-                  setForm({ state: "SP" });
-                  setError(null);
-                }}
-              >
-                Cancelar
-              </Button>
-            )}
-          </div>
-        </form>
       </div>
     </div>
   );
