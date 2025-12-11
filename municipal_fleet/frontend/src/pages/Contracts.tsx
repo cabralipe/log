@@ -270,6 +270,144 @@ export const ContractsPage = () => {
       )}
       <div className="grid" style={{ gap: "1rem" }}>
         <div>
+          {!isMobile && (
+            <div className="card">
+              <h3>{editingId ? "Editar contrato" : "Novo contrato"}</h3>
+              <form className="grid form-grid responsive" onSubmit={handleSubmit}>
+              <input
+                placeholder="Número do contrato"
+                required
+                value={form.contract_number ?? ""}
+                onChange={(e) => setForm((f) => ({ ...f, contract_number: e.target.value }))}
+              />
+              <input
+                placeholder="Fornecedor"
+                required
+                value={form.provider_name ?? ""}
+                onChange={(e) => setForm((f) => ({ ...f, provider_name: e.target.value }))}
+              />
+              <input
+                placeholder="CNPJ do fornecedor"
+                value={form.provider_cnpj ?? ""}
+                onChange={(e) => setForm((f) => ({ ...f, provider_cnpj: e.target.value }))}
+              />
+              <textarea
+                placeholder="Descrição"
+                value={form.description ?? ""}
+                onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+                rows={3}
+              />
+              <div className="grid" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "0.6rem" }}>
+                <select value={form.type} onChange={(e) => setForm((f) => ({ ...f, type: e.target.value as Contract["type"] }))}>
+                  {CONTRACT_TYPES.map((t) => (
+                    <option key={t.value} value={t.value}>
+                      {t.label}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  value={form.billing_model}
+                  onChange={(e) => setForm((f) => ({ ...f, billing_model: e.target.value as Contract["billing_model"] }))}
+                >
+                  {BILLING_MODELS.map((m) => (
+                    <option key={m.value} value={m.value}>
+                      {m.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="grid" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "0.6rem" }}>
+                <input
+                  type="date"
+                  required
+                  value={form.start_date ?? ""}
+                  onChange={(e) => setForm((f) => ({ ...f, start_date: e.target.value }))}
+                />
+                <input
+                  type="date"
+                  required
+                  value={form.end_date ?? ""}
+                  onChange={(e) => setForm((f) => ({ ...f, end_date: e.target.value }))}
+                />
+              </div>
+              <div className="grid" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "0.6rem" }}>
+                <input
+                  type="number"
+                  step="0.01"
+                  placeholder="Valor base"
+                  required
+                  value={form.base_value ?? ""}
+                  onChange={(e) => setForm((f) => ({ ...f, base_value: e.target.value === "" ? undefined : Number(e.target.value) }))}
+                />
+                <input
+                  type="number"
+                  step="0.01"
+                  placeholder="Valor por KM extra"
+                  value={form.extra_km_rate ?? ""}
+                  onChange={(e) => setForm((f) => ({ ...f, extra_km_rate: e.target.value === "" ? undefined : Number(e.target.value) }))}
+                />
+              </div>
+              <div className="grid" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "0.6rem" }}>
+                <input
+                  type="number"
+                  placeholder="Franquia de KM/mês"
+                  value={form.included_km_per_month ?? ""}
+                  onChange={(e) => setForm((f) => ({ ...f, included_km_per_month: e.target.value === "" ? undefined : Number(e.target.value) }))}
+                />
+                <select
+                  value={form.status}
+                  onChange={(e) => setForm((f) => ({ ...f, status: e.target.value as Contract["status"] }))}
+                >
+                  {CONTRACT_STATUS.map((s) => (
+                    <option key={s.value} value={s.value}>
+                      {s.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <textarea
+                placeholder="Observações"
+                value={form.notes ?? ""}
+                onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
+                rows={3}
+              />
+              <div>
+                <label style={{ display: "block", marginBottom: "0.3rem" }}>Prefeitura</label>
+                <select
+                  disabled={disableMunicipalitySelect}
+                  value={form.municipality ?? current?.municipality ?? ""}
+                  onChange={(e) => setForm((f) => ({ ...f, municipality: Number(e.target.value) }))}
+                >
+                  <option value="">Selecione</option>
+                  {municipalities.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.name}
+                    </option>
+                  ))}
+                </select>
+                {form.municipality && <p style={{ color: "var(--muted)", marginTop: "0.3rem" }}>{municipalityName.get(form.municipality)}</p>}
+              </div>
+              <div className="grid" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "0.5rem" }}>
+                <Button type="submit">{editingId ? "Atualizar" : "Salvar"}</Button>
+                {editingId && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() => {
+                      setEditingId(null);
+                      setForm({ type: "RENTAL", billing_model: "FIXED", status: "ACTIVE" });
+                      setLinkForm({ custom_billing_model: null });
+                      setLinkEditingId(null);
+                      setContractVehicles([]);
+                    }}
+                  >
+                    Cancelar
+                  </Button>
+                )}
+              </div>
+              </form>
+            </div>
+          )}
           <h2>Contratos</h2>
           {error && <div className="card" style={{ color: "#f87171" }}>{error}</div>}
           <div style={{ marginBottom: "0.75rem", display: "flex", flexDirection: "column", gap: "0.5rem" }}>
@@ -482,144 +620,7 @@ export const ContractsPage = () => {
         )}
       </div>
 
-      {!isMobile && (
-        <div className="card">
-          <h3>{editingId ? "Editar contrato" : "Novo contrato"}</h3>
-          <form className="grid form-grid responsive" onSubmit={handleSubmit}>
-          <input
-            placeholder="Número do contrato"
-            required
-            value={form.contract_number ?? ""}
-            onChange={(e) => setForm((f) => ({ ...f, contract_number: e.target.value }))}
-          />
-          <input
-            placeholder="Fornecedor"
-            required
-            value={form.provider_name ?? ""}
-            onChange={(e) => setForm((f) => ({ ...f, provider_name: e.target.value }))}
-          />
-          <input
-            placeholder="CNPJ do fornecedor"
-            value={form.provider_cnpj ?? ""}
-            onChange={(e) => setForm((f) => ({ ...f, provider_cnpj: e.target.value }))}
-          />
-          <textarea
-            placeholder="Descrição"
-            value={form.description ?? ""}
-            onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-            rows={3}
-          />
-          <div className="grid" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "0.6rem" }}>
-            <select value={form.type} onChange={(e) => setForm((f) => ({ ...f, type: e.target.value as Contract["type"] }))}>
-              {CONTRACT_TYPES.map((t) => (
-                <option key={t.value} value={t.value}>
-                  {t.label}
-                </option>
-              ))}
-            </select>
-            <select
-              value={form.billing_model}
-              onChange={(e) => setForm((f) => ({ ...f, billing_model: e.target.value as Contract["billing_model"] }))}
-            >
-              {BILLING_MODELS.map((m) => (
-                <option key={m.value} value={m.value}>
-                  {m.label}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="grid" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "0.6rem" }}>
-            <input
-              type="date"
-              required
-              value={form.start_date ?? ""}
-              onChange={(e) => setForm((f) => ({ ...f, start_date: e.target.value }))}
-            />
-            <input
-              type="date"
-              required
-              value={form.end_date ?? ""}
-              onChange={(e) => setForm((f) => ({ ...f, end_date: e.target.value }))}
-            />
-          </div>
-          <div className="grid" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "0.6rem" }}>
-            <input
-              type="number"
-              step="0.01"
-              placeholder="Valor base"
-              required
-              value={form.base_value ?? ""}
-              onChange={(e) => setForm((f) => ({ ...f, base_value: e.target.value === "" ? undefined : Number(e.target.value) }))}
-            />
-            <input
-              type="number"
-              step="0.01"
-              placeholder="Valor por KM extra"
-              value={form.extra_km_rate ?? ""}
-              onChange={(e) => setForm((f) => ({ ...f, extra_km_rate: e.target.value === "" ? undefined : Number(e.target.value) }))}
-            />
-          </div>
-          <div className="grid" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "0.6rem" }}>
-            <input
-              type="number"
-              placeholder="Franquia de KM/mês"
-              value={form.included_km_per_month ?? ""}
-              onChange={(e) => setForm((f) => ({ ...f, included_km_per_month: e.target.value === "" ? undefined : Number(e.target.value) }))}
-            />
-            <select
-              value={form.status}
-              onChange={(e) => setForm((f) => ({ ...f, status: e.target.value as Contract["status"] }))}
-            >
-              {CONTRACT_STATUS.map((s) => (
-                <option key={s.value} value={s.value}>
-                  {s.label}
-                </option>
-              ))}
-            </select>
-          </div>
-          <textarea
-            placeholder="Observações"
-            value={form.notes ?? ""}
-            onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
-            rows={3}
-          />
-          <div>
-            <label style={{ display: "block", marginBottom: "0.3rem" }}>Prefeitura</label>
-            <select
-              disabled={disableMunicipalitySelect}
-              value={form.municipality ?? current?.municipality ?? ""}
-              onChange={(e) => setForm((f) => ({ ...f, municipality: Number(e.target.value) }))}
-            >
-              <option value="">Selecione</option>
-              {municipalities.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.name}
-                </option>
-              ))}
-            </select>
-            {form.municipality && <p style={{ color: "var(--muted)", marginTop: "0.3rem" }}>{municipalityName.get(form.municipality)}</p>}
-          </div>
-          <div className="grid" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "0.5rem" }}>
-            <Button type="submit">{editingId ? "Atualizar" : "Salvar"}</Button>
-            {editingId && (
-              <Button
-                type="button"
-                variant="ghost"
-                onClick={() => {
-                  setEditingId(null);
-                  setForm({ type: "RENTAL", billing_model: "FIXED", status: "ACTIVE" });
-                  setLinkForm({ custom_billing_model: null });
-                  setLinkEditingId(null);
-                  setContractVehicles([]);
-                }}
-              >
-                Cancelar
-              </Button>
-            )}
-          </div>
-          </form>
-        </div>
-      )}
+      {!isMobile && null}
       {isMobile && (
         <Modal
           open={showFormModal}
