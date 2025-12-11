@@ -7,7 +7,6 @@ import { useMediaQuery } from "../hooks/useMediaQuery";
 import { FloatingActionButton } from "../components/FloatingActionButton";
 import { Modal } from "../components/Modal";
 import { formatCnpj, formatPhone } from "../utils/masks";
-import { formatPhone } from "../utils/masks";
 
 type Municipality = {
   id: number;
