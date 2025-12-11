@@ -8,6 +8,7 @@ import { useMediaQuery } from "../hooks/useMediaQuery";
 import { FloatingActionButton } from "../components/FloatingActionButton";
 import { Modal } from "../components/Modal";
 import { useAuth } from "../hooks/useAuth";
+import { formatCnpj } from "../utils/masks";
 
 type FuelStation = {
   id: number;
@@ -111,7 +112,7 @@ export const FuelStationsPage = () => {
       <h3>{editingId ? "Editar posto" : "Novo posto credenciado"}</h3>
       <form className="grid form-grid responsive" onSubmit={handleSubmit}>
         <input placeholder="Nome" required value={form.name ?? ""} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
-        <input placeholder="CNPJ" value={form.cnpj ?? ""} onChange={(e) => setForm((f) => ({ ...f, cnpj: e.target.value }))} />
+        <input placeholder="CNPJ" value={form.cnpj ?? ""} onChange={(e) => setForm((f) => ({ ...f, cnpj: formatCnpj(e.target.value) }))} inputMode="numeric" maxLength={18} />
         <input placeholder="Endereço" value={form.address ?? ""} onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))} />
         <select value={form.active ? "true" : "false"} onChange={(e) => setForm((f) => ({ ...f, active: e.target.value === "true" }))}>
           <option value="true">Ativo</option>
