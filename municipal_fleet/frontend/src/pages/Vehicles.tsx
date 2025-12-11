@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api, type Paginated } from "../lib/api";
+import { useAuth } from "../hooks/useAuth";
 import { ResponsiveVehicleLayout } from "../components/ResponsiveVehicleLayout";
 
 type Vehicle = {
@@ -14,6 +15,7 @@ type Vehicle = {
 };
 
 export const VehiclesPage = () => {
+  const { user } = useAuth();
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -47,10 +49,31 @@ export const VehiclesPage = () => {
 
   const handleCreateVehicle = async (vehicleData: Partial<Vehicle>) => {
     try {
-      await api.post("/vehicles/", vehicleData);
+      const payload = {
+        ...vehicleData,
+        ...(user?.municipality ? { municipality: user.municipality } : {}),
+      };
+      await api.post("/vehicles/", payload);
       load();
     } catch (err: any) {
-      setError(err.response?.data?.detail || "Erro ao criar veículo.");
+      const data = err?.response?.data;
+      const detail = data?.detail;
+      const fieldErrors = data && typeof data === "object"
+        ? Object.entries(data)
+            .filter(([k]) => k !== "detail")
+            .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(", ") : String(v)}`)
+            .join(" | ")
+        : null;
+      const status = err?.response?.status;
+      const statusText = err?.response?.statusText;
+      const message = err?.message;
+      setError(
+        detail ||
+          fieldErrors ||
+          (status ? `Falha (${status}${statusText ? ` ${statusText}` : ""}).` : null) ||
+          message ||
+          "Erro ao criar veículo."
+      );
     }
   };
 

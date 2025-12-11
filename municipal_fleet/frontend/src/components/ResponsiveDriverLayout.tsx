@@ -253,7 +253,7 @@ export const ResponsiveDriverLayout = ({
         {/* Modal for Mobile */}
         {isMobile && (
           <Modal
-            isOpen={isModalOpen}
+            open={isModalOpen}
             onClose={handleModalClose}
             title={editingDriver ? "Editar Motorista" : "Novo Motorista"}
           >

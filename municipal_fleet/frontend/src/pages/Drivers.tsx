@@ -216,7 +216,7 @@ export const DriversPage = () => {
       {isMobile && (
         <>
           <FloatingActionButton onClick={() => setIsModalOpen(true)} aria-label="Adicionar novo motorista" />
-          <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={editingId ? "Editar motorista" : "Novo motorista"}>
+          <Modal open={isModalOpen} onClose={() => setIsModalOpen(false)} title={editingId ? "Editar motorista" : "Novo motorista"}>
             {formCard}
           </Modal>
         </>

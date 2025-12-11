@@ -168,12 +168,12 @@
   }
   
   .vehicle-card {
-    background: white;
-    border: 1px solid #e5e7eb;
+    background: var(--card);
+    border: 1px solid var(--border);
     border-radius: 0.5rem;
     padding: 1rem;
     margin-bottom: 0.75rem;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.28);
   }
   
   .vehicle-card-header {
@@ -185,7 +185,7 @@
   
   .vehicle-card-title {
     font-weight: 600;
-    color: #1f2937;
+    color: var(--text);
   }
   
   .vehicle-card-body {
@@ -202,13 +202,13 @@
   
   .vehicle-card-label {
     font-size: 0.75rem;
-    color: #6b7280;
+    color: var(--muted);
     margin-bottom: 0.125rem;
   }
   
   .vehicle-card-value {
     font-size: 0.875rem;
-    color: #1f2937;
+    color: var(--text);
   }
   
   .vehicle-card-actions {

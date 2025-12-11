@@ -9,7 +9,6 @@ class VehicleSerializer(serializers.ModelSerializer):
         model = Vehicle
         fields = "__all__"
         read_only_fields = ["id", "created_at", "updated_at"]
-        extra_kwargs = {"municipality": {"read_only": True}}
 
     def validate_year(self, value):
         current_year = datetime.date.today().year

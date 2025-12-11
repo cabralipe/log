@@ -1,5 +1,6 @@
 from rest_framework import viewsets, permissions, filters
 from rest_framework import parsers
+from rest_framework.exceptions import ValidationError
 from fleet.models import Vehicle, VehicleMaintenance, FuelLog, FuelStation
 from fleet.serializers import VehicleSerializer, VehicleMaintenanceSerializer, FuelLogSerializer, FuelStationSerializer
 from tenants.mixins import MunicipalityQuerysetMixin
@@ -17,11 +18,13 @@ class VehicleViewSet(MunicipalityQuerysetMixin, viewsets.ModelViewSet):
         user = self.request.user
         if not IsMunicipalityAdminOrReadOnly().has_permission(self.request, self):
             self.permission_denied(self.request, message="Apenas admins podem criar veículos.")
-        serializer.save(
-            municipality=user.municipality
-            if user.role != "SUPERADMIN"
-            else serializer.validated_data.get("municipality")
-        )
+        if user.role != "SUPERADMIN":
+            serializer.save(municipality=user.municipality)
+        else:
+            municipality = serializer.validated_data.get("municipality")
+            if not municipality:
+                raise ValidationError("Prefeitura é obrigatória para criação por SUPERADMIN.")
+            serializer.save(municipality=municipality)
 
 
 class VehicleMaintenanceViewSet(MunicipalityQuerysetMixin, viewsets.ModelViewSet):

@@ -167,7 +167,7 @@ export const ResponsiveMaintenanceLayout = ({
             />
             
             <Modal
-              isOpen={isModalOpen}
+              open={isModalOpen}
               onClose={handleModalClose}
               title={editingRecord ? "Editar Manutenção" : "Registrar Manutenção"}
             >
