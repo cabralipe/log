@@ -1,7 +1,7 @@
 import urllib.parse
 from rest_framework import viewsets, permissions, response, decorators, filters
-from trips.models import Trip
-from trips.serializers import TripSerializer
+from trips.models import Trip, FreeTrip
+from trips.serializers import TripSerializer, FreeTripSerializer
 from tenants.mixins import MunicipalityQuerysetMixin
 from accounts.permissions import IsMunicipalityAdminOrReadOnly
 
@@ -51,3 +51,44 @@ class TripViewSet(MunicipalityQuerysetMixin, viewsets.ModelViewSet):
         phone_digits = "".join(filter(str.isdigit, trip.driver.phone))
         wa_link = f"https://wa.me/{phone_digits}?text={urllib.parse.quote(message)}"
         return response.Response({"message": message, "wa_link": wa_link})
+
+
+class FreeTripViewSet(MunicipalityQuerysetMixin, viewsets.ModelViewSet):
+    queryset = FreeTrip.objects.select_related("vehicle", "driver", "municipality")
+    serializer_class = FreeTripSerializer
+    permission_classes = [permissions.IsAuthenticated, IsMunicipalityAdminOrReadOnly]
+    filter_backends = [filters.SearchFilter]
+    search_fields = ["driver__name", "vehicle__license_plate"]
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        driver_id = self.request.query_params.get("driver_id")
+        vehicle_id = self.request.query_params.get("vehicle_id")
+        status_param = self.request.query_params.get("status")
+        if driver_id:
+            qs = qs.filter(driver_id=driver_id)
+        if vehicle_id:
+            qs = qs.filter(vehicle_id=vehicle_id)
+        if status_param:
+            qs = qs.filter(status=status_param)
+        return qs
+
+    @decorators.action(detail=False, methods=["get"], url_path="summary")
+    def summary(self, request):
+        qs = self.get_queryset()
+        open_trips = qs.filter(status=FreeTrip.Status.OPEN)
+        open_list = open_trips.values(
+            "id",
+            "driver_id",
+            "driver__name",
+            "vehicle_id",
+            "vehicle__license_plate",
+            "odometer_start",
+            "started_at",
+        )
+        return response.Response(
+            {
+                "open_count": open_trips.count(),
+                "open_trips": list(open_list),
+            }
+        )

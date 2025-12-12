@@ -2,7 +2,7 @@ from datetime import datetime
 from django.db import transaction
 from django.utils import timezone
 from rest_framework import serializers
-from trips.models import Trip, TripIncident, MonthlyOdometer
+from trips.models import Trip, TripIncident, MonthlyOdometer, FreeTrip
 from contracts.models import Contract
 from fleet.models import Vehicle
 from drivers.models import Driver
@@ -193,3 +193,105 @@ class TripIncidentSerializer(serializers.ModelSerializer):
         model = TripIncident
         fields = ["id", "trip", "driver", "municipality", "description", "created_at"]
         read_only_fields = ["id", "driver", "municipality", "created_at"]
+
+
+class FreeTripSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = FreeTrip
+        fields = "__all__"
+        read_only_fields = ["id", "municipality", "started_at", "ended_at", "created_at", "updated_at"]
+
+    def validate(self, attrs):
+        request = self.context.get("request")
+        user = getattr(request, "user", None)
+        portal_driver = self.context.get("portal_driver")
+        instance = getattr(self, "instance", None)
+
+        driver = attrs.get("driver", getattr(instance, "driver", None))
+        vehicle = attrs.get("vehicle", getattr(instance, "vehicle", None))
+        odometer_start = attrs.get("odometer_start", getattr(instance, "odometer_start", None))
+        odometer_end = attrs.get("odometer_end", getattr(instance, "odometer_end", None))
+        status = attrs.get("status", getattr(instance, "status", FreeTrip.Status.OPEN))
+
+        if portal_driver:
+            driver = portal_driver
+            attrs["driver"] = driver
+            attrs["municipality"] = portal_driver.municipality
+            if not portal_driver.free_trip_enabled:
+                raise serializers.ValidationError("Viagem livre não liberada para este motorista.")
+        elif user and getattr(user, "role", None) != "SUPERADMIN":
+            attrs["municipality"] = user.municipality
+
+        if not driver:
+            raise serializers.ValidationError("Motorista é obrigatório.")
+        if not vehicle:
+            raise serializers.ValidationError("Veículo é obrigatório.")
+        if vehicle.municipality_id != driver.municipality_id:
+            raise serializers.ValidationError("Motorista e veículo precisam ser da mesma prefeitura.")
+
+        if user and getattr(user, "role", None) != "SUPERADMIN":
+            if driver.municipality_id != user.municipality_id:
+                raise serializers.ValidationError("Motorista precisa pertencer à prefeitura do usuário.")
+            if vehicle.municipality_id != user.municipality_id:
+                raise serializers.ValidationError("Veículo precisa pertencer à prefeitura do usuário.")
+
+        if odometer_end is not None and odometer_start is not None and odometer_end < odometer_start:
+            raise serializers.ValidationError("Quilometragem final não pode ser menor que a inicial.")
+
+        target_driver = driver
+        open_qs = FreeTrip.objects.filter(driver=target_driver, status=FreeTrip.Status.OPEN)
+        if instance:
+            open_qs = open_qs.exclude(id=instance.id)
+        if not instance and status == FreeTrip.Status.OPEN and open_qs.exists():
+            raise serializers.ValidationError("Já existe uma viagem livre em aberto para este motorista.")
+
+        vehicle_open_qs = FreeTrip.objects.filter(vehicle=vehicle, status=FreeTrip.Status.OPEN)
+        if instance:
+            vehicle_open_qs = vehicle_open_qs.exclude(id=instance.id)
+        if not instance and status == FreeTrip.Status.OPEN and vehicle_open_qs.exists():
+            raise serializers.ValidationError("Este veículo já está em uma viagem livre em andamento.")
+
+        return attrs
+
+    def create(self, validated_data):
+        user = self.context.get("request").user if self.context.get("request") else None
+        portal_driver = self.context.get("portal_driver")
+        if portal_driver:
+            validated_data["driver"] = portal_driver
+            validated_data["municipality"] = portal_driver.municipality
+        elif user and getattr(user, "role", None) != "SUPERADMIN":
+            validated_data["municipality"] = user.municipality
+        elif "municipality" not in validated_data and not portal_driver:
+            raise serializers.ValidationError("Prefeitura é obrigatória.")
+        return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        closing = validated_data.get("status") == FreeTrip.Status.CLOSED or validated_data.get("odometer_end") is not None
+        if closing and validated_data.get("odometer_end") is None and instance.odometer_end is None:
+            raise serializers.ValidationError("odometer_end é obrigatório para encerrar a viagem livre.")
+        free_trip = super().update(instance, validated_data)
+        if closing:
+            free_trip.status = FreeTrip.Status.CLOSED
+            if free_trip.ended_at is None:
+                free_trip.ended_at = timezone.now()
+            free_trip.save(update_fields=["status", "ended_at", "odometer_end", "odometer_end_photo", "updated_at"])
+            self._update_vehicle_odometer(free_trip)
+        return free_trip
+
+    def _update_vehicle_odometer(self, free_trip: FreeTrip):
+        if free_trip.status != FreeTrip.Status.CLOSED or free_trip.odometer_end is None:
+            return
+        distance = free_trip.odometer_end - free_trip.odometer_start
+        if distance < 0:
+            return
+        vehicle = free_trip.vehicle
+        vehicle.odometer_current = free_trip.odometer_end
+        vehicle.save(update_fields=["odometer_current"])
+        reference_date = free_trip.ended_at or free_trip.started_at or timezone.now()
+        summary, _ = MonthlyOdometer.objects.get_or_create(
+            vehicle=vehicle, year=reference_date.year, month=reference_date.month
+        )
+        summary.add_distance(distance)
+        if vehicle.odometer_monthly_limit and summary.kilometers > vehicle.odometer_monthly_limit:
+            vehicle.status = Vehicle.Status.MAINTENANCE
+            vehicle.save(update_fields=["status"])

@@ -82,3 +82,34 @@ class MonthlyOdometer(models.Model):
     @property
     def period(self):
         return f"{self.month:02d}/{self.year}"
+
+
+class FreeTrip(models.Model):
+    class Status(models.TextChoices):
+        OPEN = "OPEN", "Em aberto"
+        CLOSED = "CLOSED", "Encerrada"
+
+    municipality = models.ForeignKey("tenants.Municipality", on_delete=models.CASCADE, related_name="free_trips")
+    driver = models.ForeignKey("drivers.Driver", on_delete=models.PROTECT, related_name="free_trips")
+    vehicle = models.ForeignKey("fleet.Vehicle", on_delete=models.PROTECT, related_name="free_trips")
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.OPEN)
+    odometer_start = models.PositiveIntegerField()
+    odometer_start_photo = models.FileField(upload_to="free_trips/start/", null=True, blank=True)
+    odometer_end = models.PositiveIntegerField(null=True, blank=True)
+    odometer_end_photo = models.FileField(upload_to="free_trips/end/", null=True, blank=True)
+    started_at = models.DateTimeField(auto_now_add=True)
+    ended_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-started_at"]
+
+    def __str__(self):
+        return f"Viagem livre {self.driver} - {self.vehicle}"
+
+    @property
+    def distance(self):
+        if self.odometer_end is None:
+            return None
+        return self.odometer_end - self.odometer_start

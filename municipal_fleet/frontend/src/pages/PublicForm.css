@@ -1,0 +1,268 @@
+.public-form-page {
+  min-height: 100vh;
+  padding: 1.5rem;
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.form-hero {
+  background: linear-gradient(120deg, rgba(74, 222, 128, 0.12), rgba(59, 130, 246, 0.08));
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 1.5rem;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35);
+}
+
+.eyebrow {
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-size: 0.8rem;
+  color: var(--muted);
+  margin: 0;
+}
+
+.form-hero h1 {
+  margin: 0.2rem 0 0.35rem 0;
+  font-size: clamp(1.6rem, 3vw, 2.4rem);
+}
+
+.muted {
+  color: var(--muted);
+  margin: 0;
+}
+
+.pill-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.pill {
+  padding: 0.4rem 0.7rem;
+  border-radius: 999px;
+  background: rgba(74, 222, 128, 0.12);
+  border: 1px solid rgba(74, 222, 128, 0.35);
+  color: #baf3d3;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.pill.soft {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.08);
+  color: var(--muted);
+}
+
+.form-layout {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 1rem;
+}
+
+.form-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.badge {
+  background: rgba(74, 222, 128, 0.12);
+  border: 1px solid rgba(74, 222, 128, 0.4);
+  padding: 0.5rem 0.8rem;
+  border-radius: 12px;
+  color: #a4f0c6;
+  font-weight: 600;
+  font-size: 0.9rem;
+  white-space: nowrap;
+}
+
+.question-block {
+  display: grid;
+  gap: 0.35rem;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px dashed var(--border);
+  border-radius: 12px;
+  padding: 0.65rem 0.75rem;
+}
+
+.question-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.question-label {
+  color: var(--text);
+  font-weight: 700;
+}
+
+.required {
+  color: #fbbf24;
+}
+
+.choice-list {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.choice-item {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  color: var(--text);
+}
+
+.alert {
+  border-radius: 12px;
+  padding: 0.85rem;
+  margin: 0.5rem 0;
+  font-weight: 600;
+}
+
+.alert.error {
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.45);
+  color: #fecdd3;
+}
+
+.alert.success {
+  background: rgba(52, 211, 153, 0.12);
+  border: 1px solid rgba(52, 211, 153, 0.4);
+  color: #bbf7d0;
+}
+
+.status-card {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.status-card__header h3 {
+  margin: 0.1rem 0 0.25rem 0;
+}
+
+.status-search {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.5rem;
+}
+
+.status-list {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.status-item {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 0.75rem;
+  background: #0f1724;
+}
+
+.status-item__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.card-overlay {
+  position: relative;
+  overflow: hidden;
+}
+
+.card-overlay__inner {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: 2fr 1fr;
+  align-items: center;
+}
+
+.card-overlay__left {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.card-title {
+  margin: 0;
+}
+
+.student-card {
+  background: linear-gradient(145deg, rgba(74, 222, 128, 0.16), rgba(59, 130, 246, 0.12));
+  border-radius: 14px;
+  padding: 1rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  display: grid;
+  gap: 0.65rem;
+}
+
+.student-card__header {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.student-card__body {
+  display: grid;
+  gap: 0.5rem;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.card-overlay__actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.card-overlay__right {
+  display: grid;
+  place-items: center;
+  gap: 0.35rem;
+}
+
+.qr-placeholder {
+  width: 140px;
+  height: 140px;
+  border-radius: 12px;
+  border: 2px dashed rgba(255, 255, 255, 0.25);
+  display: grid;
+  place-items: center;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.status-chip {
+  padding: 0.3rem 0.7rem;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text);
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+.status-meta {
+  margin-top: 0.5rem;
+}
+
+@media (max-width: 960px) {
+  .form-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .form-card__header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .badge {
+    width: 100%;
+    text-align: center;
+  }
+
+  .card-overlay__inner {
+    grid-template-columns: 1fr;
+  }
+}

@@ -6,10 +6,10 @@ from drivers.serializers import DriverSerializer
 from tenants.mixins import MunicipalityQuerysetMixin
 from accounts.permissions import IsMunicipalityAdminOrReadOnly
 from drivers.portal import generate_portal_token, resolve_portal_token
-from fleet.models import FuelLog, FuelStation
+from fleet.models import FuelLog, FuelStation, Vehicle
 from fleet.serializers import FuelLogSerializer
-from trips.models import Trip, TripIncident
-from trips.serializers import TripSerializer, TripIncidentSerializer
+from trips.models import Trip, TripIncident, FreeTrip
+from trips.serializers import TripSerializer, TripIncidentSerializer, FreeTripSerializer
 
 
 class DriverViewSet(MunicipalityQuerysetMixin, viewsets.ModelViewSet):
@@ -61,6 +61,7 @@ class DriverPortalLoginView(views.APIView):
             "municipality": driver.municipality_id,
             "access_code": driver.access_code,
             "phone": driver.phone,
+            "free_trip_enabled": driver.free_trip_enabled,
         }
         return response.Response({"token": token, "driver": payload})
 
@@ -178,3 +179,91 @@ class DriverPortalFuelStationsView(DriverPortalAuthMixin, views.APIView):
             .values("id", "name", "address")
         )
         return response.Response({"stations": list(stations)})
+
+
+class DriverPortalFreeTripListView(DriverPortalAuthMixin, views.APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        driver = self.get_portal_driver(request)
+        open_trip = driver.free_trips.filter(status=FreeTrip.Status.OPEN).select_related("vehicle").first()
+        recent_closed = driver.free_trips.filter(status=FreeTrip.Status.CLOSED).order_by("-ended_at")[:5]
+        data = {
+            "open_trip": FreeTripSerializer(
+                open_trip, context={"portal_driver": driver, "request": request}
+            ).data
+            if open_trip
+            else None,
+            "recent_closed": FreeTripSerializer(
+                recent_closed, many=True, context={"portal_driver": driver, "request": request}
+            ).data,
+        }
+        return response.Response(data)
+
+
+class DriverPortalFreeTripStartView(DriverPortalAuthMixin, views.APIView):
+    permission_classes = [permissions.AllowAny]
+    parser_classes = [parsers.MultiPartParser, parsers.FormParser, parsers.JSONParser]
+
+    def post(self, request):
+        driver = self.get_portal_driver(request)
+        if not driver.free_trip_enabled:
+            return response.Response({"detail": "Viagem livre não liberada para este motorista."}, status=status.HTTP_403_FORBIDDEN)
+        if driver.free_trips.filter(status=FreeTrip.Status.OPEN).exists():
+            return response.Response({"detail": "Já existe uma viagem livre em andamento."}, status=status.HTTP_400_BAD_REQUEST)
+
+        vehicle_id = request.data.get("vehicle_id")
+        license_plate = request.data.get("license_plate")
+        vehicle_qs = Vehicle.objects.filter(municipality=driver.municipality)
+        vehicle = None
+        if vehicle_id:
+            vehicle = vehicle_qs.filter(id=vehicle_id).first()
+        if not vehicle and license_plate:
+            vehicle = vehicle_qs.filter(license_plate__iexact=str(license_plate).strip()).first()
+        if not vehicle:
+            return response.Response({"detail": "Veículo não encontrado na prefeitura do motorista."}, status=status.HTTP_404_NOT_FOUND)
+
+        try:
+            odometer_start = int(request.data.get("odometer_start", 0))
+        except (TypeError, ValueError):
+            return response.Response({"detail": "Quilometragem inicial inválida."}, status=status.HTTP_400_BAD_REQUEST)
+        if odometer_start < 0:
+            return response.Response({"detail": "Quilometragem inicial inválida."}, status=status.HTTP_400_BAD_REQUEST)
+
+        payload = {
+            "driver": driver.id,
+            "vehicle": vehicle.id,
+            "odometer_start": odometer_start,
+            "odometer_start_photo": request.data.get("odometer_start_photo"),
+        }
+        serializer = FreeTripSerializer(data=payload, context={"request": request, "portal_driver": driver})
+        serializer.is_valid(raise_exception=True)
+        free_trip = serializer.save()
+        return response.Response(serializer.to_representation(free_trip), status=status.HTTP_201_CREATED)
+
+
+class DriverPortalFreeTripCloseView(DriverPortalAuthMixin, views.APIView):
+    permission_classes = [permissions.AllowAny]
+    parser_classes = [parsers.MultiPartParser, parsers.FormParser, parsers.JSONParser]
+
+    def post(self, request, free_trip_id: int):
+        driver = self.get_portal_driver(request)
+        free_trip = driver.free_trips.filter(id=free_trip_id, status=FreeTrip.Status.OPEN).first()
+        if not free_trip:
+            return response.Response({"detail": "Viagem livre não encontrada ou já encerrada."}, status=status.HTTP_404_NOT_FOUND)
+        try:
+            odometer_end = int(request.data.get("odometer_end", 0))
+        except (TypeError, ValueError):
+            return response.Response({"detail": "Quilometragem final inválida."}, status=status.HTTP_400_BAD_REQUEST)
+
+        data = {
+            "odometer_end": odometer_end,
+            "odometer_end_photo": request.data.get("odometer_end_photo"),
+            "status": FreeTrip.Status.CLOSED,
+        }
+        serializer = FreeTripSerializer(
+            free_trip, data=data, partial=True, context={"request": request, "portal_driver": driver}
+        )
+        serializer.is_valid(raise_exception=True)
+        free_trip = serializer.save()
+        return response.Response(serializer.data)

@@ -320,7 +320,12 @@ class StudentFromSubmissionMapper:
         data = self.build_student_kwargs()
         school = self.resolve_school(municipality)
         if not school:
-            raise serializers.ValidationError("Escola não informada ou não encontrada para criar o aluno.")
+            # fallback para não travar a emissão quando escola não foi preenchida
+            school, _ = School.objects.get_or_create(
+                municipality=municipality,
+                name="Não informada",
+                defaults={"city": getattr(municipality, "city", ""), "district": ""},
+            )
         data.setdefault("full_name", "Aluno")
         data.setdefault("date_of_birth", timezone.localdate() - timedelta(days=3650))
         data["municipality"] = municipality

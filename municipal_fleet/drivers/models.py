@@ -21,6 +21,7 @@ class Driver(models.Model):
     phone = models.CharField(max_length=20)
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.ACTIVE)
     access_code = models.CharField(max_length=20, unique=True, default=generate_access_code)
+    free_trip_enabled = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

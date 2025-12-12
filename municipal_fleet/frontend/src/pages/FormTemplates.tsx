@@ -69,7 +69,9 @@ export const FormTemplatesPage = () => {
 
   const publicLink = useMemo(() => {
     if (!selected) return "";
-    return `${API_ROOT}/public/forms/${selected.slug}`;
+    const origin = typeof window !== "undefined" ? window.location.origin : "";
+    const base = origin || API_ROOT?.replace(/\/api\/?$/, "") || "";
+    return `${base}/public/forms/${selected.slug}`;
   }, [selected]);
 
   const loadTemplates = () => {
@@ -273,17 +275,22 @@ export const FormTemplatesPage = () => {
                   <strong>{selected.name}</strong>
                   <div style={{ color: "var(--muted)" }}>{selected.description}</div>
                 </div>
-                <div style={{ textAlign: "right" }}>
-                  <small style={{ color: "var(--muted)" }}>Link público</small>
-                  <div style={{ fontSize: "0.9rem" }}>{publicLink}</div>
-                  <Button
-                    variant="ghost"
-                    onClick={() => {
-                      navigator.clipboard.writeText(publicLink);
-                    }}
-                  >
-                    Copiar link
-                  </Button>
+                <div className="card" style={{ background: "#0f1724", minWidth: 260 }}>
+                  <small style={{ color: "var(--muted)" }}>Link que os estudantes usam para preencher</small>
+                  <div style={{ fontSize: "0.95rem", wordBreak: "break-all", margin: "0.25rem 0" }}>{publicLink}</div>
+                  <div style={{ display: "flex", gap: "0.5rem" }}>
+                    <Button
+                      variant="ghost"
+                      onClick={() => {
+                        navigator.clipboard.writeText(publicLink);
+                      }}
+                    >
+                      Copiar link
+                    </Button>
+                    <Button variant="ghost" onClick={() => window.open(publicLink, "_blank")}>
+                      Abrir
+                    </Button>
+                  </div>
                 </div>
               </div>
             </div>

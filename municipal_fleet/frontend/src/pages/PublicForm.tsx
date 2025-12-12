@@ -3,6 +3,7 @@ import { useParams } from "react-router-dom";
 import axios from "axios";
 import { API_ROOT } from "../lib/api";
 import { Button } from "../components/Button";
+import "./PublicForm.css";
 
 type FormQuestion = {
   id: number;
@@ -57,6 +58,7 @@ export const PublicFormPage = () => {
   const [cpfStatus, setCpfStatus] = useState("");
   const [statuses, setStatuses] = useState<SubmissionStatus[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [approvedSubmission, setApprovedSubmission] = useState<SubmissionStatus | null>(null);
 
   const sortedQuestions = useMemo(
     () => (template ? [...template.questions].sort((a, b) => a.order - b.order) : []),
@@ -120,6 +122,8 @@ export const PublicFormPage = () => {
         { params: { cpf } }
       );
       setStatuses(data.submissions);
+      const approved = data.submissions.find((s) => s.status === "APPROVED");
+      setApprovedSubmission(approved || null);
       setError(null);
     } catch (err: any) {
       setError(err.response?.data?.detail || "Erro ao consultar status.");
@@ -130,176 +134,276 @@ export const PublicFormPage = () => {
     if (cpfStatus) fetchStatus(cpfStatus);
   }, [cpfStatus]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (loading) return <div style={{ padding: "2rem" }}>Carregando formulário...</div>;
-  if (error && !template) return <div style={{ padding: "2rem", color: "#f87171" }}>{error}</div>;
+  if (loading) return <div className="public-form-page"><div className="card">Carregando formulário...</div></div>;
+  if (error && !template)
+    return (
+      <div className="public-form-page">
+        <div className="card" style={{ color: "#f87171" }}>
+          {error}
+        </div>
+      </div>
+    );
   if (!template) return null;
 
-  return (
-    <div style={{ maxWidth: 900, margin: "0 auto", padding: "1.5rem" }}>
-      <div className="card" style={{ marginBottom: "1rem" }}>
-        <h1 style={{ marginBottom: "0.25rem" }}>{template.name}</h1>
-        {template.description && <p style={{ color: "var(--muted)" }}>{template.description}</p>}
-      </div>
-
-      <div className="card" style={{ marginBottom: "1rem" }}>
-        <h3>Solicitação</h3>
-        {error && <p style={{ color: "#f87171" }}>{error}</p>}
-        {submitResult && <p style={{ color: "#34d399" }}>{submitResult}</p>}
-        <form className="grid form-grid" onSubmit={handleSubmit}>
-          {sortedQuestions.map((q) => (
-            <div key={q.id} style={{ display: "flex", flexDirection: "column", gap: "0.35rem" }}>
-              <label style={{ fontWeight: 600 }}>
-                {q.label} {q.required && <span style={{ color: "#fbbf24" }}>*</span>}
-              </label>
-              {q.help_text && <small style={{ color: "var(--muted)" }}>{q.help_text}</small>}
-              {q.type === "LONG_TEXT" ? (
-                <textarea
-                  required={q.required}
-                  value={(values[q.field_name] as string) || ""}
-                  onChange={(e) => handleChange(q.field_name, e.target.value)}
-                  rows={3}
-                />
-              ) : q.type === "MULTIPLE_CHOICE" ? (
-                <div style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}>
-                  {q.options?.map((opt) => (
-                    <label key={opt.value} style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
-                      <input
-                        type="radio"
-                        name={q.field_name}
-                        value={opt.value}
-                        required={q.required}
-                        checked={values[q.field_name] === opt.value}
-                        onChange={(e) => handleChange(q.field_name, e.target.value)}
-                      />
-                      {opt.label}
-                    </label>
-                  ))}
-                </div>
-              ) : q.type === "CHECKBOXES" ? (
-                <div style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}>
-                  {q.options?.map((opt) => {
-                    const current = (values[q.field_name] as string[]) || [];
-                    const checked = current.includes(opt.value);
-                    return (
-                      <label key={opt.value} style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
-                        <input
-                          type="checkbox"
-                          value={opt.value}
-                          checked={checked}
-                          onChange={(e) => {
-                            const next = checked ? current.filter((v) => v !== opt.value) : [...current, opt.value];
-                            handleChange(q.field_name, next);
-                          }}
-                        />
-                        {opt.label}
-                      </label>
-                    );
-                  })}
-                </div>
-              ) : q.type === "DROPDOWN" ? (
-                <select
-                  required={q.required}
-                  value={(values[q.field_name] as string) || ""}
-                  onChange={(e) => handleChange(q.field_name, e.target.value)}
-                >
-                  <option value="">Selecione...</option>
-                  {q.options?.map((opt) => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </option>
-                  ))}
-                </select>
-              ) : q.type === "DATE" ? (
-                <input
-                  type="date"
-                  required={q.required}
-                  value={(values[q.field_name] as string) || ""}
-                  onChange={(e) => handleChange(q.field_name, e.target.value)}
-                />
-              ) : q.type === "TIME" ? (
-                <input
-                  type="time"
-                  required={q.required}
-                  value={(values[q.field_name] as string) || ""}
-                  onChange={(e) => handleChange(q.field_name, e.target.value)}
-                />
-              ) : q.type === "FILE_UPLOAD" ? (
-                <input
-                  type="file"
-                  required={q.required}
-                  onChange={(e) => handleChange(q.field_name, e.target.files?.[0] ?? null)}
-                />
-              ) : q.type === "LINEAR_SCALE" ? (
-                <input
-                  type="number"
-                  min={q.config?.min ?? 1}
-                  max={q.config?.max ?? 5}
-                  required={q.required}
-                  value={(values[q.field_name] as string) || ""}
-                  onChange={(e) => handleChange(q.field_name, e.target.value)}
-                />
-              ) : (
-                <input
-                  required={q.required}
-                  value={(values[q.field_name] as string) || ""}
-                  onChange={(e) => handleChange(q.field_name, e.target.value)}
-                />
-              )}
-            </div>
+  const renderField = (q: FormQuestion) => {
+    const baseProps = {
+      required: q.required,
+    };
+    if (q.type === "LONG_TEXT") {
+      return (
+        <textarea
+          {...baseProps}
+          value={(values[q.field_name] as string) || ""}
+          onChange={(e) => handleChange(q.field_name, e.target.value)}
+          rows={3}
+        />
+      );
+    }
+    if (q.type === "MULTIPLE_CHOICE") {
+      return (
+        <div className="choice-list">
+          {q.options?.map((opt) => (
+            <label key={opt.value} className="choice-item">
+              <input
+                type="radio"
+                name={q.field_name}
+                value={opt.value}
+                required={q.required}
+                checked={values[q.field_name] === opt.value}
+                onChange={(e) => handleChange(q.field_name, e.target.value)}
+              />
+              {opt.label}
+            </label>
           ))}
-          <Button type="submit" disabled={submitting}>
-            {submitting ? "Enviando..." : "Enviar solicitação"}
-          </Button>
-        </form>
-      </div>
-
-      <div className="card">
-        <h3>Acompanhar pelo CPF</h3>
-        <div style={{ display: "flex", gap: "0.5rem", marginBottom: "0.75rem" }}>
-          <input
-            placeholder="Digite o CPF"
-            value={cpfStatus}
-            onChange={(e) => setCpfStatus(e.target.value)}
-            style={{ flex: 1 }}
-          />
-          <Button type="button" onClick={() => fetchStatus(cpfStatus)} disabled={!cpfStatus}>
-            Consultar
-          </Button>
         </div>
-        {statuses.length === 0 ? (
-          <p style={{ color: "var(--muted)" }}>Nenhuma inscrição encontrada para este CPF.</p>
-        ) : (
-          <div className="grid" style={{ gap: "0.75rem" }}>
-            {statuses.map((s) => (
-              <div key={s.protocol_number} className="card" style={{ background: "#0f1724" }}>
-                <div style={{ display: "flex", justifyContent: "space-between" }}>
-                  <div>
-                    <strong>Protocolo</strong>
-                    <div>{s.protocol_number}</div>
-                  </div>
-                  <div>
-                    <strong>Status</strong>
-                    <div>{s.status}</div>
-                  </div>
+      );
+    }
+    if (q.type === "CHECKBOXES") {
+      return (
+        <div className="choice-list">
+          {q.options?.map((opt) => {
+            const current = (values[q.field_name] as string[]) || [];
+            const checked = current.includes(opt.value);
+            return (
+              <label key={opt.value} className="choice-item">
+                <input
+                  type="checkbox"
+                  value={opt.value}
+                  checked={checked}
+                  onChange={() => {
+                    const next = checked ? current.filter((v) => v !== opt.value) : [...current, opt.value];
+                    handleChange(q.field_name, next);
+                  }}
+                />
+                {opt.label}
+              </label>
+            );
+          })}
+        </div>
+      );
+    }
+    if (q.type === "DROPDOWN") {
+      return (
+        <select
+          {...baseProps}
+          value={(values[q.field_name] as string) || ""}
+          onChange={(e) => handleChange(q.field_name, e.target.value)}
+        >
+          <option value="">Selecione...</option>
+          {q.options?.map((opt) => (
+            <option key={opt.value} value={opt.value}>
+              {opt.label}
+            </option>
+          ))}
+        </select>
+      );
+    }
+    if (q.type === "DATE") {
+      return (
+        <input
+          type="date"
+          {...baseProps}
+          value={(values[q.field_name] as string) || ""}
+          onChange={(e) => handleChange(q.field_name, e.target.value)}
+        />
+      );
+    }
+    if (q.type === "TIME") {
+      return (
+        <input
+          type="time"
+          {...baseProps}
+          value={(values[q.field_name] as string) || ""}
+          onChange={(e) => handleChange(q.field_name, e.target.value)}
+        />
+      );
+    }
+    if (q.type === "FILE_UPLOAD") {
+      return <input type="file" {...baseProps} onChange={(e) => handleChange(q.field_name, e.target.files?.[0] ?? null)} />;
+    }
+    if (q.type === "LINEAR_SCALE") {
+      return (
+        <input
+          type="number"
+          min={q.config?.min ?? 1}
+          max={q.config?.max ?? 5}
+          {...baseProps}
+          value={(values[q.field_name] as string) || ""}
+          onChange={(e) => handleChange(q.field_name, e.target.value)}
+        />
+      );
+    }
+    return (
+      <input
+        {...baseProps}
+        value={(values[q.field_name] as string) || ""}
+        onChange={(e) => handleChange(q.field_name, e.target.value)}
+      />
+    );
+  };
+
+  return (
+    <div className="public-form-page">
+      <section className="form-hero">
+        <div>
+          <p className="eyebrow">Prefeitura Municipal</p>
+          <h1>{template.name}</h1>
+          {template.description && <p className="muted">{template.description}</p>}
+          <div className="pill-row">
+            <span className="pill">Formulário público</span>
+            <span className="pill soft">Responda e gere um protocolo</span>
+          </div>
+        </div>
+      </section>
+
+      {approvedSubmission && approvedSubmission.card && (
+        <div className="card card-overlay">
+          <div className="card-overlay__inner">
+            <div className="card-overlay__left">
+              <p className="eyebrow">Carteirinha estudantil</p>
+              <h2 className="card-title">Status: {approvedSubmission.status}</h2>
+              <p className="muted">Protocolo {approvedSubmission.protocol_number}</p>
+              <div className="student-card">
+                <div className="student-card__header">
+                  <span className="pill">Aprovada</span>
+                  <span className="pill soft">Transporte</span>
                 </div>
-                {s.status_notes && <p style={{ marginTop: "0.5rem", color: "var(--muted)" }}>{s.status_notes}</p>}
-                {s.card && (
-                  <div style={{ marginTop: "0.75rem" }}>
-                    <strong>Carteirinha</strong>
-                    <div>Número: {s.card.card_number}</div>
-                    <div>Validade: {s.card.expiration_date}</div>
+                <div className="student-card__body">
+                  <div>
+                    <p className="eyebrow">Aluno</p>
+                    <strong>{approvedSubmission.student?.full_name || "—"}</strong>
                   </div>
-                )}
-                {s.student && (
-                  <div style={{ marginTop: "0.5rem", color: "var(--muted)" }}>
-                    <div>Aluno: {s.student.full_name}</div>
-                    {s.student.school && <div>Escola: {s.student.school}</div>}
+                  <div>
+                    <p className="eyebrow">Carteirinha</p>
+                    <strong>{approvedSubmission.card.card_number}</strong>
+                    <p className="muted">Validade: {approvedSubmission.card.expiration_date}</p>
                   </div>
-                )}
+                  {approvedSubmission.student?.school && (
+                    <div>
+                      <p className="eyebrow">Escola</p>
+                      <strong>{approvedSubmission.student.school}</strong>
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className="card-overlay__actions">
+                <Button variant="ghost" onClick={() => setApprovedSubmission(null)}>
+                  Voltar ao formulário
+                </Button>
+              </div>
+            </div>
+            <div className="card-overlay__right">
+              <div className="qr-placeholder">QR</div>
+              <p className="muted">Apresente o protocolo ou baixe esta tela para comprovar aprovação.</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="form-layout">
+        <div className="card form-card">
+          <header className="form-card__header">
+            <div>
+              <p className="eyebrow">Solicitação</p>
+              <h2>Preencha os dados</h2>
+            </div>
+            <div className="badge">Campos marcados com * são obrigatórios</div>
+          </header>
+
+          {error && <div className="alert error">{error}</div>}
+          {submitResult && <div className="alert success">{submitResult}</div>}
+
+          <form className="form-grid responsive" onSubmit={handleSubmit}>
+            {sortedQuestions.map((q) => (
+              <div key={q.id} className="question-block">
+                <div className="question-heading">
+                  <label>
+                    <span className="question-label">
+                      {q.label} {q.required && <span className="required">*</span>}
+                    </span>
+                    {q.help_text && <small className="muted">{q.help_text}</small>}
+                  </label>
+                </div>
+                {renderField(q)}
               </div>
             ))}
+            <div className="full-width">
+              <Button type="submit" disabled={submitting} style={{ width: "100%", height: "52px" }}>
+                {submitting ? "Enviando..." : "Enviar solicitação"}
+              </Button>
+            </div>
+          </form>
+        </div>
+
+        <aside className="card status-card">
+          <div className="status-card__header">
+            <p className="eyebrow">Acompanhar</p>
+            <h3>Consulte pelo CPF</h3>
+            <p className="muted">Veja protocolos abertos e o andamento da emissão.</p>
           </div>
-        )}
+          <div className="status-search">
+            <input
+              placeholder="Digite o CPF"
+              value={cpfStatus}
+              onChange={(e) => setCpfStatus(e.target.value)}
+            />
+            <Button type="button" onClick={() => fetchStatus(cpfStatus)} disabled={!cpfStatus}>
+              Consultar
+            </Button>
+          </div>
+          {statuses.length === 0 ? (
+            <p className="muted">Nenhuma inscrição encontrada para este CPF.</p>
+          ) : (
+            <div className="status-list">
+              {statuses.map((s) => (
+                <div key={s.protocol_number} className="status-item">
+                  <div className="status-item__top">
+                    <div>
+                      <p className="eyebrow">Protocolo</p>
+                      <strong>{s.protocol_number}</strong>
+                    </div>
+                    <div className="status-chip">{s.status}</div>
+                  </div>
+                  {s.status_notes && <p className="muted">{s.status_notes}</p>}
+                  {s.card && (
+                    <div className="status-meta">
+                      <p>
+                        <strong>Carteirinha:</strong> {s.card.card_number}
+                      </p>
+                      <p className="muted">Validade: {s.card.expiration_date}</p>
+                    </div>
+                  )}
+                  {s.student && (
+                    <div className="status-meta muted">
+                      <p>Aluno: {s.student.full_name}</p>
+                      {s.student.school && <p>Escola: {s.student.school}</p>}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </aside>
       </div>
     </div>
   );
