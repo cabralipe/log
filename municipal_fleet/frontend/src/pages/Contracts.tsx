@@ -9,6 +9,7 @@ import { Button } from "../components/Button";
 import { Pagination } from "../components/Pagination";
 import { StatusBadge } from "../components/StatusBadge";
 import { useAuth } from "../hooks/useAuth";
+import { formatCnpj } from "../utils/masks";
 
 type Contract = {
   id: number;
@@ -289,7 +290,9 @@ export const ContractsPage = () => {
               <input
                 placeholder="CNPJ do fornecedor"
                 value={form.provider_cnpj ?? ""}
-                onChange={(e) => setForm((f) => ({ ...f, provider_cnpj: e.target.value }))}
+                onChange={(e) => setForm((f) => ({ ...f, provider_cnpj: formatCnpj(e.target.value) }))}
+                inputMode="numeric"
+                maxLength={18}
               />
               <textarea
                 placeholder="Descrição"
@@ -644,7 +647,9 @@ export const ContractsPage = () => {
             <input
               placeholder="CNPJ do fornecedor"
               value={form.provider_cnpj ?? ""}
-              onChange={(e) => setForm((f) => ({ ...f, provider_cnpj: e.target.value }))}
+              onChange={(e) => setForm((f) => ({ ...f, provider_cnpj: formatCnpj(e.target.value) }))}
+              inputMode="numeric"
+              maxLength={18}
             />
             <textarea
               placeholder="Descrição"

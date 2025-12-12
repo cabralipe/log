@@ -6,6 +6,7 @@ import { Pagination } from "../components/Pagination";
 import { useMediaQuery } from "../hooks/useMediaQuery";
 import { FloatingActionButton } from "../components/FloatingActionButton";
 import { Modal } from "../components/Modal";
+import { formatCnpj, formatPhone } from "../utils/masks";
 
 type Municipality = {
   id: number;
@@ -94,11 +95,11 @@ export const MunicipalitiesPage = () => {
       <h3>{editingId ? "Editar prefeitura" : "Nova prefeitura"}</h3>
       <form className="grid form-grid responsive" onSubmit={handleSubmit}>
         <input placeholder="Nome" required value={form.name ?? ""} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
-        <input placeholder="CNPJ" required value={form.cnpj ?? ""} onChange={(e) => setForm((f) => ({ ...f, cnpj: e.target.value }))} />
+        <input placeholder="CNPJ" required value={form.cnpj ?? ""} onChange={(e) => setForm((f) => ({ ...f, cnpj: formatCnpj(e.target.value) }))} inputMode="numeric" maxLength={18} />
         <input placeholder="Endereço" required value={form.address ?? ""} onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))} />
         <input placeholder="Cidade" required value={form.city ?? ""} onChange={(e) => setForm((f) => ({ ...f, city: e.target.value }))} />
         <input placeholder="UF" required maxLength={2} value={form.state ?? ""} onChange={(e) => setForm((f) => ({ ...f, state: e.target.value.toUpperCase() }))} />
-        <input placeholder="Telefone" required value={form.phone ?? ""} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} />
+        <input placeholder="Telefone" required value={form.phone ?? ""} onChange={(e) => setForm((f) => ({ ...f, phone: formatPhone(e.target.value) }))} inputMode="numeric" maxLength={15} />
         <div className="grid" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "0.5rem" }}>
           <Button type="submit">{editingId ? "Atualizar" : "Salvar"}</Button>
           {editingId && (

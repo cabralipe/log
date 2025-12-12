@@ -113,4 +113,3 @@ class FuelStationSerializer(serializers.ModelSerializer):
         model = FuelStation
         fields = "__all__"
         read_only_fields = ["id", "created_at", "updated_at"]
-        extra_kwargs = {"municipality": {"read_only": True}}

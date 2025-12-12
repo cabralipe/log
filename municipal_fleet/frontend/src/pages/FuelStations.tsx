@@ -7,6 +7,8 @@ import { Pagination } from "../components/Pagination";
 import { useMediaQuery } from "../hooks/useMediaQuery";
 import { FloatingActionButton } from "../components/FloatingActionButton";
 import { Modal } from "../components/Modal";
+import { useAuth } from "../hooks/useAuth";
+import { formatCnpj } from "../utils/masks";
 
 type FuelStation = {
   id: number;
@@ -16,9 +18,11 @@ type FuelStation = {
   active: boolean;
   municipality: number;
 };
+type Municipality = { id: number; name: string };
 
 export const FuelStationsPage = () => {
   const { isMobile } = useMediaQuery();
+  const { user: current } = useAuth();
   const [stations, setStations] = useState<FuelStation[]>([]);
   const [form, setForm] = useState<Partial<FuelStation>>({ active: true });
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -28,6 +32,7 @@ export const FuelStationsPage = () => {
   const [total, setTotal] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [municipalities, setMunicipalities] = useState<Municipality[]>([]);
 
   const load = (nextPage = page, nextSearch = search, nextPageSize = pageSize) => {
     api
@@ -51,6 +56,16 @@ export const FuelStationsPage = () => {
   useEffect(() => {
     load();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    api
+      .get<Paginated<Municipality>>("/municipalities/", { params: { page_size: 1000 } })
+      .then((res) => {
+        const data = res.data as any;
+        setMunicipalities(Array.isArray(data) ? data : data.results);
+      })
+      .catch(() => {});
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -97,12 +112,28 @@ export const FuelStationsPage = () => {
       <h3>{editingId ? "Editar posto" : "Novo posto credenciado"}</h3>
       <form className="grid form-grid responsive" onSubmit={handleSubmit}>
         <input placeholder="Nome" required value={form.name ?? ""} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
-        <input placeholder="CNPJ" value={form.cnpj ?? ""} onChange={(e) => setForm((f) => ({ ...f, cnpj: e.target.value }))} />
+        <input placeholder="CNPJ" value={form.cnpj ?? ""} onChange={(e) => setForm((f) => ({ ...f, cnpj: formatCnpj(e.target.value) }))} inputMode="numeric" maxLength={18} />
         <input placeholder="Endereço" value={form.address ?? ""} onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))} />
         <select value={form.active ? "true" : "false"} onChange={(e) => setForm((f) => ({ ...f, active: e.target.value === "true" }))}>
           <option value="true">Ativo</option>
           <option value="false">Inativo</option>
         </select>
+        {current?.role === "SUPERADMIN" && (
+          <label>
+            Prefeitura
+            <select
+              value={(form.municipality as number) ?? ""}
+              onChange={(e) => setForm((f) => ({ ...f, municipality: Number(e.target.value) }))}
+            >
+              <option value="">Selecione</option>
+              {municipalities.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
         <div className="grid" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "0.5rem" }}>
           <Button type="submit">{editingId ? "Atualizar" : "Salvar"}</Button>
           {editingId && (
