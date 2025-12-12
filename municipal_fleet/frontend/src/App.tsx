@@ -18,6 +18,7 @@ import { FormSubmissionsPage } from "./pages/FormSubmissions";
 import { StudentCardsPage } from "./pages/StudentCards";
 import { FormTemplatesPage } from "./pages/FormTemplates";
 import { Layout } from "./components/Layout";
+import { CardValidatorPage } from "./pages/CardValidator";
 
 const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading } = useAuth();
@@ -54,6 +55,7 @@ const AppRoutes = () => (
       <Route path="/form-templates" element={<FormTemplatesPage />} />
       <Route path="/form-submissions" element={<FormSubmissionsPage />} />
       <Route path="/student-cards" element={<StudentCardsPage />} />
+      <Route path="/card-validator" element={<CardValidatorPage />} />
       <Route path="/" element={<Navigate to="/dashboard" replace />} />
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Route>

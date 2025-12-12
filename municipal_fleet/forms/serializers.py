@@ -194,11 +194,19 @@ class PublicFormQuestionSerializer(serializers.ModelSerializer):
 
 class PublicFormTemplateSerializer(serializers.ModelSerializer):
     questions = PublicFormQuestionSerializer(many=True, read_only=True)
+    municipality = serializers.IntegerField(source="municipality_id", read_only=True)
+    schools = serializers.SerializerMethodField()
 
     class Meta:
         model = FormTemplate
-        fields = ["id", "name", "slug", "description", "form_type", "questions"]
+        fields = ["id", "name", "slug", "description", "form_type", "questions", "municipality", "schools"]
         read_only_fields = fields
+
+    def get_schools(self, obj: FormTemplate):
+        if obj.form_type != FormTemplate.FormType.STUDENT_CARD_APPLICATION:
+            return []
+        schools = obj.municipality.schools.filter(is_active=True).order_by("name")
+        return [{"id": s.id, "name": s.name} for s in schools]
 
 
 class PublicSubmissionStatusSerializer(serializers.ModelSerializer):

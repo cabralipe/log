@@ -4,6 +4,7 @@ import axios from "axios";
 import { API_ROOT } from "../lib/api";
 import { Button } from "../components/Button";
 import "./PublicForm.css";
+import { QRCodeSVG } from "qrcode.react";
 
 type FormQuestion = {
   id: number;
@@ -23,6 +24,8 @@ type FormTemplate = {
   description?: string;
   slug: string;
   questions: FormQuestion[];
+  municipality?: number;
+  schools?: { id: number; name: string }[];
 };
 
 type SubmissionStatus = {
@@ -146,6 +149,10 @@ export const PublicFormPage = () => {
   if (!template) return null;
 
   const renderField = (q: FormQuestion) => {
+    const dynamicOptions =
+      q.field_name === "school_id" && template?.schools?.length
+        ? template.schools.map((s) => ({ value: String(s.id), label: s.name }))
+        : q.options;
     const baseProps = {
       required: q.required,
     };
@@ -162,7 +169,7 @@ export const PublicFormPage = () => {
     if (q.type === "MULTIPLE_CHOICE") {
       return (
         <div className="choice-list">
-          {q.options?.map((opt) => (
+          {dynamicOptions?.map((opt) => (
             <label key={opt.value} className="choice-item">
               <input
                 type="radio"
@@ -181,7 +188,7 @@ export const PublicFormPage = () => {
     if (q.type === "CHECKBOXES") {
       return (
         <div className="choice-list">
-          {q.options?.map((opt) => {
+          {dynamicOptions?.map((opt) => {
             const current = (values[q.field_name] as string[]) || [];
             const checked = current.includes(opt.value);
             return (
@@ -210,7 +217,7 @@ export const PublicFormPage = () => {
           onChange={(e) => handleChange(q.field_name, e.target.value)}
         >
           <option value="">Selecione...</option>
-          {q.options?.map((opt) => (
+          {dynamicOptions?.map((opt) => (
             <option key={opt.value} value={opt.value}>
               {opt.label}
             </option>
@@ -313,7 +320,17 @@ export const PublicFormPage = () => {
               </div>
             </div>
             <div className="card-overlay__right">
-              <div className="qr-placeholder">QR</div>
+              {approvedSubmission.card.qr_payload ? (
+                <QRCodeSVG
+                  value={approvedSubmission.card.qr_payload}
+                  size={148}
+                  bgColor="#0f1724"
+                  fgColor="#e8eef8"
+                  includeMargin
+                />
+              ) : (
+                <div className="qr-placeholder">QR</div>
+              )}
               <p className="muted">Apresente o protocolo ou baixe esta tela para comprovar aprovação.</p>
             </div>
           </div>

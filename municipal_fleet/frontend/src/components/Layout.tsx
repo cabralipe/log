@@ -17,6 +17,7 @@ import {
   Clock3,
   ClipboardList,
   Inbox,
+  BadgeCheck,
 } from "lucide-react";
 import { useEffect } from "react";
 import "./Layout.css";
@@ -42,6 +43,8 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
     return () => media.removeEventListener("change", handler);
   }, [setCollapsed]);
 
+  const canValidateCard = user && user.role !== "VIEWER";
+
   const navItems = [
     { to: "/dashboard", label: "Dashboard", icon: Home },
     { to: "/vehicles", label: "Veículos", icon: Truck },
@@ -57,6 +60,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
           { to: "/form-submissions", label: "Submissões", icon: Inbox },
         ]
       : []),
+    ...(canValidateCard ? [{ to: "/card-validator", label: "Validar carteirinha", icon: BadgeCheck }] : []),
     { to: "/reports", label: "Relatórios", icon: BarChart3 },
   ];
   const adminItems =
