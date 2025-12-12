@@ -1,7 +1,23 @@
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import { useSidebar } from "../stores/sidebar";
-import { Menu, X, Home, Truck, Wrench, Users, MapPin, BarChart3, Building2, UserCircle, Fuel, FileText, Clock3 } from "lucide-react";
+import {
+  Menu,
+  X,
+  Home,
+  Truck,
+  Wrench,
+  Users,
+  MapPin,
+  BarChart3,
+  Building2,
+  UserCircle,
+  Fuel,
+  FileText,
+  Clock3,
+  ClipboardList,
+  Inbox,
+} from "lucide-react";
 import { useEffect } from "react";
 import "./Layout.css";
 
@@ -35,6 +51,12 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
     { to: "/rental-periods", label: "Locações", icon: Clock3 },
     ...(isAdmin ? [{ to: "/fuel-stations", label: "Postos", icon: Fuel }] : []),
     { to: "/trips", label: "Viagens", icon: MapPin },
+    ...(isAdmin
+      ? [
+          { to: "/form-templates", label: "Formulários", icon: ClipboardList },
+          { to: "/form-submissions", label: "Submissões", icon: Inbox },
+        ]
+      : []),
     { to: "/reports", label: "Relatórios", icon: BarChart3 },
   ];
   const adminItems =

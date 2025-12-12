@@ -108,6 +108,40 @@ class PublicFormSubmissionTests(TestCase):
         self.assertIn("form_submissions", file_name)
         self.assertTrue(file_name.endswith(".pdf"))
 
+    def test_generic_form_without_cpf_allows_submission(self):
+        template = FormTemplate.objects.create(
+            municipality=self.municipality,
+            name="Sem CPF",
+            slug="sem-cpf",
+            form_type=FormTemplate.FormType.GENERIC,
+            is_active=True,
+            require_cpf=False,
+        )
+        q1 = FormQuestion.objects.create(
+            form_template=template,
+            order=1,
+            label="Nome",
+            field_name="name",
+            type=FormQuestion.QuestionType.SHORT_TEXT,
+            required=True,
+        )
+        q2 = FormQuestion.objects.create(
+            form_template=template,
+            order=2,
+            label="Áreas",
+            field_name="topics",
+            type=FormQuestion.QuestionType.CHECKBOXES,
+            required=False,
+        )
+        FormOption.objects.create(question=q2, label="Opção A", value="A", order=1)
+        payload = {"name": "Fulano", "topics": '["A"]'}
+        resp = self.client.post(f"/public/forms/{template.slug}/submit/", data=payload, format="json")
+        self.assertEqual(resp.status_code, 201)
+        submission = FormSubmission.objects.get(protocol_number=resp.data["protocol_number"])
+        answers = {a.question_id: a for a in submission.answers.all()}
+        self.assertIn(q1.id, answers)
+        self.assertIn(q2.id, answers)
+
     def test_municipality_admin_can_create_template_and_review_submissions(self):
         # admin municipal consegue criar formulário e gerenciar submissões do seu município
         self.client.force_authenticate(self.admin)

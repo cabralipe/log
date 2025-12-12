@@ -39,6 +39,11 @@ const QUESTION_TYPES = [
   "FILE_UPLOAD",
 ];
 
+const FORM_TYPES = [
+  { value: "STUDENT_CARD_APPLICATION", label: "Carteirinha Estudantil (CPF obrigatório)" },
+  { value: "GENERIC", label: "Genérico (CPF opcional)" },
+];
+
 export const FormTemplatesPage = () => {
   const [templates, setTemplates] = useState<FormTemplate[]>([]);
   const [selected, setSelected] = useState<FormTemplate | null>(null);
@@ -54,6 +59,7 @@ export const FormTemplatesPage = () => {
     slug: "",
     is_active: true,
     form_type: "STUDENT_CARD_APPLICATION",
+    require_cpf: true,
   });
   const [newQuestion, setNewQuestion] = useState<Partial<FormQuestion>>({
     order: 1,
@@ -95,7 +101,14 @@ export const FormTemplatesPage = () => {
   const createTemplate = async () => {
     try {
       const { data } = await api.post<FormTemplate>("/forms/templates/", newTemplate);
-      setNewTemplate({ name: "", description: "", slug: "", is_active: true, form_type: "STUDENT_CARD_APPLICATION" });
+      setNewTemplate({
+        name: "",
+        description: "",
+        slug: "",
+        is_active: true,
+        form_type: "STUDENT_CARD_APPLICATION",
+        require_cpf: true,
+      });
       loadTemplates();
       setSelected(data);
       loadQuestions(data.id);
@@ -189,10 +202,37 @@ export const FormTemplatesPage = () => {
             />
             Ativo
           </label>
-          <label style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
-            <input type="radio" checked readOnly />
-            Tipo: Carteirinha Estudantil (CPF obrigatório)
-          </label>
+          <div className="grid" style={{ gridTemplateColumns: "1fr 1fr", gap: "0.5rem" }}>
+            <div>
+              <label>Tipo</label>
+              <select
+                value={newTemplate.form_type}
+                onChange={(e) => {
+                  const nextType = e.target.value;
+                  setNewTemplate((t) => ({
+                    ...t,
+                    form_type: nextType,
+                    require_cpf: nextType === "STUDENT_CARD_APPLICATION" ? true : t.require_cpf ?? false,
+                  }));
+                }}
+              >
+                {FORM_TYPES.map((ft) => (
+                  <option key={ft.value} value={ft.value}>
+                    {ft.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", marginTop: "1.6rem" }}>
+              <input
+                type="checkbox"
+                checked={newTemplate.require_cpf ?? false}
+                disabled={newTemplate.form_type === "STUDENT_CARD_APPLICATION"}
+                onChange={(e) => setNewTemplate((t) => ({ ...t, require_cpf: e.target.checked }))}
+              />
+              <span>Exigir CPF</span>
+            </div>
+          </div>
           <Button onClick={createTemplate} disabled={!newTemplate.name}>
             Criar formulário
           </Button>

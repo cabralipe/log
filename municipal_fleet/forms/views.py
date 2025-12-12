@@ -209,7 +209,7 @@ class PublicFormSubmitView(views.APIView):
                 cpf_value = raw_value or cleaned.get("value_text")
             answers_payload.append((question, cleaned))
 
-        if not cpf_value:
+        if template.require_cpf and not cpf_value:
             raise exceptions.ValidationError({"cpf": "CPF é obrigatório."})
 
         submission = FormSubmission.objects.create(
