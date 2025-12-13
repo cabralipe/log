@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useAuth } from "../hooks/useAuth";
 import { api, API_ROOT } from "../lib/api";
 import { Button } from "../components/Button";
 import { Table } from "../components/Table";
@@ -12,6 +13,7 @@ type FormTemplate = {
   is_active: boolean;
   require_cpf: boolean;
   form_type: string;
+  municipality?: number | null;
 };
 
 type FormQuestion = {
@@ -45,6 +47,8 @@ const FORM_TYPES = [
 ];
 
 export const FormTemplatesPage = () => {
+  const { user } = useAuth();
+  const [municipalities, setMunicipalities] = useState<{ id: number; name: string }[]>([]);
   const [templates, setTemplates] = useState<FormTemplate[]>([]);
   const [selected, setSelected] = useState<FormTemplate | null>(null);
   const [questions, setQuestions] = useState<FormQuestion[]>([]);
@@ -74,6 +78,21 @@ export const FormTemplatesPage = () => {
     return `${base}/public/forms/${selected.slug}`;
   }, [selected]);
 
+  useEffect(() => {
+    if (user?.role === "SUPERADMIN") {
+      api
+        .get<{ results: { id: number; name: string }[] }>("/municipalities/", { params: { page_size: 1000 } })
+        .then((res) => {
+          const data = Array.isArray(res.data) ? res.data : (res.data as any).results ?? [];
+          setMunicipalities(data);
+        })
+        .catch(() => setMunicipalities([]));
+    }
+    if (user?.municipality) {
+      setNewTemplate((t) => ({ ...t, municipality: user.municipality }));
+    }
+  }, [user]);
+
   const loadTemplates = () => {
     api
       .get<FormTemplate[]>("/forms/templates/")
@@ -82,7 +101,7 @@ export const FormTemplatesPage = () => {
         setTemplates(data);
         setError(null);
       })
-      .catch((err) => setError(err.response?.data?.detail || "Erro ao carregar formulários."));
+      .catch((err) => setError(parseError(err) || "Erro ao carregar formulários."));
   };
 
   const loadQuestions = (templateId: number) => {
@@ -100,6 +119,25 @@ export const FormTemplatesPage = () => {
     loadTemplates();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const parseError = (err: any) => {
+    if (!err || !err.response) return err?.message || "Erro desconhecido";
+    const data = err.response.data;
+    if (!data) return err.message || "Erro desconhecido";
+    if (data.detail) return data.detail;
+    if (typeof data === "string") return data;
+    if (typeof data === "object") {
+      try {
+        const vals = Object.values(data)
+          .flat()
+          .map((v: any) => (typeof v === "string" ? v : JSON.stringify(v)));
+        return vals.join(" ");
+      } catch (e) {
+        return JSON.stringify(data);
+      }
+    }
+    return err.message || "Erro desconhecido";
+  };
+
   const createTemplate = async () => {
     try {
       const { data } = await api.post<FormTemplate>("/forms/templates/", newTemplate);
@@ -115,7 +153,7 @@ export const FormTemplatesPage = () => {
       setSelected(data);
       loadQuestions(data.id);
     } catch (err: any) {
-      setError(err.response?.data?.detail || "Erro ao criar formulário.");
+      setError(parseError(err) || "Erro ao criar formulário.");
     }
   };
 
@@ -127,7 +165,7 @@ export const FormTemplatesPage = () => {
       setNewQuestion({ order: (newQuestion.order || 1) + 1, type: "SHORT_TEXT", required: true });
       loadQuestions(selected.id);
     } catch (err: any) {
-      setQuestionError(err.response?.data?.detail || "Erro ao criar pergunta (campo CPF é obrigatório e deve ser required).");
+      setQuestionError(parseError(err) || "Erro ao criar pergunta (campo CPF é obrigatório e deve ser required).");
     }
   };
 
@@ -137,7 +175,7 @@ export const FormTemplatesPage = () => {
       await api.patch(`/forms/questions/${selectedQuestion.id}/`, updates);
       loadQuestions(selectedQuestion.form_template);
     } catch (err: any) {
-      setQuestionError(err.response?.data?.detail || "Erro ao atualizar pergunta.");
+      setQuestionError(parseError(err) || "Erro ao atualizar pergunta.");
     }
   };
 
@@ -148,7 +186,7 @@ export const FormTemplatesPage = () => {
       loadQuestions(selected.id);
       setSelectedQuestion(null);
     } catch (err: any) {
-      setQuestionError(err.response?.data?.detail || "Não foi possível remover (CPF obrigatório não pode ser removido).");
+      setQuestionError(parseError(err) || "Não foi possível remover (CPF obrigatório não pode ser removido).");
     }
   };
 
@@ -165,7 +203,7 @@ export const FormTemplatesPage = () => {
       setOptionValue("");
       loadQuestions(selectedQuestion.form_template);
     } catch (err: any) {
-      setQuestionError(err.response?.data?.detail || "Erro ao adicionar opção.");
+      setQuestionError(parseError(err) || "Erro ao adicionar opção.");
     }
   };
 
@@ -205,6 +243,22 @@ export const FormTemplatesPage = () => {
             Ativo
           </label>
           <div className="grid" style={{ gridTemplateColumns: "1fr 1fr", gap: "0.5rem" }}>
+            {user?.role === "SUPERADMIN" && (
+              <div>
+                <label>Prefeitura</label>
+                <select
+                  value={newTemplate.municipality ?? ""}
+                  onChange={(e) => setNewTemplate((t) => ({ ...t, municipality: Number(e.target.value) }))}
+                >
+                  <option value="">Selecione...</option>
+                  {municipalities.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
             <div>
               <label>Tipo</label>
               <select
@@ -235,7 +289,10 @@ export const FormTemplatesPage = () => {
               <span>Exigir CPF</span>
             </div>
           </div>
-          <Button onClick={createTemplate} disabled={!newTemplate.name}>
+          <Button
+            onClick={createTemplate}
+            disabled={!newTemplate.name || (user?.role === "SUPERADMIN" && !newTemplate.municipality)}
+          >
             Criar formulário
           </Button>
         </div>
