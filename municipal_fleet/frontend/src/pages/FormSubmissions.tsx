@@ -177,8 +177,8 @@ export const FormSubmissionsPage = () => {
             data={submissions}
           />
         )}
-      </div>
-      <div className="card">
+
+        <div className="card" style={{ marginTop: "1rem" }}>
         <h3>Detalhes</h3>
         {!selected ? (
           <p style={{ color: "var(--muted)" }}>Selecione uma submissão para revisar.</p>
@@ -247,6 +247,7 @@ export const FormSubmissionsPage = () => {
           </div>
         )}
       </div>
+    </div>
     </div>
   );
 };

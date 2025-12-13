@@ -319,9 +319,9 @@ export const FormTemplatesPage = () => {
             data={templates}
           />
         </div>
-      </div>
-      <div className="card">
-        <h2>Construtor</h2>
+
+        <div className="card" style={{ marginTop: "1rem" }}>
+          <h2>Construtor</h2>
         {!selected ? (
           <p style={{ color: "var(--muted)" }}>Selecione um formulário para gerenciar perguntas e copiar o link público.</p>
         ) : (
@@ -497,6 +497,7 @@ export const FormTemplatesPage = () => {
           </div>
         )}
       </div>
+    </div>
     </div>
   );
 };
