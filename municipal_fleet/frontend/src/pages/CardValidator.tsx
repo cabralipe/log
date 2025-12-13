@@ -85,6 +85,7 @@ export const CardValidatorPage = () => {
                     returnDetailedScanResult: true,
                 }
             );
+            scanner.setInversionMode("both"); // handle dark/negative QRs (screen brightness/off print)
             scannerRef.current = scanner;
             try {
                 await scanner.start();
@@ -137,6 +138,9 @@ export const CardValidatorPage = () => {
                 <div className="video-wrapper">
                     <video ref={videoRef} muted playsInline />
                 </div>
+                <p className="muted" style={{ margin: "0.5rem 0 0" }}>
+                    Dica: aumente o brilho e aproxime devagar. O leitor aceita QR claro/escuro (modo negativo).
+                </p>
                 <div className="input-row" style={{ marginTop: "0.5rem" }}>
                     <select
                         value={selectedCameraId ?? ""}

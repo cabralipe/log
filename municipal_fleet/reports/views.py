@@ -5,6 +5,7 @@ from rest_framework import permissions, response, views
 from fleet.models import Vehicle, FuelLog
 from trips.models import Trip, TripIncident, MonthlyOdometer
 from contracts.models import Contract, RentalPeriod
+from maintenance.models import ServiceOrder, MaintenancePlan, InventoryPart, InventoryMovement, Tire
 
 
 class DashboardView(views.APIView):
@@ -140,19 +141,22 @@ class FuelReportView(views.APIView):
             "total_logs": qs.count(),
             "total_liters": qs.aggregate(total=Sum("liters"))["total"] or 0,
         }
-        logs = list(
-            qs.values(
-                "id",
-                "filled_at",
-                "liters",
-                "fuel_station",
-                "notes",
-                "receipt_image",
-                "vehicle__license_plate",
-                "driver__name",
-            ).order_by("-filled_at", "-id")
-        )
-        return response.Response({"summary": summary, "logs": logs})
+        logs_data = []
+        for log in qs.select_related("vehicle", "driver").order_by("-filled_at", "-id"):
+            receipt_url = request.build_absolute_uri(log.receipt_image.url) if log.receipt_image else None
+            logs_data.append(
+                {
+                    "id": log.id,
+                    "filled_at": log.filled_at,
+                    "liters": log.liters,
+                    "fuel_station": log.fuel_station,
+                    "notes": log.notes,
+                    "receipt_image": receipt_url,
+                    "vehicle__license_plate": log.vehicle.license_plate,
+                    "driver__name": log.driver.name,
+                }
+            )
+        return response.Response({"summary": summary, "logs": logs_data})
 
 
 class TripIncidentReportView(views.APIView):
@@ -272,4 +276,141 @@ class ExpiringContractsReportView(views.APIView):
                     "municipality_id",
                 ).order_by("end_date")
             )
+        )
+
+
+class MaintenanceSummaryReportView(views.APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        qs = ServiceOrder.objects.select_related("vehicle", "municipality")
+        start = request.query_params.get("start_date")
+        end = request.query_params.get("end_date")
+        if user.role != "SUPERADMIN":
+            qs = qs.filter(municipality=user.municipality)
+        if start:
+            qs = qs.filter(opened_at__date__gte=start)
+        if end:
+            qs = qs.filter(opened_at__date__lte=end)
+
+        status_counts = list(qs.values("status").annotate(total=Count("id")))
+        total_cost = qs.aggregate(total=Sum("total_cost"))["total"] or 0
+        cost_by_vehicle = list(
+            qs.values("vehicle_id", "vehicle__license_plate").annotate(total=Sum("total_cost")).order_by(
+                "-total"
+            )
+        )
+        return response.Response(
+            {
+                "status_counts": status_counts,
+                "total_cost": total_cost,
+                "cost_by_vehicle": cost_by_vehicle,
+            }
+        )
+
+
+class MaintenancePreventiveReportView(views.APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        plans = MaintenancePlan.objects.select_related("vehicle")
+        if user.role != "SUPERADMIN":
+            plans = plans.filter(municipality=user.municipality)
+        today = timezone.localdate()
+        data = []
+        for plan in plans.filter(is_active=True):
+            due_km = None
+            due_days = None
+            if plan.trigger_type == MaintenancePlan.TriggerType.KM and plan.interval_km:
+                last = plan.last_service_odometer or 0
+                due_km = (plan.vehicle.odometer_current if plan.vehicle else 0) - last
+            if plan.trigger_type == MaintenancePlan.TriggerType.TIME and plan.interval_days and plan.last_service_date:
+                due_days = (today - plan.last_service_date).days
+            data.append(
+                {
+                    "id": plan.id,
+                    "name": plan.name,
+                    "vehicle_id": getattr(plan.vehicle, "id", None),
+                    "vehicle_plate": getattr(plan.vehicle, "license_plate", None),
+                    "trigger_type": plan.trigger_type,
+                    "interval_km": plan.interval_km,
+                    "interval_days": plan.interval_days,
+                    "last_service_odometer": plan.last_service_odometer,
+                    "last_service_date": plan.last_service_date,
+                    "km_since_last": due_km,
+                    "days_since_last": due_days,
+                }
+            )
+        return response.Response({"plans": data})
+
+
+class InventoryReportView(views.APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        parts = InventoryPart.objects.all()
+        movements = InventoryMovement.objects.all()
+        if user.role != "SUPERADMIN":
+            parts = parts.filter(municipality=user.municipality)
+            movements = movements.filter(municipality=user.municipality)
+        low_stock = parts.filter(current_stock__lte=F("minimum_stock"))
+        start = request.query_params.get("start_date")
+        end = request.query_params.get("end_date")
+        if start:
+            movements = movements.filter(performed_at__date__gte=start)
+        if end:
+            movements = movements.filter(performed_at__date__lte=end)
+        consumption = (
+            movements.filter(type=InventoryMovement.MovementType.OUT)
+            .values("part_id", "part__name", "part__sku", "part__unit")
+            .annotate(total=Sum("quantity"))
+        )
+        return response.Response(
+            {
+                "low_stock": list(
+                    low_stock.values(
+                        "id", "name", "sku", "current_stock", "minimum_stock", "unit", "municipality_id"
+                    )
+                ),
+                "consumption": list(consumption),
+            }
+        )
+
+
+class TireReportView(views.APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        tires = Tire.objects.all()
+        if user.role != "SUPERADMIN":
+            tires = tires.filter(municipality=user.municipality)
+        status_counts = list(tires.values("status").annotate(total=Count("id")))
+        nearing_end = []
+        for tire in tires:
+            if tire.max_km_life and tire.total_km >= tire.max_km_life * 0.9:
+                nearing_end.append(
+                    {
+                        "id": tire.id,
+                        "code": tire.code,
+                        "brand": tire.brand,
+                        "model": tire.model,
+                        "total_km": tire.total_km,
+                        "max_km_life": tire.max_km_life,
+                        "status": tire.status,
+                    }
+                )
+        cost_per_km = []
+        for tire in tires:
+            if tire.total_km:
+                cost_per_km.append({"id": tire.id, "code": tire.code, "value": float(tire.purchase_price) / tire.total_km})
+        return response.Response(
+            {
+                "status_counts": status_counts,
+                "nearing_end_of_life": nearing_end,
+                "cost_per_km": cost_per_km,
+            }
         )

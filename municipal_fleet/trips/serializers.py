@@ -6,6 +6,7 @@ from trips.models import Trip, TripIncident, MonthlyOdometer, FreeTrip
 from contracts.models import Contract
 from fleet.models import Vehicle
 from drivers.models import Driver
+from maintenance.services import handle_trip_completion
 
 
 SPECIAL_NEED_CHOICES = {"NONE", "TEA", "ELDERLY", "PCD", "OTHER"}
@@ -186,6 +187,7 @@ class TripSerializer(serializers.ModelSerializer):
             # Simplified flag via vehicle status hint
             vehicle.status = Vehicle.Status.MAINTENANCE
             vehicle.save(update_fields=["status"])
+        handle_trip_completion(vehicle, distance)
 
 
 class TripIncidentSerializer(serializers.ModelSerializer):
@@ -295,3 +297,4 @@ class FreeTripSerializer(serializers.ModelSerializer):
         if vehicle.odometer_monthly_limit and summary.kilometers > vehicle.odometer_monthly_limit:
             vehicle.status = Vehicle.Status.MAINTENANCE
             vehicle.save(update_fields=["status"])
+        handle_trip_completion(vehicle, distance)

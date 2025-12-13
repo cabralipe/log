@@ -58,6 +58,7 @@ class FuelLogSerializer(serializers.ModelSerializer):
         extra_kwargs = {
             "receipt_image": {"required": False},
             "driver": {"required": False},
+            "fuel_station": {"required": False},
         }
 
     def validate(self, attrs):
@@ -105,7 +106,17 @@ class FuelLogSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Posto indisponível.")
         if station and not attrs.get("fuel_station"):
             attrs["fuel_station"] = station.name
+        if not station and not attrs.get("fuel_station"):
+            raise serializers.ValidationError("Posto é obrigatório.")
         return attrs
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        request = self.context.get("request")
+        receipt_image = data.get("receipt_image")
+        if request and receipt_image:
+            data["receipt_image"] = request.build_absolute_uri(receipt_image)
+        return data
 
 
 class FuelStationSerializer(serializers.ModelSerializer):

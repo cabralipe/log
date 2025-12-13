@@ -18,6 +18,7 @@ urlpatterns = [
     path("api/drivers/", include("drivers.urls")),
     path("api/trips/", include("trips.urls")),
     path("api/", include("contracts.urls")),
+    path("api/", include("maintenance.urls")),
     path("api/reports/", include("reports.urls")),
     path("api/forms/", include("forms.urls")),
     path("api/students/", include("students.urls")),

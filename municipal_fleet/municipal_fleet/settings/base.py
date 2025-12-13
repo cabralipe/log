@@ -37,6 +37,7 @@ INSTALLED_APPS = [
     "contracts.apps.ContractsConfig",
     "forms.apps.FormsConfig",
     "students.apps.StudentsConfig",
+    "maintenance.apps.MaintenanceConfig",
 ]
 
 MIDDLEWARE = [

@@ -139,23 +139,29 @@ class DriverPortalFuelLogView(DriverPortalAuthMixin, views.APIView):
 
     def get(self, request):
         driver = self.get_portal_driver(request)
-        logs = (
+        logs_qs = (
             FuelLog.objects.filter(driver=driver)
             .select_related("vehicle")
             .order_by("-filled_at", "-created_at")
-            .values(
-                "id",
-                "filled_at",
-                "liters",
-                "fuel_station",
-                "fuel_station_ref_id",
-                "notes",
-                "receipt_image",
-                "vehicle_id",
-                "vehicle__license_plate",
-            )
         )
-        return response.Response({"logs": list(logs)})
+        logs = []
+        for log in logs_qs:
+            logs.append(
+                {
+                    "id": log.id,
+                    "filled_at": log.filled_at,
+                    "liters": log.liters,
+                    "fuel_station": log.fuel_station,
+                    "fuel_station_ref_id": log.fuel_station_ref_id,
+                    "notes": log.notes,
+                    "receipt_image": request.build_absolute_uri(log.receipt_image.url)
+                    if log.receipt_image
+                    else None,
+                    "vehicle_id": log.vehicle_id,
+                    "vehicle__license_plate": log.vehicle.license_plate,
+                }
+            )
+        return response.Response({"logs": logs})
 
     def post(self, request):
         driver = self.get_portal_driver(request)
