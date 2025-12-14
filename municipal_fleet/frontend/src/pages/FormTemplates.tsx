@@ -5,6 +5,7 @@ import { Button } from "../components/Button";
 import { Table } from "../components/Table";
 import { StatusBadge } from "../components/StatusBadge";
 import "../styles/DataPage.css";
+import "./FormTemplates.css";
 
 type FormTemplate = {
   id: number;
@@ -222,290 +223,291 @@ export const FormTemplatesPage = () => {
           <p className="data-subtitle">Templates, perguntas e fluxo público com o mesmo padrão visual.</p>
         </div>
       </div>
-      <div className="grid" style={{ gridTemplateColumns: "1.2fr 1.8fr" }}>
-        <div className="card">
+      <div className="form-templates-layout">
+        <div className="card form-templates-card">
           <h2>Novo formulário</h2>
           {error && <div className="data-error">{error}</div>}
-        <div className="grid form-grid">
-          <input
-            placeholder="Nome (ex.: Solicitação Carteirinha 2025)"
-            value={newTemplate.name ?? ""}
-            onChange={(e) => setNewTemplate((t) => ({ ...t, name: e.target.value }))}
-          />
-          <input
-            placeholder="Slug (opcional, ex.: carteirinha-2025)"
-            value={newTemplate.slug ?? ""}
-            onChange={(e) => setNewTemplate((t) => ({ ...t, slug: e.target.value }))}
-          />
-          <textarea
-            placeholder="Descrição"
-            value={newTemplate.description ?? ""}
-            onChange={(e) => setNewTemplate((t) => ({ ...t, description: e.target.value }))}
-          />
-          <label style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+          <div className="grid form-grid">
             <input
-              type="checkbox"
-              checked={newTemplate.is_active ?? true}
-              onChange={(e) => setNewTemplate((t) => ({ ...t, is_active: e.target.checked }))}
+              placeholder="Nome (ex.: Solicitação Carteirinha 2025)"
+              value={newTemplate.name ?? ""}
+              onChange={(e) => setNewTemplate((t) => ({ ...t, name: e.target.value }))}
             />
-            Ativo
-          </label>
-          <div className="grid" style={{ gridTemplateColumns: "1fr 1fr", gap: "0.5rem" }}>
-            {user?.role === "SUPERADMIN" && (
-              <div>
-                <label>Prefeitura</label>
-                <select
-                  value={newTemplate.municipality ?? ""}
-                  onChange={(e) => setNewTemplate((t) => ({ ...t, municipality: Number(e.target.value) }))}
-                >
-                  <option value="">Selecione...</option>
-                  {municipalities.map((m) => (
-                    <option key={m.id} value={m.id}>
-                      {m.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-            <div>
-              <label>Tipo</label>
-              <select
-                value={newTemplate.form_type}
-                onChange={(e) => {
-                  const nextType = e.target.value;
-                  setNewTemplate((t) => ({
-                    ...t,
-                    form_type: nextType,
-                    require_cpf: nextType === "STUDENT_CARD_APPLICATION" ? true : t.require_cpf ?? false,
-                  }));
-                }}
-              >
-                {FORM_TYPES.map((ft) => (
-                  <option key={ft.value} value={ft.value}>
-                    {ft.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", marginTop: "1.6rem" }}>
+            <input
+              placeholder="Slug (opcional, ex.: carteirinha-2025)"
+              value={newTemplate.slug ?? ""}
+              onChange={(e) => setNewTemplate((t) => ({ ...t, slug: e.target.value }))}
+            />
+            <textarea
+              placeholder="Descrição"
+              value={newTemplate.description ?? ""}
+              onChange={(e) => setNewTemplate((t) => ({ ...t, description: e.target.value }))}
+            />
+            <label className="inline-checkbox">
               <input
                 type="checkbox"
-                checked={newTemplate.require_cpf ?? false}
-                disabled={newTemplate.form_type === "STUDENT_CARD_APPLICATION"}
-                onChange={(e) => setNewTemplate((t) => ({ ...t, require_cpf: e.target.checked }))}
+                checked={newTemplate.is_active ?? true}
+                onChange={(e) => setNewTemplate((t) => ({ ...t, is_active: e.target.checked }))}
               />
-              <span>Exigir CPF</span>
-            </div>
-          </div>
-          <Button
-            onClick={createTemplate}
-            disabled={!newTemplate.name || (user?.role === "SUPERADMIN" && !newTemplate.municipality)}
-          >
-            Criar formulário
-          </Button>
-        </div>
-        <div style={{ marginTop: "1rem" }}>
-          <h3>Formulários existentes</h3>
-          <Table
-            columns={[
-              { key: "name", label: "Nome" },
-              { key: "slug", label: "Slug" },
-              { key: "is_active", label: "Ativo", render: (row) => <StatusBadge status={row.is_active ? "ACTIVE" : "INACTIVE"} /> },
-              {
-                key: "actions",
-                label: "Ações",
-                render: (row) => (
-                  <Button variant="ghost" onClick={() => {
-                    setSelected(row);
-                    loadQuestions(row.id);
-                  }}>
-                    Editar / Perguntas
-                  </Button>
-                ),
-              },
-            ]}
-            data={templates}
-          />
-        </div>
-
-        <div className="card" style={{ marginTop: "1rem" }}>
-          <h2>Construtor</h2>
-        {!selected ? (
-          <p style={{ color: "var(--muted)" }}>Selecione um formulário para gerenciar perguntas e copiar o link público.</p>
-        ) : (
-          <div className="grid" style={{ gap: "0.75rem" }}>
-            <div>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "1rem" }}>
+              Ativo
+            </label>
+            <div className="form-templates-two-cols">
+              {user?.role === "SUPERADMIN" && (
                 <div>
-                  <strong>{selected.name}</strong>
-                  <div style={{ color: "var(--muted)" }}>{selected.description}</div>
+                  <label>Prefeitura</label>
+                  <select
+                    value={newTemplate.municipality ?? ""}
+                    onChange={(e) => setNewTemplate((t) => ({ ...t, municipality: Number(e.target.value) }))}
+                  >
+                    <option value="">Selecione...</option>
+                    {municipalities.map((m) => (
+                      <option key={m.id} value={m.id}>
+                        {m.name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
-                <div className="card" style={{ background: "#0f1724", minWidth: 260 }}>
-                  <small style={{ color: "var(--muted)" }}>Link que os estudantes usam para preencher</small>
-                  <div style={{ fontSize: "0.95rem", wordBreak: "break-all", margin: "0.25rem 0" }}>{publicLink}</div>
-                  <div style={{ display: "flex", gap: "0.5rem" }}>
-                    <Button
-                      variant="ghost"
-                      onClick={() => {
-                        navigator.clipboard.writeText(publicLink);
-                      }}
-                    >
-                      Copiar link
-                    </Button>
-                    <Button variant="ghost" onClick={() => window.open(publicLink, "_blank")}>
-                      Abrir
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="card" style={{ background: "#0f1724" }}>
-              <h4>Nova pergunta</h4>
-              {questionError && <p style={{ color: "#f87171" }}>{questionError}</p>}
-              <div className="grid form-grid">
-                <input
-                  placeholder="Label"
-                  value={newQuestion.label ?? ""}
-                  onChange={(e) => setNewQuestion((q) => ({ ...q, label: e.target.value }))}
-                />
-                <input
-                  placeholder="field_name (ex.: cpf, full_name)"
-                  value={newQuestion.field_name ?? ""}
-                  onChange={(e) => setNewQuestion((q) => ({ ...q, field_name: e.target.value }))}
-                />
-                <input
-                  type="number"
-                  placeholder="Ordem"
-                  value={newQuestion.order ?? 1}
-                  onChange={(e) => setNewQuestion((q) => ({ ...q, order: Number(e.target.value) }))}
-                />
+              )}
+              <div>
+                <label>Tipo</label>
                 <select
-                  value={newQuestion.type}
-                  onChange={(e) => setNewQuestion((q) => ({ ...q, type: e.target.value }))}
+                  value={newTemplate.form_type}
+                  onChange={(e) => {
+                    const nextType = e.target.value;
+                    setNewTemplate((t) => ({
+                      ...t,
+                      form_type: nextType,
+                      require_cpf: nextType === "STUDENT_CARD_APPLICATION" ? true : t.require_cpf ?? false,
+                    }));
+                  }}
                 >
-                  {QUESTION_TYPES.map((t) => (
-                    <option key={t} value={t}>
-                      {t}
+                  {FORM_TYPES.map((ft) => (
+                    <option key={ft.value} value={ft.value}>
+                      {ft.label}
                     </option>
                   ))}
                 </select>
-                <label style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
-                  <input
-                    type="checkbox"
-                    checked={newQuestion.required ?? true}
-                    onChange={(e) => setNewQuestion((q) => ({ ...q, required: e.target.checked }))}
-                  />
-                  Obrigatório
-                </label>
-                <Button onClick={createQuestion} disabled={!newQuestion.label || !newQuestion.field_name}>
-                  Adicionar pergunta
-                </Button>
               </div>
-              <small style={{ color: "var(--muted)" }}>
-                Dica: crie primeiro a pergunta de CPF (field_name = cpf) marcada como obrigatória.
-              </small>
-            </div>
-
-            <div>
-              <h4>Perguntas</h4>
-              {questions.length === 0 ? (
-                <p style={{ color: "var(--muted)" }}>Nenhuma pergunta ainda.</p>
-              ) : (
-                <Table
-                  columns={[
-                    { key: "order", label: "Ordem" },
-                    { key: "label", label: "Label" },
-                    { key: "field_name", label: "field_name" },
-                    { key: "type", label: "Tipo" },
-                    { key: "required", label: "Obrigatório", render: (row) => <StatusBadge status={row.required ? "ACTIVE" : "INACTIVE"} /> },
-                    {
-                      key: "actions",
-                      label: "Ações",
-                      render: (row) => (
-                        <div style={{ display: "flex", gap: "0.35rem" }}>
-                          <Button variant="ghost" onClick={() => setSelectedQuestion(row)}>
-                            Gerenciar
-                          </Button>
-                          <Button variant="ghost" onClick={() => deleteQuestion(row)}>
-                            Remover
-                          </Button>
-                        </div>
-                      ),
-                    },
-                  ]}
-                  data={questions}
+              <label className="inline-checkbox">
+                <input
+                  type="checkbox"
+                  checked={newTemplate.require_cpf ?? false}
+                  disabled={newTemplate.form_type === "STUDENT_CARD_APPLICATION"}
+                  onChange={(e) => setNewTemplate((t) => ({ ...t, require_cpf: e.target.checked }))}
                 />
-              )}
+                Exigir CPF
+              </label>
             </div>
+            <Button
+              onClick={createTemplate}
+              disabled={!newTemplate.name || (user?.role === "SUPERADMIN" && !newTemplate.municipality)}
+            >
+              Criar formulário
+            </Button>
+          </div>
+        </div>
 
-            {selectedQuestion && (
-              <div className="card" style={{ background: "#0f1724" }}>
-                <h4>Editar pergunta</h4>
-                <div className="grid form-grid">
-                  <input
-                    value={selectedQuestion.label}
-                    onChange={(e) => setSelectedQuestion((q) => (q ? { ...q, label: e.target.value } : q))}
-                    placeholder="Label"
-                  />
-                  <input
-                    type="number"
-                    value={selectedQuestion.order}
-                    onChange={(e) => setSelectedQuestion((q) => (q ? { ...q, order: Number(e.target.value) } : q))}
-                    placeholder="Ordem"
-                  />
-                  <label style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
-                    <input
-                      type="checkbox"
-                      checked={selectedQuestion.required}
-                      onChange={(e) => setSelectedQuestion((q) => (q ? { ...q, required: e.target.checked } : q))}
-                    />
-                    Obrigatório
-                  </label>
-                  <Button
-                    onClick={() =>
-                      updateQuestion({
-                        label: selectedQuestion.label,
-                        order: selectedQuestion.order,
-                        required: selectedQuestion.required,
-                      })
-                    }
-                  >
-                    Salvar alterações
-                  </Button>
-                </div>
-                {(selectedQuestion.type === "MULTIPLE_CHOICE" ||
-                  selectedQuestion.type === "CHECKBOXES" ||
-                  selectedQuestion.type === "DROPDOWN") && (
-                  <div style={{ marginTop: "0.75rem" }}>
-                    <h5>Opções</h5>
-                    <div className="grid form-grid">
-                      <input placeholder="Label" value={optionLabel} onChange={(e) => setOptionLabel(e.target.value)} />
-                      <input placeholder="Valor" value={optionValue} onChange={(e) => setOptionValue(e.target.value)} />
-                      <Button onClick={addOption} disabled={!optionLabel || !optionValue}>
-                        Adicionar opção
+        <div className="form-templates-right">
+          <div className="card">
+            <h3>Formulários existentes</h3>
+            <Table
+              columns={[
+                { key: "name", label: "Nome" },
+                { key: "slug", label: "Slug" },
+                { key: "is_active", label: "Ativo", render: (row) => <StatusBadge status={row.is_active ? "ACTIVE" : "INACTIVE"} /> },
+                {
+                  key: "actions",
+                  label: "Ações",
+                  render: (row) => (
+                    <Button variant="ghost" onClick={() => {
+                      setSelected(row);
+                      loadQuestions(row.id);
+                    }}>
+                      Editar / Perguntas
+                    </Button>
+                  ),
+                },
+              ]}
+              data={templates}
+            />
+          </div>
+
+          <div className="card">
+            <h2>Construtor</h2>
+            {!selected ? (
+              <p className="muted">Selecione um formulário para gerenciar perguntas e copiar o link público.</p>
+            ) : (
+              <div className="form-builder">
+                <div className="form-builder-head">
+                  <div>
+                    <strong>{selected.name}</strong>
+                    <div className="muted">{selected.description}</div>
+                  </div>
+                  <div className="card form-link-card">
+                    <small className="muted">Link que os estudantes usam para preencher</small>
+                    <div className="form-link">{publicLink}</div>
+                    <div className="form-link-actions">
+                      <Button
+                        variant="ghost"
+                        onClick={() => {
+                          navigator.clipboard.writeText(publicLink);
+                        }}
+                      >
+                        Copiar link
+                      </Button>
+                      <Button variant="ghost" onClick={() => window.open(publicLink, "_blank")}>
+                        Abrir
                       </Button>
                     </div>
-                    <div className="grid" style={{ gap: "0.35rem", marginTop: "0.5rem" }}>
-                      {selectedQuestion.options?.map((opt) => (
-                        <div key={opt.id} className="card" style={{ background: "#111827", display: "flex", justifyContent: "space-between" }}>
-                          <span>
-                            {opt.label} ({opt.value})
-                          </span>
-                          <Button variant="ghost" onClick={() => deleteOption(opt.id)}>
-                            Remover
+                  </div>
+                </div>
+
+                <div className="card form-subcard">
+                  <h4>Nova pergunta</h4>
+                  {questionError && <p className="error-text">{questionError}</p>}
+                  <div className="grid form-grid">
+                    <input
+                      placeholder="Label"
+                      value={newQuestion.label ?? ""}
+                      onChange={(e) => setNewQuestion((q) => ({ ...q, label: e.target.value }))}
+                    />
+                    <input
+                      placeholder="field_name (ex.: cpf, full_name)"
+                      value={newQuestion.field_name ?? ""}
+                      onChange={(e) => setNewQuestion((q) => ({ ...q, field_name: e.target.value }))}
+                    />
+                    <input
+                      type="number"
+                      placeholder="Ordem"
+                      value={newQuestion.order ?? 1}
+                      onChange={(e) => setNewQuestion((q) => ({ ...q, order: Number(e.target.value) }))}
+                    />
+                    <select
+                      value={newQuestion.type}
+                      onChange={(e) => setNewQuestion((q) => ({ ...q, type: e.target.value }))}
+                    >
+                      {QUESTION_TYPES.map((t) => (
+                        <option key={t} value={t}>
+                          {t}
+                        </option>
+                      ))}
+                    </select>
+                    <label className="inline-checkbox">
+                      <input
+                        type="checkbox"
+                        checked={newQuestion.required ?? true}
+                        onChange={(e) => setNewQuestion((q) => ({ ...q, required: e.target.checked }))}
+                      />
+                      Obrigatório
+                    </label>
+                    <Button onClick={createQuestion} disabled={!newQuestion.label || !newQuestion.field_name}>
+                      Adicionar pergunta
+                    </Button>
+                  </div>
+                  <small className="muted">
+                    Dica: crie primeiro a pergunta de CPF (field_name = cpf) marcada como obrigatória.
+                  </small>
+                </div>
+
+                <div>
+                  <h4>Perguntas</h4>
+                  {questions.length === 0 ? (
+                    <p className="muted">Nenhuma pergunta ainda.</p>
+                  ) : (
+                    <Table
+                      columns={[
+                        { key: "order", label: "Ordem" },
+                        { key: "label", label: "Label" },
+                        { key: "field_name", label: "field_name" },
+                        { key: "type", label: "Tipo" },
+                        { key: "required", label: "Obrigatório", render: (row) => <StatusBadge status={row.required ? "ACTIVE" : "INACTIVE"} /> },
+                        {
+                          key: "actions",
+                          label: "Ações",
+                          render: (row) => (
+                            <div className="form-question-actions">
+                              <Button variant="ghost" onClick={() => setSelectedQuestion(row)}>
+                                Gerenciar
+                              </Button>
+                              <Button variant="ghost" onClick={() => deleteQuestion(row)}>
+                                Remover
+                              </Button>
+                            </div>
+                          ),
+                        },
+                      ]}
+                      data={questions}
+                    />
+                  )}
+                </div>
+
+                {selectedQuestion && (
+                  <div className="card form-subcard">
+                    <h4>Editar pergunta</h4>
+                    <div className="grid form-grid">
+                      <input
+                        value={selectedQuestion.label}
+                        onChange={(e) => setSelectedQuestion((q) => (q ? { ...q, label: e.target.value } : q))}
+                        placeholder="Label"
+                      />
+                      <input
+                        type="number"
+                        value={selectedQuestion.order}
+                        onChange={(e) => setSelectedQuestion((q) => (q ? { ...q, order: Number(e.target.value) } : q))}
+                        placeholder="Ordem"
+                      />
+                      <label className="inline-checkbox">
+                        <input
+                          type="checkbox"
+                          checked={selectedQuestion.required}
+                          onChange={(e) => setSelectedQuestion((q) => (q ? { ...q, required: e.target.checked } : q))}
+                        />
+                        Obrigatório
+                      </label>
+                      <Button
+                        onClick={() =>
+                          updateQuestion({
+                            label: selectedQuestion.label,
+                            order: selectedQuestion.order,
+                            required: selectedQuestion.required,
+                          })
+                        }
+                      >
+                        Salvar alterações
+                      </Button>
+                    </div>
+                    {(selectedQuestion.type === "MULTIPLE_CHOICE" ||
+                      selectedQuestion.type === "CHECKBOXES" ||
+                      selectedQuestion.type === "DROPDOWN") && (
+                      <div className="form-options">
+                        <h5>Opções</h5>
+                        <div className="grid form-grid">
+                          <input placeholder="Label" value={optionLabel} onChange={(e) => setOptionLabel(e.target.value)} />
+                          <input placeholder="Valor" value={optionValue} onChange={(e) => setOptionValue(e.target.value)} />
+                          <Button onClick={addOption} disabled={!optionLabel || !optionValue}>
+                            Adicionar opção
                           </Button>
                         </div>
-                      ))}
-                    </div>
+                        <div className="form-options-list">
+                          {selectedQuestion.options?.map((opt) => (
+                            <div key={opt.id} className="card form-option-item">
+                              <span>
+                                {opt.label} ({opt.value})
+                              </span>
+                              <Button variant="ghost" onClick={() => deleteOption(opt.id)}>
+                                Remover
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
             )}
           </div>
-        )}
-      </div>
-    </div>
+        </div>
       </div>
     </div>
   );

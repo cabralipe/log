@@ -10,6 +10,7 @@ import { Modal } from "../components/Modal";
 import { useAuth } from "../hooks/useAuth";
 import { formatCnpj } from "../utils/masks";
 import "../styles/DataPage.css";
+import "./FuelStations.css";
 
 type FuelStation = {
   id: number;
@@ -162,12 +163,12 @@ export const FuelStationsPage = () => {
           <p className="data-subtitle">Cadastre postos de combustível e acompanhe status de credenciamento.</p>
         </div>
       </div>
-      <div className="grid" style={{ gridTemplateColumns: "1fr" }}>
-        {!isMobile && FormCard}
-        <div>
+      <div className="fuel-layout">
+        {!isMobile && <div className="fuel-form-card">{FormCard}</div>}
+        <div className="fuel-content">
           {error && <div className="data-error">{error}</div>}
-          <div className="data-card data-toolbar">
-            <div className="data-search">
+          <div className="data-card data-toolbar fuel-toolbar">
+            <div className="fuel-search">
               <input
                 placeholder="Buscar por nome ou CNPJ"
                 value={search}
@@ -178,7 +179,7 @@ export const FuelStationsPage = () => {
                 }}
               />
             </div>
-            <div className="data-filters">
+            <div className="fuel-filters">
               <span className="data-inline-label">Itens por página</span>
               <select
                 className="data-select"
@@ -208,7 +209,7 @@ export const FuelStationsPage = () => {
                 key: "actions",
                 label: "Ações",
                 render: (row) => (
-                  <div className="grid" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "0.3rem" }}>
+                  <div className="fuel-actions">
                     <Button variant="ghost" onClick={() => handleEdit(row)}>
                       Editar
                     </Button>
@@ -221,15 +222,17 @@ export const FuelStationsPage = () => {
             ]}
             data={stations}
           />
-          <Pagination
-            page={page}
-            pageSize={pageSize}
-            total={total}
-            onChange={(p) => {
-              setPage(p);
-              load(p, search, pageSize);
-            }}
-          />
+          <div className="fuel-pagination">
+            <Pagination
+              page={page}
+              pageSize={pageSize}
+              total={total}
+              onChange={(p) => {
+                setPage(p);
+                load(p, search, pageSize);
+              }}
+            />
+          </div>
         </div>
         {isMobile && (
           <>

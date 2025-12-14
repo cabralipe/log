@@ -10,6 +10,7 @@ import { Modal } from "../components/Modal";
 import { formatCpf, formatPhone } from "../utils/masks";
 import { FloatingActionButton } from "../components/FloatingActionButton";
 import "../styles/DataPage.css";
+import "./Drivers.css";
 
 type Driver = {
   id: number;
@@ -234,12 +235,12 @@ export const DriversPage = () => {
           <p className="data-subtitle">Cadastro, acesso e situação de cada motorista credenciado.</p>
         </div>
       </div>
-      <div className="grid" style={{ gridTemplateColumns: "1fr" }}>
-        <div>
-          {!isMobile && formCard}
+      <div className="drivers-layout">
+        {!isMobile && <div className="drivers-form-card">{formCard}</div>}
+        <div className="drivers-content">
           {error && <div className="data-error">{error}</div>}
-          <div className="data-card data-toolbar">
-            <div className="data-search">
+          <div className="data-card data-toolbar drivers-toolbar">
+            <div className="drivers-search">
               <input
                 placeholder="Buscar por nome ou CPF"
                 value={search}
@@ -250,7 +251,7 @@ export const DriversPage = () => {
                 }}
               />
             </div>
-            <div className="data-filters">
+            <div className="drivers-filters">
               <span className="data-inline-label">Itens por página</span>
               <select
                 className="data-select"
@@ -281,7 +282,7 @@ export const DriversPage = () => {
                 key: "actions",
                 label: "Ações",
                 render: (row) => (
-                  <div className="grid" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "0.3rem" }}>
+                  <div className="drivers-actions">
                     <Button variant="ghost" onClick={() => handleEdit(row)}>
                       Editar
                     </Button>
@@ -294,15 +295,17 @@ export const DriversPage = () => {
             ]}
             data={drivers}
           />
-          <Pagination
-            page={page}
-            pageSize={pageSize}
-            total={total}
-            onChange={(p) => {
-              setPage(p);
-              load(p, search, pageSize);
-            }}
-          />
+          <div className="drivers-pagination">
+            <Pagination
+              page={page}
+              pageSize={pageSize}
+              total={total}
+              onChange={(p) => {
+                setPage(p);
+                load(p, search, pageSize);
+              }}
+            />
+          </div>
         </div>
 
         {isMobile && (
