@@ -338,7 +338,7 @@ export const FormTemplatesPage = () => {
               <p className="muted">Selecione um formulário para gerenciar perguntas e copiar o link público.</p>
             ) : (
               <div className="form-builder">
-                <div className="form-builder-head">
+                <div className="form-builder-head full-span">
                   <div>
                     <strong>{selected.name}</strong>
                     <div className="muted">{selected.description}</div>
@@ -362,7 +362,7 @@ export const FormTemplatesPage = () => {
                   </div>
                 </div>
 
-                <div className="card form-subcard">
+                <div className="card form-subcard full-span">
                   <h4>Nova pergunta</h4>
                   {questionError && <p className="error-text">{questionError}</p>}
                   <div className="grid form-grid">
@@ -409,7 +409,7 @@ export const FormTemplatesPage = () => {
                   </small>
                 </div>
 
-                <div>
+                <div className="full-span">
                   <h4>Perguntas</h4>
                   {questions.length === 0 ? (
                     <p className="muted">Nenhuma pergunta ainda.</p>
@@ -442,7 +442,7 @@ export const FormTemplatesPage = () => {
                 </div>
 
                 {selectedQuestion && (
-                  <div className="card form-subcard">
+                  <div className="card form-subcard full-span">
                     <h4>Editar pergunta</h4>
                     <div className="grid form-grid">
                       <input
