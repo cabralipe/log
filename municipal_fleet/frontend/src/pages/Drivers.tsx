@@ -9,6 +9,7 @@ import { useMediaQuery } from "../hooks/useMediaQuery";
 import { Modal } from "../components/Modal";
 import { formatCpf, formatPhone } from "../utils/masks";
 import { FloatingActionButton } from "../components/FloatingActionButton";
+import "../styles/DataPage.css";
 
 type Driver = {
   id: number;
@@ -226,85 +227,93 @@ export const DriversPage = () => {
   );
 
   return (
-    <div className="grid" style={{ gridTemplateColumns: "1fr" }}>
-      <div>
-        {!isMobile && formCard}
-        <h2>Motoristas</h2>
-        {error && <div className="card" style={{ color: "#f87171" }}>{error}</div>}
-        <div style={{ marginBottom: "0.75rem" }}>
-          <input
-            placeholder="Buscar por nome ou CPF"
-            value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setPage(1);
-              load(1, e.target.value);
-            }}
-            style={{ width: "100%", padding: "0.6rem", borderRadius: 10, border: "1px solid var(--border)", background: "#0f1724", color: "var(--text)" }}
-          />
-          <div style={{ marginTop: "0.5rem", display: "flex", gap: "0.5rem", alignItems: "center" }}>
-            <span style={{ color: "var(--muted)", fontSize: "0.9rem" }}>Itens por página</span>
-            <select
-              value={pageSize}
-              onChange={(e) => {
-                const size = Number(e.target.value);
-                setPageSize(size);
-                setPage(1);
-                load(1, search, size);
-              }}
-              style={{ padding: "0.4rem", borderRadius: 8, border: "1px solid var(--border)", background: "#0f1724", color: "var(--text)" }}
-            >
-              {[5, 8, 10, 20, 50].map((n) => (
-                <option key={n} value={n}>
-                  {n}
-                </option>
-              ))}
-            </select>
-          </div>
+    <div className="data-page">
+      <div className="data-header">
+        <div>
+          <h1 className="data-title">Motoristas</h1>
+          <p className="data-subtitle">Cadastro, acesso e situação de cada motorista credenciado.</p>
         </div>
-        <Table
-          columns={[
-            { key: "name", label: "Nome" },
-            { key: "cpf", label: "CPF" },
-            { key: "phone", label: "Telefone" },
-            { key: "access_code", label: "Código" },
-            { key: "status", label: "Status", render: (row) => <StatusBadge status={row.status} /> },
-            {
-              key: "actions",
-              label: "Ações",
-              render: (row) => (
-                <div className="grid" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "0.3rem" }}>
-                  <Button variant="ghost" onClick={() => handleEdit(row)}>
-                    Editar
-                  </Button>
-                  <Button variant="ghost" onClick={() => handleDelete(row.id)}>
-                    Excluir
-                  </Button>
-                </div>
-              ),
-            },
-          ]}
-          data={drivers}
-        />
-        <Pagination
-          page={page}
-          pageSize={pageSize}
-          total={total}
-          onChange={(p) => {
-            setPage(p);
-            load(p, search, pageSize);
-          }}
-        />
       </div>
+      <div className="grid" style={{ gridTemplateColumns: "1fr" }}>
+        <div>
+          {!isMobile && formCard}
+          {error && <div className="data-error">{error}</div>}
+          <div className="data-card data-toolbar">
+            <div className="data-search">
+              <input
+                placeholder="Buscar por nome ou CPF"
+                value={search}
+                onChange={(e) => {
+                  setSearch(e.target.value);
+                  setPage(1);
+                  load(1, e.target.value);
+                }}
+              />
+            </div>
+            <div className="data-filters">
+              <span className="data-inline-label">Itens por página</span>
+              <select
+                className="data-select"
+                value={pageSize}
+                onChange={(e) => {
+                  const size = Number(e.target.value);
+                  setPageSize(size);
+                  setPage(1);
+                  load(1, search, size);
+                }}
+              >
+                {[5, 8, 10, 20, 50].map((n) => (
+                  <option key={n} value={n}>
+                    {n}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <Table
+            columns={[
+              { key: "name", label: "Nome" },
+              { key: "cpf", label: "CPF" },
+              { key: "phone", label: "Telefone" },
+              { key: "access_code", label: "Código" },
+              { key: "status", label: "Status", render: (row) => <StatusBadge status={row.status} /> },
+              {
+                key: "actions",
+                label: "Ações",
+                render: (row) => (
+                  <div className="grid" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "0.3rem" }}>
+                    <Button variant="ghost" onClick={() => handleEdit(row)}>
+                      Editar
+                    </Button>
+                    <Button variant="ghost" onClick={() => handleDelete(row.id)}>
+                      Excluir
+                    </Button>
+                  </div>
+                ),
+              },
+            ]}
+            data={drivers}
+          />
+          <Pagination
+            page={page}
+            pageSize={pageSize}
+            total={total}
+            onChange={(p) => {
+              setPage(p);
+              load(p, search, pageSize);
+            }}
+          />
+        </div>
 
-      {isMobile && (
-        <>
-          <FloatingActionButton onClick={() => setIsModalOpen(true)} aria-label="Adicionar novo motorista" />
-          <Modal open={isModalOpen} onClose={() => setIsModalOpen(false)} title={editingId ? "Editar motorista" : "Novo motorista"}>
-            {formCard}
-          </Modal>
-        </>
-      )}
+        {isMobile && (
+          <>
+            <FloatingActionButton onClick={() => setIsModalOpen(true)} aria-label="Adicionar novo motorista" />
+            <Modal open={isModalOpen} onClose={() => setIsModalOpen(false)} title={editingId ? "Editar motorista" : "Novo motorista"}>
+              {formCard}
+            </Modal>
+          </>
+        )}
+      </div>
     </div>
   );
 };

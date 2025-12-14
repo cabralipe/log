@@ -7,6 +7,7 @@ import { StatusBadge } from "../components/StatusBadge";
 import { useMediaQuery } from "../hooks/useMediaQuery";
 import { FloatingActionButton } from "../components/FloatingActionButton";
 import { Modal } from "../components/Modal";
+import "../styles/DataPage.css";
 
 type RentalPeriod = {
   id: number;
@@ -240,173 +241,182 @@ export const RentalPeriodsPage = () => {
   );
 
   return (
-    <div className="grid" style={{ gridTemplateColumns: "1fr", gap: "1rem" }}>
-      <div className="grid" style={{ gap: "1rem" }}>
-        {!isMobile && FormNewPeriod}
+    <div className="data-page">
+      <div className="data-header">
         <div>
-          <h2>Períodos de locação</h2>
-          {error && <div className="card" style={{ color: "#f87171" }}>{error}</div>}
-          <div style={{ marginBottom: "0.75rem", display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: "0.5rem" }}>
-            <select
-              value={filterContract}
-              onChange={(e) => {
-                const next = e.target.value;
-                setFilterContract(next);
-                setPage(1);
-                loadPeriods(1, next, filterStatus, pageSize);
-              }}
-            >
-              <option value="">Contrato (todos)</option>
-              {contracts.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {contractLabel.get(c.id)}
-                </option>
-              ))}
-            </select>
-            <select
-              value={filterStatus}
-              onChange={(e) => {
-                const next = e.target.value;
-                setFilterStatus(next);
-                setPage(1);
-                loadPeriods(1, filterContract, next, pageSize);
-              }}
-            >
-              <option value="">Status (todos)</option>
-              {STATUS_OPTIONS.map((s) => (
-                <option key={s.value} value={s.value}>
-                  {s.label}
-                </option>
-              ))}
-            </select>
-            <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", justifyContent: "flex-end" }}>
-              <span style={{ color: "var(--muted)", fontSize: "0.9rem" }}>Itens por página</span>
-              <select
-                value={pageSize}
-                onChange={(e) => {
-                  const size = Number(e.target.value);
-                  setPageSize(size);
-                  setPage(1);
-                  loadPeriods(1, filterContract, filterStatus, size);
-                }}
-              >
-                {[5, 8, 10, 20, 50].map((n) => (
-                  <option key={n} value={n}>
-                    {n}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-          {loading ? (
-            <p>Carregando...</p>
-          ) : (
-            <Table
-              columns={[
-                { key: "contract", label: "Contrato", render: (row) => contractLabel.get((row as RentalPeriod).contract) ?? (row as RentalPeriod).contract },
-                { key: "vehicle", label: "Veículo", render: (row) => (row as RentalPeriod).vehicle ? vehicleLabel.get((row as RentalPeriod).vehicle as number) ?? (row as RentalPeriod).vehicle : "—" },
-                { key: "start_datetime", label: "Início", render: (row) => formatDateTime((row as RentalPeriod).start_datetime) },
-                { key: "end_datetime", label: "Fim", render: (row) => formatDateTime((row as RentalPeriod).end_datetime) },
-                { key: "status", label: "Status", render: (row) => <StatusBadge status={(row as RentalPeriod).status} /> },
-                { key: "billed_amount", label: "Valor", render: (row) => formatMoney((row as RentalPeriod).billed_amount) },
-                {
-                  key: "actions",
-                  label: "Ações",
-                  render: (row) => {
-                    const period = row as RentalPeriod;
-                    return (
-                      <div className="grid" style={{ gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: "0.3rem" }}>
-                        {period.status === "OPEN" && (
-                          <Button variant="ghost" onClick={() => prepareClose(period)}>
-                            Encerrar
-                          </Button>
-                        )}
-                        {period.status === "CLOSED" && (
-                          <Button variant="ghost" onClick={() => handleInvoice(period.id)}>
-                            Faturar
-                          </Button>
-                        )}
-                        <Button variant="ghost" onClick={() => handleDelete(period.id)}>
-                          Excluir
-                        </Button>
-                      </div>
-                    );
-                  },
-                },
-              ]}
-              data={periods}
-            />
-          )}
-          <Pagination
-            page={page}
-            pageSize={pageSize}
-            total={total}
-            onChange={(p) => {
-              setPage(p);
-              loadPeriods(p, filterContract, filterStatus, pageSize);
-            }}
-          />
+          <h1 className="data-title">Períodos de locação</h1>
+          <p className="data-subtitle">Controle de contratos, faturamento e encerramentos.</p>
         </div>
-
-        {closingId && (
-          <div className="card">
-            <h3>Encerrar período</h3>
-            <form className="grid form-grid responsive" onSubmit={handleClose}>
-              <input
-                type="datetime-local"
-                required
-                value={closeForm.end_datetime ?? ""}
-                onChange={(e) => setCloseForm((f) => ({ ...f, end_datetime: e.target.value }))}
-              />
-              <div className="grid" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "0.6rem" }}>
-                <input
-                  type="number"
-                  placeholder="Odômetro inicial"
-                  value={closeForm.odometer_start ?? ""}
-                  onChange={(e) => setCloseForm((f) => ({ ...f, odometer_start: e.target.value === "" ? undefined : Number(e.target.value) }))}
-                />
-                <input
-                  type="number"
-                  placeholder="Odômetro final"
-                  value={closeForm.odometer_end ?? ""}
-                  onChange={(e) => setCloseForm((f) => ({ ...f, odometer_end: e.target.value === "" ? undefined : Number(e.target.value) }))}
-                />
-              </div>
-              <div className="grid" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "0.5rem" }}>
-                <Button type="submit">Confirmar encerramento</Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  onClick={() => {
-                    setClosingId(null);
-                    setCloseForm({});
+      </div>
+      <div className="grid" style={{ gridTemplateColumns: "1fr", gap: "1rem" }}>
+        <div className="grid" style={{ gap: "1rem" }}>
+          {!isMobile && FormNewPeriod}
+          <div className="data-card">
+            {error && <div className="data-error">{error}</div>}
+            <div className="data-toolbar" style={{ marginBottom: "0.5rem" }}>
+              <div className="data-filters">
+                <select
+                  value={filterContract}
+                  onChange={(e) => {
+                    const next = e.target.value;
+                    setFilterContract(next);
+                    setPage(1);
+                    loadPeriods(1, next, filterStatus, pageSize);
                   }}
                 >
-                  Cancelar
-                </Button>
+                  <option value="">Contrato (todos)</option>
+                  {contracts.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {contractLabel.get(c.id)}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  value={filterStatus}
+                  onChange={(e) => {
+                    const next = e.target.value;
+                    setFilterStatus(next);
+                    setPage(1);
+                    loadPeriods(1, filterContract, next, pageSize);
+                  }}
+                >
+                  <option value="">Status (todos)</option>
+                  {STATUS_OPTIONS.map((s) => (
+                    <option key={s.value} value={s.value}>
+                      {s.label}
+                    </option>
+                  ))}
+                </select>
               </div>
-            </form>
+              <div className="data-filters">
+                <span className="data-inline-label">Itens por página</span>
+                <select
+                  value={pageSize}
+                  onChange={(e) => {
+                    const size = Number(e.target.value);
+                    setPageSize(size);
+                    setPage(1);
+                    loadPeriods(1, filterContract, filterStatus, size);
+                  }}
+                >
+                  {[5, 8, 10, 20, 50].map((n) => (
+                    <option key={n} value={n}>
+                      {n}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            {loading ? (
+              <p className="data-muted">Carregando...</p>
+            ) : (
+              <Table
+                columns={[
+                  { key: "contract", label: "Contrato", render: (row) => contractLabel.get((row as RentalPeriod).contract) ?? (row as RentalPeriod).contract },
+                  { key: "vehicle", label: "Veículo", render: (row) => (row as RentalPeriod).vehicle ? vehicleLabel.get((row as RentalPeriod).vehicle as number) ?? (row as RentalPeriod).vehicle : "—" },
+                  { key: "start_datetime", label: "Início", render: (row) => formatDateTime((row as RentalPeriod).start_datetime) },
+                  { key: "end_datetime", label: "Fim", render: (row) => formatDateTime((row as RentalPeriod).end_datetime) },
+                  { key: "status", label: "Status", render: (row) => <StatusBadge status={(row as RentalPeriod).status} /> },
+                  { key: "billed_amount", label: "Valor", render: (row) => formatMoney((row as RentalPeriod).billed_amount) },
+                  {
+                    key: "actions",
+                    label: "Ações",
+                    render: (row) => {
+                      const period = row as RentalPeriod;
+                      return (
+                        <div className="grid" style={{ gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: "0.3rem" }}>
+                          {period.status === "OPEN" && (
+                            <Button variant="ghost" onClick={() => prepareClose(period)}>
+                              Encerrar
+                            </Button>
+                          )}
+                          {period.status === "CLOSED" && (
+                            <Button variant="ghost" onClick={() => handleInvoice(period.id)}>
+                              Faturar
+                            </Button>
+                          )}
+                          <Button variant="ghost" onClick={() => handleDelete(period.id)}>
+                            Excluir
+                          </Button>
+                        </div>
+                      );
+                    },
+                  },
+                ]}
+                data={periods}
+              />
+            )}
+            <Pagination
+              page={page}
+              pageSize={pageSize}
+              total={total}
+              onChange={(p) => {
+                setPage(p);
+                loadPeriods(p, filterContract, filterStatus, pageSize);
+              }}
+            />
           </div>
+
+          {closingId && (
+            <div className="card">
+              <h3>Encerrar período</h3>
+              <form className="grid form-grid responsive" onSubmit={handleClose}>
+                <input
+                  type="datetime-local"
+                  required
+                  value={closeForm.end_datetime ?? ""}
+                  onChange={(e) => setCloseForm((f) => ({ ...f, end_datetime: e.target.value }))}
+                />
+                <div className="grid" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "0.6rem" }}>
+                  <input
+                    type="number"
+                    placeholder="Odômetro inicial"
+                    value={closeForm.odometer_start ?? ""}
+                    onChange={(e) => setCloseForm((f) => ({ ...f, odometer_start: e.target.value === "" ? undefined : Number(e.target.value) }))}
+                  />
+                  <input
+                    type="number"
+                    placeholder="Odômetro final"
+                    value={closeForm.odometer_end ?? ""}
+                    onChange={(e) => setCloseForm((f) => ({ ...f, odometer_end: e.target.value === "" ? undefined : Number(e.target.value) }))}
+                  />
+                </div>
+                <div className="grid" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "0.5rem" }}>
+                  <Button type="submit">Confirmar encerramento</Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    onClick={() => {
+                      setClosingId(null);
+                      setCloseForm({});
+                    }}
+                  >
+                    Cancelar
+                  </Button>
+                </div>
+              </form>
+            </div>
+          )}
+        </div>
+        {isMobile && (
+          <>
+            <FloatingActionButton
+              onClick={() => setIsModalOpen(true)}
+              aria-label="Novo período de locação"
+              ariaControls="rental-period-modal"
+              ariaExpanded={isModalOpen}
+            />
+            <Modal
+              open={isModalOpen}
+              onClose={() => setIsModalOpen(false)}
+              title="Novo período"
+              id="rental-period-modal"
+            >
+              {FormNewPeriod}
+            </Modal>
+          </>
         )}
       </div>
-      {isMobile && (
-        <>
-          <FloatingActionButton
-            onClick={() => setIsModalOpen(true)}
-            aria-label="Novo período de locação"
-            ariaControls="rental-period-modal"
-            ariaExpanded={isModalOpen}
-          />
-          <Modal
-            open={isModalOpen}
-            onClose={() => setIsModalOpen(false)}
-            title="Novo período"
-            id="rental-period-modal"
-          >
-            {FormNewPeriod}
-          </Modal>
-        </>
-      )}
     </div>
   );
 };

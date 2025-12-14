@@ -243,26 +243,33 @@ class AssignmentViewSet(MunicipalityQuerysetMixin, viewsets.ModelViewSet):
     @transaction.atomic
     def generate_day(self, request):
         date_param = request.query_params.get("date")
+        route_id = request.query_params.get("route")
         date_value = self._parse_date(date_param)
         if not date_value:
             return response.Response({"detail": "Data inválida, use YYYY-MM-DD."}, status=status.HTTP_400_BAD_REQUEST)
         user = request.user
         routes = Route.objects.filter(active=True)
+        if route_id:
+            route = get_object_or_404(Route, id=route_id)
+            if user.role != "SUPERADMIN" and route.municipality_id != getattr(user.municipality, "id", None):
+                return response.Response({"detail": "Rota não pertence à sua prefeitura."}, status=status.HTTP_403_FORBIDDEN)
+            routes = routes.filter(id=route_id)
         if user.role != "SUPERADMIN":
             routes = routes.filter(municipality=user.municipality)
         weekday = date_value.weekday()
-        routes = [
-            r
-            for r in routes
-            if not r.days_of_week or weekday in {int(d) for d in r.days_of_week}
-        ]
         created = []
+        skipped = {"existing_assignment": [], "no_resources": [], "inactive_day": []}
         for route in routes:
             exists = Assignment.objects.filter(route=route, date=date_value).exists()
             if exists:
+                skipped["existing_assignment"].append(route.id)
+                continue
+            if route.days_of_week and weekday not in {int(d) for d in route.days_of_week}:
+                skipped["inactive_day"].append(route.id)
                 continue
             vehicles, drivers = self._available_resources(route, date_value)
             if not vehicles or not drivers:
+                skipped["no_resources"].append(route.id)
                 continue
             vehicle_id = vehicles[0]["id"]
             driver_id = drivers[0]["id"]
@@ -275,4 +282,4 @@ class AssignmentViewSet(MunicipalityQuerysetMixin, viewsets.ModelViewSet):
                 status=Assignment.Status.DRAFT,
             )
             created.append(assignment.id)
-        return response.Response({"created": created})
+        return response.Response({"created": created, "skipped": skipped})

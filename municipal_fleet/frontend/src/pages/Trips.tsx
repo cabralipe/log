@@ -8,6 +8,7 @@ import { useMediaQuery } from "../hooks/useMediaQuery";
 import { FloatingActionButton } from "../components/FloatingActionButton";
 import { Modal } from "../components/Modal";
 import { formatCpf } from "../utils/masks";
+import "../styles/DataPage.css";
 
 type PassengerDetail = {
   name: string;
@@ -488,58 +489,63 @@ export const TripsPage = () => {
   );
 
   return (
-    <div className="grid" style={{ gridTemplateColumns: "1fr" }}>
-      {!isMobile && FormCard}
-      <div>
-        <h2>Viagens</h2>
-        {error && <div className="card" style={{ color: "#f87171" }}>{error}</div>}
-        <div className="grid" style={{ gridTemplateColumns: "2fr 1fr", marginBottom: "0.75rem", gap: "0.75rem" }}>
-          <input
-            placeholder="Buscar por origem ou destino"
-            value={search}
-            onChange={(e) => {
-              setSearch(e.target.value);
-              setPage(1);
-              load(1, e.target.value, statusFilter);
-            }}
-            style={{ width: "100%", padding: "0.6rem", borderRadius: 10, border: "1px solid var(--border)", background: "#0f1724", color: "var(--text)" }}
-          />
-          <select
-            value={statusFilter}
-            onChange={(e) => {
-              setStatusFilter(e.target.value);
-              setPage(1);
-              load(1, search, e.target.value);
-            }}
-            style={{ padding: "0.6rem", borderRadius: 10, border: "1px solid var(--border)", background: "#0f1724", color: "var(--text)" }}
-          >
-            <option value="">Todos status</option>
-            <option value="PLANNED">Planejada</option>
-            <option value="IN_PROGRESS">Em andamento</option>
-            <option value="COMPLETED">Concluída</option>
-            <option value="CANCELLED">Cancelada</option>
-          </select>
+    <div className="data-page">
+      <div className="data-header">
+        <div>
+          <h1 className="data-title">Viagens</h1>
+          <p className="data-subtitle">Planejamento, execução e finalização de deslocamentos.</p>
         </div>
-        <div style={{ marginBottom: "0.75rem", display: "flex", gap: "0.5rem", alignItems: "center" }}>
-          <span style={{ color: "var(--muted)", fontSize: "0.9rem" }}>Itens por página</span>
-          <select
-            value={pageSize}
-            onChange={(e) => {
-              const size = Number(e.target.value);
-              setPageSize(size);
-              setPage(1);
-              load(1, search, statusFilter, size);
-            }}
-            style={{ padding: "0.4rem", borderRadius: 8, border: "1px solid var(--border)", background: "#0f1724", color: "var(--text)" }}
-          >
-            {[5, 8, 10, 20, 50].map((n) => (
-              <option key={n} value={n}>
-                {n}
-              </option>
-            ))}
-          </select>
-        </div>
-        <Table
+      </div>
+      <div className="grid" style={{ gridTemplateColumns: "1fr" }}>
+        {!isMobile && FormCard}
+        <div className="grid" style={{ gap: "1rem" }}>
+          {error && <div className="data-error">{error}</div>}
+          <div className="data-card data-toolbar">
+            <div className="data-search">
+              <input
+                placeholder="Buscar por origem ou destino"
+                value={search}
+                onChange={(e) => {
+                  setSearch(e.target.value);
+                  setPage(1);
+                  load(1, e.target.value, statusFilter);
+                }}
+              />
+            </div>
+            <div className="data-filters">
+              <select
+                value={statusFilter}
+                onChange={(e) => {
+                  setStatusFilter(e.target.value);
+                  setPage(1);
+                  load(1, search, e.target.value);
+                }}
+              >
+                <option value="">Todos status</option>
+                <option value="PLANNED">Planejada</option>
+                <option value="IN_PROGRESS">Em andamento</option>
+                <option value="COMPLETED">Concluída</option>
+                <option value="CANCELLED">Cancelada</option>
+              </select>
+              <span className="data-inline-label">Itens por página</span>
+              <select
+                value={pageSize}
+                onChange={(e) => {
+                  const size = Number(e.target.value);
+                  setPageSize(size);
+                  setPage(1);
+                  load(1, search, statusFilter, size);
+                }}
+              >
+                {[5, 8, 10, 20, 50].map((n) => (
+                  <option key={n} value={n}>
+                    {n}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <Table
           columns={[
             { key: "origin", label: "Origem" },
             { key: "destination", label: "Destino" },
@@ -641,11 +647,12 @@ export const TripsPage = () => {
             ariaControls="trip-modal"
             ariaExpanded={isModalOpen}
           />
-          <Modal open={isModalOpen} onClose={() => setIsModalOpen(false)} title={editingId ? "Editar viagem" : "Nova viagem"} id="trip-modal">
-            {FormCard}
-          </Modal>
-        </>
-      )}
+      <Modal open={isModalOpen} onClose={() => setIsModalOpen(false)} title={editingId ? "Editar viagem" : "Nova viagem"} id="trip-modal">
+        {FormCard}
+      </Modal>
+    </>
+  )}
     </div>
+  </div>
   );
 };

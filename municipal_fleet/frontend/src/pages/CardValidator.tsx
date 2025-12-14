@@ -5,6 +5,7 @@ import { api } from "../lib/api";
 import { Button } from "../components/Button";
 import { AlertTriangle, Camera, CheckCircle2, XCircle } from "lucide-react";
 import "./CardValidator.css";
+import "../styles/DataPage.css";
 
 type ValidationResult = {
     valid: boolean;
@@ -120,6 +121,7 @@ export const CardValidatorPage = () => {
     };
 
     return (
+        <div className="data-page">
         <div className="card-validator">
         <div className="card header">
             <div>
@@ -204,6 +206,7 @@ export const CardValidatorPage = () => {
                     )}
                 </div>
             </div>
+        </div>
         </div>
     );
 };

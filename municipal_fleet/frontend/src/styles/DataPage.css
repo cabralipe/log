@@ -1,0 +1,33 @@
+.data-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 0.5rem 0 2rem;
+  min-height: 100%;
+}
+
+.data-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.data-title {
+  margin: 0;
+  font-size: 1.75rem;
+}
+
+.data-subtitle {
+  margin: 0.25rem 0 0;
+  color: var(--muted);
+}
+
+.data-error {
+  margin: 0.5rem 0;
+  padding: 0.75rem 0.9rem;
+  border-radius: 10px;
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  color: #fecdd3;
+}

@@ -10,6 +10,7 @@ import { Pagination } from "../components/Pagination";
 import { StatusBadge } from "../components/StatusBadge";
 import { useAuth } from "../hooks/useAuth";
 import { formatCnpj } from "../utils/masks";
+import "../styles/DataPage.css";
 
 type Contract = {
   id: number;
@@ -255,8 +256,15 @@ export const ContractsPage = () => {
   const disableMunicipalitySelect = current?.role !== "SUPERADMIN";
 
   return (
-    <div className="contracts-layout">
-      {isMobile && (
+    <div className="data-page">
+      <div className="data-header">
+        <div>
+          <h1 className="data-title">Contratos</h1>
+          <p className="data-subtitle">Gestão de contratos, vínculos e vigências.</p>
+        </div>
+      </div>
+      <div className="contracts-layout">
+        {isMobile && (
         <button
           className="fab-button"
           aria-haspopup="dialog"
@@ -412,7 +420,7 @@ export const ContractsPage = () => {
             </div>
           )}
           <h2>Contratos</h2>
-          {error && <div className="card" style={{ color: "#f87171" }}>{error}</div>}
+          {error && <div className="data-error">{error}</div>}
           <div style={{ marginBottom: "0.75rem", display: "flex", flexDirection: "column", gap: "0.5rem" }}>
             <input
               placeholder="Buscar por número, fornecedor ou descrição"
@@ -770,6 +778,7 @@ export const ContractsPage = () => {
           </form>
         </Modal>
       )}
+      </div>
     </div>
   );
 };

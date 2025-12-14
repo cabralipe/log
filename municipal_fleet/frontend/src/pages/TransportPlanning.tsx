@@ -16,6 +16,7 @@ import {
   TransportService,
 } from "../types/transportPlanning";
 import "./TransportPlanning.css";
+import "../styles/DataPage.css";
 
 type Option = { value: string | number; label: string };
 
@@ -45,6 +46,52 @@ const DECISIONS: Option[] = [
   { value: "MANUAL_REVIEW_ONLY", label: "Somente revisão" },
 ];
 
+type RulePreset = {
+  id: string;
+  label: string;
+  description: string;
+  rules: Record<string, any>;
+};
+
+const RULE_PRESETS: RulePreset[] = [
+  {
+    id: "distance-5",
+    label: "Aprovar quem mora até 5 km",
+    description: "Limita a elegibilidade a beneficiários em um raio de 5 km.",
+    rules: { max_distance_km: 5 },
+  },
+  {
+    id: "distance-10",
+    label: "Aprovar quem mora até 10 km",
+    description: "Alternativa mais ampla para áreas rurais ou dispersas.",
+    rules: { max_distance_km: 10 },
+  },
+  {
+    id: "rural-priority",
+    label: "Priorizar zona rural",
+    description: "Dá prioridade a solicitações de zonas rurais.",
+    rules: { prioritize_zones: ["RURAL"] },
+  },
+  {
+    id: "pcd-priority",
+    label: "Prioridade para PCD",
+    description: "Beneficiários com deficiência entram primeiro na fila.",
+    rules: { prioritize_categories: ["PCD"] },
+  },
+  {
+    id: "elderly-priority",
+    label: "Prioridade para idosos",
+    description: "Idosos são priorizados em avaliações automáticas.",
+    rules: { prioritize_categories: ["ELDERLY"] },
+  },
+  {
+    id: "health-only",
+    label: "Somente pacientes em tratamento de saúde",
+    description: "Filtra solicitações para casos de saúde/remoção.",
+    rules: { required_category: "PATIENT" },
+  },
+];
+
 const ASSIGNMENT_STATUS: Option[] = [
   { value: "DRAFT", label: "Rascunho" },
   { value: "CONFIRMED", label: "Confirmado" },
@@ -71,6 +118,38 @@ const parseList = <T,>(payload: any): T[] => {
   if (Array.isArray(payload)) return payload;
   if (payload?.results) return payload.results as T[];
   return [];
+};
+
+const compileRules = (selected: string[]) => {
+  const selectedSet = new Set(selected);
+  let maxDistance: number | null = null;
+  const zones = new Set<string>();
+  const prioritize = new Set<string>();
+  let requiredCategory: string | null = null;
+
+  RULE_PRESETS.forEach((preset) => {
+    if (!selectedSet.has(preset.id)) return;
+    const config = preset.rules;
+    if (typeof config.max_distance_km === "number") {
+      maxDistance = maxDistance ? Math.min(maxDistance, config.max_distance_km) : config.max_distance_km;
+    }
+    if (Array.isArray(config.prioritize_zones)) {
+      config.prioritize_zones.forEach((z) => zones.add(z));
+    }
+    if (Array.isArray(config.prioritize_categories)) {
+      config.prioritize_categories.forEach((c) => prioritize.add(c));
+    }
+    if (config.required_category) {
+      requiredCategory = config.required_category;
+    }
+  });
+
+  const payload: Record<string, any> = { presets: Array.from(selectedSet) };
+  if (maxDistance !== null) payload.max_distance_km = maxDistance;
+  if (zones.size) payload.prioritize_zones = Array.from(zones);
+  if (prioritize.size) payload.prioritize_categories = Array.from(prioritize);
+  if (requiredCategory) payload.required_category = requiredCategory;
+  return payload;
 };
 
 const parseError = (err: any) => {
@@ -122,7 +201,9 @@ export const TransportPlanningPage = ({ initialTab = "services" }: { initialTab?
   const [policyForm, setPolicyForm] = useState<Partial<EligibilityPolicy>>({
     decision_mode: "MANUAL_REVIEW_ONLY",
     active: true,
+    rules_json: { presets: [] },
   });
+  const [selectedRulePresets, setSelectedRulePresets] = useState<string[]>([]);
   const [applicationStatus, setApplicationStatus] = useState<{ id: number | null; status: string; notes: string }>({
     id: null,
     status: "PENDING",
@@ -225,7 +306,8 @@ export const TransportPlanningPage = ({ initialTab = "services" }: { initialTab?
   const savePolicy = async () => {
     try {
       await api.post("/eligibility-policies/", policyForm);
-      setPolicyForm({ decision_mode: "MANUAL_REVIEW_ONLY", active: true });
+      setPolicyForm({ decision_mode: "MANUAL_REVIEW_ONLY", active: true, rules_json: { presets: [] } });
+      setSelectedRulePresets([]);
       refreshPolicies();
       setMessage("Regra salva.");
     } catch (err: any) {
@@ -284,11 +366,21 @@ export const TransportPlanningPage = ({ initialTab = "services" }: { initialTab?
       return;
     }
     try {
+      const params: Record<string, any> = { date: assignmentForm.date };
+      if (assignmentForm.route) params.route = assignmentForm.route;
       const { data } = await api.post("/assignments/generate-day/", null, {
-        params: { date: assignmentForm.date },
+        params,
       });
       refreshAssignments();
-      setMessage(`Escalas criadas: ${data.created?.length || 0}`);
+      const createdCount = data.created?.length || 0;
+      const skipped = data.skipped || {};
+      const existing = skipped.existing_assignment?.length || 0;
+      const noResources = skipped.no_resources?.length || 0;
+      const inactiveDay = skipped.inactive_day?.length || 0;
+      const details = [existing ? `${existing} já existentes` : null, noResources ? `${noResources} sem recursos` : null, inactiveDay ? `${inactiveDay} fora do dia` : null]
+        .filter(Boolean)
+        .join(" · ");
+      setMessage(`Escalas criadas: ${createdCount}${details ? ` (${details})` : ""}.`);
     } catch (err: any) {
       setMessage(parseError(err));
     }
@@ -338,6 +430,24 @@ export const TransportPlanningPage = ({ initialTab = "services" }: { initialTab?
       return { ...prev, days_of_week: Array.from(current).sort() };
     });
   };
+
+  const toggleRulePreset = (ruleId: string) => {
+    setSelectedRulePresets((prev) => {
+      const next = prev.includes(ruleId) ? prev.filter((id) => id !== ruleId) : [...prev, ruleId];
+      setPolicyForm((current) => ({
+        ...current,
+        rules_json: compileRules(next),
+      }));
+      return next;
+    });
+  };
+
+  const ruleSummary =
+    selectedRulePresets.length > 0
+      ? selectedRulePresets
+          .map((id) => RULE_PRESETS.find((r) => r.id === id)?.label || id)
+          .join(" • ")
+      : "Nenhuma regra selecionada";
 
   return (
     <div className="planning-page">
@@ -683,20 +793,32 @@ export const TransportPlanningPage = ({ initialTab = "services" }: { initialTab?
                 onChange={(e) => setPolicyForm({ ...policyForm, active: e.target.checked })}
               />
             </label>
-            <label className="full">
-              JSON de regras (distância, zonas, categorias)
-              <textarea
-                value={JSON.stringify(policyForm.rules_json || {}, null, 2)}
-                onChange={(e) => {
-                  try {
-                    const parsed = JSON.parse(e.target.value || "{}");
-                    setPolicyForm({ ...policyForm, rules_json: parsed });
-                  } catch {
-                    // ignore parse errors while typing
-                  }
-                }}
-              />
-            </label>
+            <div className="full rule-selector">
+              <p className="rule-title">Regras pré-definidas</p>
+              <div className="rule-grid">
+                {RULE_PRESETS.map((rule) => {
+                  const active = selectedRulePresets.includes(rule.id);
+                  return (
+                    <button
+                      key={rule.id}
+                      type="button"
+                      className={active ? "rule-card active" : "rule-card"}
+                      onClick={() => toggleRulePreset(rule.id)}
+                    >
+                      <div className="rule-card-header">
+                        <input type="checkbox" checked={active} readOnly />
+                        <span>{rule.label}</span>
+                      </div>
+                      <p>{rule.description}</p>
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="rule-summary">
+                <strong>Resumo</strong>
+                <p>{ruleSummary}</p>
+              </div>
+            </div>
           </div>
           <Table
             columns={[

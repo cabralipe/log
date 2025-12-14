@@ -4,6 +4,7 @@ import { api, API_ROOT } from "../lib/api";
 import { Button } from "../components/Button";
 import { Table } from "../components/Table";
 import { StatusBadge } from "../components/StatusBadge";
+import "../styles/DataPage.css";
 
 type FormTemplate = {
   id: number;
@@ -214,10 +215,17 @@ export const FormTemplatesPage = () => {
   };
 
   return (
-    <div className="grid" style={{ gridTemplateColumns: "1.2fr 1.8fr" }}>
-      <div className="card">
-        <h2>Novo formulário</h2>
-        {error && <p style={{ color: "#f87171" }}>{error}</p>}
+    <div className="data-page">
+      <div className="data-header">
+        <div>
+          <h1 className="data-title">Formulários</h1>
+          <p className="data-subtitle">Templates, perguntas e fluxo público com o mesmo padrão visual.</p>
+        </div>
+      </div>
+      <div className="grid" style={{ gridTemplateColumns: "1.2fr 1.8fr" }}>
+        <div className="card">
+          <h2>Novo formulário</h2>
+          {error && <div className="data-error">{error}</div>}
         <div className="grid form-grid">
           <input
             placeholder="Nome (ex.: Solicitação Carteirinha 2025)"
@@ -498,6 +506,7 @@ export const FormTemplatesPage = () => {
         )}
       </div>
     </div>
+      </div>
     </div>
   );
 };
