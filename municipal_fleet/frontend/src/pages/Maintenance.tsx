@@ -135,41 +135,56 @@ export const MaintenancePage = () => {
     return base;
   }, [summary]);
 
+  const normalize = <T,>(res: { data: any }): T[] => {
+    const data = res.data;
+    return Array.isArray(data) ? data : data.results;
+  };
+
   const loadAll = async () => {
     setLoading(true);
-    try {
-      const [ordersRes, partsRes, plansRes, tiresRes, vehiclesRes, summaryRes, inventoryReportRes, tireReportRes] =
-        await Promise.all([
-          api.get<Paginated<ServiceOrder>>("/service-orders/", { params: filters }),
-          api.get<Paginated<InventoryPart>>("/inventory/parts/", { params: { page_size: 200 } }),
-          api.get<Paginated<MaintenancePlan>>("/maintenance-plans/", { params: { page_size: 200 } }),
-          api.get<Paginated<Tire>>("/tires/", { params: { page_size: 200 } }),
-          api.get<Paginated<Vehicle>>("/vehicles/", { params: { page_size: 500 } }),
-          api.get<MaintenanceSummary>("/reports/maintenance/summary/"),
-          api.get("/reports/inventory/"),
-          api.get("/reports/tires/"),
-        ]);
+    setError(null);
+    const results = await Promise.allSettled([
+      api.get<Paginated<ServiceOrder>>("/service-orders/", { params: filters }),
+      api.get<Paginated<InventoryPart>>("/inventory/parts/", { params: { page_size: 200 } }),
+      api.get<Paginated<MaintenancePlan>>("/maintenance-plans/", { params: { page_size: 200 } }),
+      api.get<Paginated<Tire>>("/tires/", { params: { page_size: 200 } }),
+      api.get<Paginated<Vehicle>>("/vehicles/", { params: { page_size: 500 } }),
+      api.get<MaintenanceSummary>("/reports/maintenance/summary/"),
+      api.get("/reports/inventory/"),
+      api.get("/reports/tires/"),
+    ]);
 
-      const normalize = <T,>(res: { data: any }): T[] => {
-        const data = res.data;
-        return Array.isArray(data) ? data : data.results;
-      };
+    const errors: string[] = [];
+    const getError = (reason: any) => reason?.response?.data?.detail || reason?.message || "Erro ao carregar dados.";
 
-      setOrders(normalize<ServiceOrder>(ordersRes));
-      setParts(normalize<InventoryPart>(partsRes));
-      setPlans(normalize<MaintenancePlan>(plansRes));
-      setTires(normalize<Tire>(tiresRes));
-      setVehicles(normalize<Vehicle>(vehiclesRes));
-      setSummary(summaryRes.data);
-      setInventoryLow(inventoryReportRes.data.low_stock || []);
-      setTireAlerts((tireReportRes.data.nearing_end_of_life as Tire[]) || []);
-      setError(null);
-    } catch (err: any) {
-      const detail = err?.response?.data?.detail || err?.message || "Erro ao carregar manutenção.";
-      setError(detail);
-    } finally {
-      setLoading(false);
-    }
+    const [ordersRes, partsRes, plansRes, tiresRes, vehiclesRes, summaryRes, inventoryReportRes, tireReportRes] = results;
+
+    if (ordersRes.status === "fulfilled") setOrders(normalize<ServiceOrder>(ordersRes.value));
+    else errors.push(getError(ordersRes.reason));
+
+    if (partsRes.status === "fulfilled") setParts(normalize<InventoryPart>(partsRes.value));
+    else errors.push(getError(partsRes.reason));
+
+    if (plansRes.status === "fulfilled") setPlans(normalize<MaintenancePlan>(plansRes.value));
+    else errors.push(getError(plansRes.reason));
+
+    if (tiresRes.status === "fulfilled") setTires(normalize<Tire>(tiresRes.value));
+    else errors.push(getError(tiresRes.reason));
+
+    if (vehiclesRes.status === "fulfilled") setVehicles(normalize<Vehicle>(vehiclesRes.value));
+    else errors.push(getError(vehiclesRes.reason));
+
+    if (summaryRes.status === "fulfilled") setSummary(summaryRes.value.data);
+    else errors.push(getError(summaryRes.reason));
+
+    if (inventoryReportRes.status === "fulfilled") setInventoryLow(inventoryReportRes.value.data.low_stock || []);
+    else errors.push(getError(inventoryReportRes.reason));
+
+    if (tireReportRes.status === "fulfilled") setTireAlerts((tireReportRes.value.data.nearing_end_of_life as Tire[]) || []);
+    else errors.push(getError(tireReportRes.reason));
+
+    if (errors.length) setError(errors[0]);
+    setLoading(false);
   };
 
   useEffect(() => {

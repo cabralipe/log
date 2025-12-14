@@ -5,7 +5,7 @@ from rest_framework import permissions, response, views
 from fleet.models import Vehicle, FuelLog
 from trips.models import Trip, TripIncident, MonthlyOdometer, FreeTrip
 from contracts.models import Contract, RentalPeriod
-from maintenance.models import ServiceOrder, MaintenancePlan, InventoryPart, Tire
+from maintenance.models import ServiceOrder, MaintenancePlan, InventoryPart, InventoryMovement, Tire
 from transport_planning.models import TransportService, Route, Assignment, ServiceApplication
 from drivers.models import Driver
 from forms.models import FormTemplate, FormSubmission
