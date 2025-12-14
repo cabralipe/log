@@ -6,12 +6,12 @@ import { Button } from "../components/Button";
 import "./Reports.css";
 
 type DashboardData = {
-  total_vehicles: number;
-  vehicles_by_status: { status: string; total: number }[];
-  trips_month_total: number;
-  trips_by_status: { status: string; total: number }[];
-  odometer_month: { vehicle_id: number; vehicle__license_plate: string; kilometers: number }[];
-  maintenance_alerts: { id: number; license_plate: string; next_service_date: string | null }[];
+  summary?: {
+    total_vehicles?: number;
+    trips_month_total?: number;
+  };
+  total_vehicles?: number;
+  trips_month_total?: number;
 };
 
 type OdometerApiRow = { vehicle_id?: number; vehicle__license_plate: string; kilometers: number };
@@ -289,8 +289,8 @@ export const ReportsPage = () => {
           <h2>Painel de relatórios</h2>
           <p className="muted">Filtros rápidos, gráficos interativos e exportação flexível em XLSX.</p>
           <div className="hero-badges">
-            <span className="pill">Veículos: {dashboard?.total_vehicles ?? "—"}</span>
-            <span className="pill">Viagens no mês: {dashboard?.trips_month_total ?? "—"}</span>
+            <span className="pill">Veículos: {dashboard?.summary?.total_vehicles ?? dashboard?.total_vehicles ?? "—"}</span>
+            <span className="pill">Viagens no mês: {dashboard?.summary?.trips_month_total ?? dashboard?.trips_month_total ?? "—"}</span>
             <span className="pill">Incidentes: {incidents.length}</span>
           </div>
         </div>

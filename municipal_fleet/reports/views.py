@@ -1,12 +1,15 @@
 from datetime import date, datetime, timedelta
-from django.db.models import Count, Sum, F, ExpressionWrapper, IntegerField
+from django.db.models import Count, Sum, F, ExpressionWrapper, IntegerField, Q
 from django.utils import timezone
 from rest_framework import permissions, response, views
 from fleet.models import Vehicle, FuelLog
-from trips.models import Trip, TripIncident, MonthlyOdometer
+from trips.models import Trip, TripIncident, MonthlyOdometer, FreeTrip
 from contracts.models import Contract, RentalPeriod
-from maintenance.models import ServiceOrder, MaintenancePlan, InventoryPart, InventoryMovement, Tire
+from maintenance.models import ServiceOrder, MaintenancePlan, InventoryPart, Tire
 from transport_planning.models import TransportService, Route, Assignment, ServiceApplication
+from drivers.models import Driver
+from forms.models import FormTemplate, FormSubmission
+from students.models import Student, StudentCard
 
 
 class DashboardView(views.APIView):
@@ -14,33 +17,249 @@ class DashboardView(views.APIView):
 
     def get(self, request):
         user = request.user
+        today = timezone.localdate()
+        now = timezone.now()
+
         qs_vehicle = Vehicle.objects.all()
         qs_trip = Trip.objects.all()
-        if user.role != "SUPERADMIN":
-            qs_vehicle = qs_vehicle.filter(municipality=user.municipality)
-            qs_trip = qs_trip.filter(municipality=user.municipality)
-
-        vehicle_status = qs_vehicle.values("status").annotate(total=Count("id"))
-        now = timezone.now()
-        trips_month = qs_trip.filter(departure_datetime__month=now.month, departure_datetime__year=now.year)
-        trips_by_status = trips_month.values("status").annotate(total=Count("id"))
-
-        maintenance_alerts = qs_vehicle.filter(
-            next_service_date__lte=date.today()
-        ).values("id", "license_plate", "next_service_date")
-
+        qs_driver = Driver.objects.all()
+        qs_fuel = FuelLog.objects.all()
+        qs_contract = Contract.objects.all()
+        qs_rental = RentalPeriod.objects.all()
+        qs_orders = ServiceOrder.objects.select_related("vehicle")
+        qs_plans = MaintenancePlan.objects.select_related("vehicle")
+        qs_parts = InventoryPart.objects.all()
+        qs_tires = Tire.objects.all()
+        qs_assignments = Assignment.objects.all()
+        qs_services = TransportService.objects.all()
+        qs_routes = Route.objects.all()
+        qs_applications = ServiceApplication.objects.all()
+        qs_templates = FormTemplate.objects.all()
+        qs_submissions = FormSubmission.objects.all()
+        qs_students = Student.objects.all()
+        qs_cards = StudentCard.objects.all()
+        qs_free_trips = FreeTrip.objects.select_related("vehicle", "driver")
+        qs_incidents = TripIncident.objects.select_related("trip", "driver")
         odometer_month = MonthlyOdometer.objects.filter(year=now.year, month=now.month)
+
         if user.role != "SUPERADMIN":
+            municipality_filter = {"municipality": user.municipality}
+            qs_vehicle = qs_vehicle.filter(**municipality_filter)
+            qs_trip = qs_trip.filter(**municipality_filter)
+            qs_driver = qs_driver.filter(**municipality_filter)
+            qs_fuel = qs_fuel.filter(**municipality_filter)
+            qs_contract = qs_contract.filter(**municipality_filter)
+            qs_rental = qs_rental.filter(**municipality_filter)
+            qs_orders = qs_orders.filter(**municipality_filter)
+            qs_plans = qs_plans.filter(**municipality_filter)
+            qs_parts = qs_parts.filter(**municipality_filter)
+            qs_tires = qs_tires.filter(**municipality_filter)
+            qs_assignments = qs_assignments.filter(**municipality_filter)
+            qs_services = qs_services.filter(**municipality_filter)
+            qs_routes = qs_routes.filter(**municipality_filter)
+            qs_applications = qs_applications.filter(**municipality_filter)
+            qs_templates = qs_templates.filter(**municipality_filter)
+            qs_submissions = qs_submissions.filter(**municipality_filter)
+            qs_students = qs_students.filter(**municipality_filter)
+            qs_cards = qs_cards.filter(**municipality_filter)
+            qs_free_trips = qs_free_trips.filter(**municipality_filter)
+            qs_incidents = qs_incidents.filter(**municipality_filter)
             odometer_month = odometer_month.filter(vehicle__municipality=user.municipality)
 
+        vehicles_total = qs_vehicle.count()
+        drivers_active_count = qs_driver.filter(status=Driver.Status.ACTIVE).count()
+        drivers_total = qs_driver.count()
+        vehicle_status = qs_vehicle.values("status").annotate(total=Count("id"))
+        ownership_stats = qs_vehicle.values("ownership_type").annotate(total=Count("id"))
+        trips_month = qs_trip.filter(departure_datetime__month=now.month, departure_datetime__year=now.year)
+        trips_month_total = trips_month.count()
+        trips_by_status = trips_month.values("status").annotate(total=Count("id"))
+        passengers_month = trips_month.aggregate(total=Sum("passengers_count"))["total"] or 0
+
+        incidents_last_30 = qs_incidents.filter(created_at__date__gte=today - timedelta(days=30))
+        incidents_recent = incidents_last_30.values(
+            "id",
+            "trip_id",
+            "trip__origin",
+            "trip__destination",
+            "driver__name",
+            "created_at",
+            "description",
+        ).order_by("-created_at")[:6]
+
+        free_trips_open = qs_free_trips.filter(status=FreeTrip.Status.OPEN)
+        free_trips_recent = qs_free_trips.filter(status=FreeTrip.Status.CLOSED).order_by("-ended_at")[:6]
+
+        maintenance_alerts = qs_vehicle.filter(
+            Q(next_service_date__lte=today) | Q(next_oil_change_date__lte=today)
+        ).values("id", "license_plate", "next_service_date", "next_oil_change_date")
+
+        plans_due = []
+        for plan in qs_plans.filter(is_active=True):
+            km_since_last = None
+            days_since_last = None
+            due = False
+            if plan.trigger_type == plan.TriggerType.KM and plan.interval_km and plan.vehicle:
+                last = plan.last_service_odometer or 0
+                km_since_last = (plan.vehicle.odometer_current or 0) - last
+                if km_since_last >= plan.interval_km:
+                    due = True
+            if plan.trigger_type == plan.TriggerType.TIME and plan.interval_days and plan.last_service_date:
+                days_since_last = (today - plan.last_service_date).days
+                if days_since_last >= plan.interval_days:
+                    due = True
+            if due:
+                plans_due.append(
+                    {
+                        "id": plan.id,
+                        "name": plan.name,
+                        "vehicle_plate": getattr(plan.vehicle, "license_plate", None),
+                        "trigger_type": plan.trigger_type,
+                        "km_since_last": km_since_last,
+                        "days_since_last": days_since_last,
+                        "interval_km": plan.interval_km,
+                        "interval_days": plan.interval_days,
+                    }
+                )
+
+        low_stock_parts = qs_parts.filter(current_stock__lte=F("minimum_stock")).values(
+            "id", "name", "sku", "current_stock", "minimum_stock"
+        )[:8]
+
+        tires_nearing_end = []
+        for tire in qs_tires:
+            if tire.max_km_life and tire.total_km >= tire.max_km_life * 0.9:
+                tires_nearing_end.append(
+                    {
+                        "id": tire.id,
+                        "code": tire.code,
+                        "brand": tire.brand,
+                        "model": tire.model,
+                        "total_km": tire.total_km,
+                        "max_km_life": tire.max_km_life,
+                        "status": tire.status,
+                    }
+                )
+
+        fuel_month = qs_fuel.filter(filled_at__month=now.month, filled_at__year=now.year)
+        fuel_month_liters = fuel_month.aggregate(total=Sum("liters"))["total"] or 0
+
+        contracts_expiring_limit = today + timedelta(days=30)
+        contracts_expiring = qs_contract.filter(end_date__lte=contracts_expiring_limit).values(
+            "id", "contract_number", "provider_name", "end_date", "status"
+        ).order_by("end_date")[:8]
+
+        assignments_today = qs_assignments.filter(date=today)
+        assignments_by_status = assignments_today.values("status").annotate(total=Count("id"))
+        routes_without_assignment = qs_routes.filter(active=True).exclude(
+            id__in=assignments_today.values_list("route_id", flat=True)
+        ).count()
+
+        applications_by_status = qs_applications.values("status").annotate(total=Count("id"))
+        pending_applications = next(
+            (item["total"] for item in applications_by_status if item["status"] == ServiceApplication.Status.PENDING),
+            0,
+        )
+        submissions_by_status = qs_submissions.values("status").annotate(total=Count("id"))
+
+        cards_by_status = qs_cards.values("status").annotate(total=Count("id"))
+        cards_expiring_soon = qs_cards.filter(
+            status=StudentCard.Status.ACTIVE, expiration_date__lte=today + timedelta(days=30)
+        ).count()
+        cnh_expiring_soon = qs_driver.filter(cnh_expiration_date__lte=today + timedelta(days=30)).values(
+            "id", "name", "cnh_expiration_date"
+        )[:6]
+
+        odometer_month_data = list(
+            odometer_month.values("vehicle_id", "vehicle__license_plate", "kilometers")
+        )
+
         data = {
-            "total_vehicles": qs_vehicle.count(),
+            "summary": {
+                "total_vehicles": vehicles_total,
+                "drivers_active": drivers_active_count,
+                "trips_month_total": trips_month_total,
+                "open_service_orders": qs_orders.exclude(
+                    status__in=[ServiceOrder.Status.COMPLETED, ServiceOrder.Status.CANCELLED]
+                ).count(),
+                "fuel_month_liters": fuel_month_liters,
+                "pending_applications": pending_applications,
+            },
+            "vehicles": {
+                "total": vehicles_total,
+                "by_status": list(vehicle_status),
+                "by_ownership": list(ownership_stats),
+                "maintenance_alerts": list(maintenance_alerts),
+                "odometer_month": odometer_month_data,
+            },
+            "drivers": {
+                "total": drivers_total,
+                "active": drivers_active_count,
+                "inactive": qs_driver.filter(status=Driver.Status.INACTIVE).count(),
+                "free_trip_enabled": qs_driver.filter(free_trip_enabled=True).count(),
+                "cnh_expiring_soon": list(cnh_expiring_soon),
+            },
+            "trips": {
+                "month_total": trips_month_total,
+                "by_status": list(trips_by_status),
+                "passengers_month": passengers_month,
+                "incidents_last_30d": incidents_last_30.count(),
+                "incidents_recent": list(incidents_recent),
+                "free_trips": {
+                    "open_count": free_trips_open.count(),
+                    "recent_closed": list(
+                        free_trips_recent.values(
+                            "id", "driver__name", "vehicle__license_plate", "odometer_start", "odometer_end", "ended_at"
+                        )
+                    ),
+                },
+            },
+            "maintenance": {
+                "service_orders_by_status": list(qs_orders.values("status").annotate(total=Count("id"))),
+                "active_plans": qs_plans.filter(is_active=True).count(),
+                "plans_due": plans_due[:8],
+                "inventory_low_stock": list(low_stock_parts),
+            },
+            "contracts": {
+                "total": qs_contract.count(),
+                "active": qs_contract.filter(status=Contract.Status.ACTIVE).count(),
+                "expiring_soon": list(contracts_expiring),
+            },
+            "rental_periods": {
+                "by_status": list(qs_rental.values("status").annotate(total=Count("id"))),
+            },
+            "fuel": {
+                "month_logs": fuel_month.count(),
+                "month_liters": fuel_month_liters,
+            },
+            "transport_planning": {
+                "services": qs_services.count(),
+                "routes_active": qs_routes.filter(active=True).count(),
+                "routes_inactive": qs_routes.filter(active=False).count(),
+                "routes_without_assignment": routes_without_assignment,
+                "assignments_today": list(assignments_by_status),
+                "applications_by_status": list(applications_by_status),
+            },
+            "forms": {
+                "templates_active": qs_templates.filter(is_active=True).count(),
+                "submissions_by_status": list(submissions_by_status),
+            },
+            "students": {
+                "total": qs_students.count(),
+                "cards_active": qs_cards.filter(status=StudentCard.Status.ACTIVE).count(),
+                "cards_expiring_soon": cards_expiring_soon,
+                "cards_by_status": list(cards_by_status),
+            },
+            "tires": {
+                "status_counts": list(qs_tires.values("status").annotate(total=Count("id"))),
+                "nearing_end_of_life": tires_nearing_end[:8],
+            },
+            # compatibilidade com o payload antigo para nГЈo quebrar telas existentes
+            "total_vehicles": vehicles_total,
             "vehicles_by_status": list(vehicle_status),
-            "trips_month_total": trips_month.count(),
+            "trips_month_total": trips_month_total,
             "trips_by_status": list(trips_by_status),
-            "odometer_month": list(
-                odometer_month.values("vehicle_id", "vehicle__license_plate", "kilometers")
-            ),
+            "odometer_month": odometer_month_data,
             "maintenance_alerts": list(maintenance_alerts),
         }
         return response.Response(data)

@@ -249,6 +249,11 @@ class FullApplicationTests(TestCase):
         self.assertEqual(dashboard.data["total_vehicles"], 1)
         self.assertEqual(dashboard.data["trips_month_total"], 1)
         self.assertTrue(any(item["status"] == Trip.Status.COMPLETED for item in dashboard.data["trips_by_status"]))
+        self.assertIn("summary", dashboard.data)
+        self.assertEqual(dashboard.data["summary"]["trips_month_total"], 1)
+        self.assertEqual(dashboard.data["vehicles"]["total"], 1)
+        self.assertEqual(dashboard.data["trips"]["passengers_month"], 3)
+        self.assertEqual(dashboard.data["fuel"]["month_logs"], 0)
 
         odometer = self.client.get("/api/reports/odometer/")
         self.assertEqual(odometer.status_code, 200)
