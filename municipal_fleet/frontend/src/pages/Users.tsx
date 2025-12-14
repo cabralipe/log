@@ -7,6 +7,8 @@ import { useAuth } from "../hooks/useAuth";
 import { useMediaQuery } from "../hooks/useMediaQuery";
 import { FloatingActionButton } from "../components/FloatingActionButton";
 import { Modal } from "../components/Modal";
+import "../styles/DataPage.css";
+import "./Users.css";
 
 type User = {
   id: number;
@@ -95,6 +97,7 @@ export const UsersPage = () => {
       municipality: u.municipality,
       password: "",
     });
+    if (isMobile) setIsModalOpen(true);
   };
 
   const handleDelete = async (id: number) => {
@@ -106,7 +109,7 @@ export const UsersPage = () => {
       setError(err.response?.data?.detail || "Erro ao remover usuário.");
     }
   };
-  
+
   useEffect(() => {
     if (isMobile && editingId) setIsModalOpen(true);
   }, [isMobile, editingId]);
@@ -155,7 +158,7 @@ export const UsersPage = () => {
             ))}
           </select>
         </label>
-        <div className="grid" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "0.5rem" }}>
+        <div className="form-actions">
           <Button type="submit">{editingId ? "Atualizar" : "Salvar"}</Button>
           {editingId && (
             <Button
@@ -175,96 +178,105 @@ export const UsersPage = () => {
   );
 
   return (
-    <div className="grid" style={{ gridTemplateColumns: "1fr", gap: "1rem" }}>
-      {!isMobile && FormCard}
-      <div>
-        <h2>Usuários</h2>
-        {error && <div className="card" style={{ color: "#f87171" }}>{error}</div>}
-        {!error && (
-          <>
-            <div style={{ marginBottom: "0.75rem" }}>
-              <input
-                placeholder="Buscar por email"
-                value={search}
-                onChange={(e) => {
-                  setSearch(e.target.value);
-                  setPage(1);
-                  load(1, e.target.value);
-                }}
-                style={{ width: "100%", padding: "0.6rem", borderRadius: 10, border: "1px solid var(--border)", background: "#0f1724", color: "var(--text)" }}
-              />
-              <div style={{ marginTop: "0.5rem", display: "flex", gap: "0.5rem", alignItems: "center" }}>
-                <span style={{ color: "var(--muted)", fontSize: "0.9rem" }}>Itens por página</span>
-                <select
-                  value={pageSize}
-                  onChange={(e) => {
-                    const size = Number(e.target.value);
-                    setPageSize(size);
-                    setPage(1);
-                    load(1, search, size);
-                  }}
-                  style={{ padding: "0.4rem", borderRadius: 8, border: "1px solid var(--border)", background: "#0f1724", color: "var(--text)" }}
-                >
-                  {[5, 8, 10, 20, 50].map((n) => (
-                    <option key={n} value={n}>
-                      {n}
-                    </option>
-                  ))}
-                </select>
+    <div className="data-page">
+      <div className="data-header">
+        <div>
+          <h1 className="data-title">Usuários</h1>
+          <p className="data-subtitle">Perfis, credenciais e prefeitura vinculada.</p>
+        </div>
+      </div>
+      <div className="users-layout">
+        {!isMobile && <div className="users-form-card">{FormCard}</div>}
+        <div className="users-content">
+          {error && <div className="card data-error">{error}</div>}
+          {!error && (
+            <>
+              <div className="data-card data-toolbar users-toolbar">
+                <div className="users-search">
+                  <input
+                    placeholder="Buscar por email"
+                    value={search}
+                    onChange={(e) => {
+                      setSearch(e.target.value);
+                      setPage(1);
+                      load(1, e.target.value);
+                    }}
+                  />
+                </div>
+                <div className="users-filters">
+                  <span className="data-inline-label">Itens por página</span>
+                  <select
+                    value={pageSize}
+                    onChange={(e) => {
+                      const size = Number(e.target.value);
+                      setPageSize(size);
+                      setPage(1);
+                      load(1, search, size);
+                    }}
+                  >
+                    {[5, 8, 10, 20, 50].map((n) => (
+                      <option key={n} value={n}>
+                        {n}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
-            </div>
-            <Table
-              columns={[
-                { key: "email", label: "Email" },
-                { key: "role", label: "Papel" },
-                { key: "municipality", label: "Prefeitura", render: (row) => (row.municipality ? municipalityName.get(row.municipality) || row.municipality : "—") },
-                {
-                  key: "actions",
-                  label: "Ações",
-                  render: (row) => (
-                    <div className="grid" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "0.3rem" }}>
-                      <Button variant="ghost" onClick={() => handleEdit(row)}>
-                        Editar
-                      </Button>
-                      <Button variant="ghost" onClick={() => handleDelete(row.id)}>
-                        Excluir
-                      </Button>
-                    </div>
-                  ),
-                },
-              ]}
-              data={users}
+              <Table
+                columns={[
+                  { key: "email", label: "Email" },
+                  { key: "role", label: "Papel" },
+                  { key: "municipality", label: "Prefeitura", render: (row) => (row.municipality ? municipalityName.get(row.municipality) || row.municipality : "—") },
+                  {
+                    key: "actions",
+                    label: "Ações",
+                    render: (row) => (
+                      <div className="users-actions">
+                        <Button variant="ghost" onClick={() => handleEdit(row)}>
+                          Editar
+                        </Button>
+                        <Button variant="ghost" onClick={() => handleDelete(row.id)}>
+                          Excluir
+                        </Button>
+                      </div>
+                    ),
+                  },
+                ]}
+                data={users}
+              />
+              <div className="users-pagination">
+                <Pagination
+                  page={page}
+                  pageSize={pageSize}
+                  total={total}
+                  onChange={(p) => {
+                    setPage(p);
+                    load(p, search, pageSize);
+                  }}
+                />
+              </div>
+            </>
+          )}
+        </div>
+        {isMobile && (
+          <>
+            <FloatingActionButton
+              onClick={() => setIsModalOpen(true)}
+              aria-label="Novo usuário"
+              ariaControls="users-modal"
+              ariaExpanded={isModalOpen}
             />
-            <Pagination
-              page={page}
-              pageSize={pageSize}
-              total={total}
-              onChange={(p) => {
-                setPage(p);
-                load(p, search, pageSize);
-              }}
-            />
+            <Modal
+              open={isModalOpen}
+              onClose={() => setIsModalOpen(false)}
+              title={editingId ? "Editar usuário" : "Novo usuário"}
+              id="users-modal"
+            >
+              {FormCard}
+            </Modal>
           </>
         )}
       </div>
-      {isMobile && (
-        <>
-          <FloatingActionButton
-            onClick={() => setIsModalOpen(true)}
-            aria-label="Novo usuário"
-            ariaControls="users-modal"
-            ariaExpanded={isModalOpen}
-          />
-          <Modal
-            open={isModalOpen}
-            onClose={() => setIsModalOpen(false)}
-            title={editingId ? "Editar usuário" : "Novo usuário"}
-            id="users-modal"
-          >
-            {FormCard}
-          </Modal>
-        </>
-      )}
     </div>
   );
 };

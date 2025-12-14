@@ -93,6 +93,9 @@ export const FuelStationsPage = () => {
       address: station.address,
       active: station.active,
     });
+    if (isMobile) {
+      setIsModalOpen(true);
+    }
   };
 
   const handleDelete = async (id: number) => {
