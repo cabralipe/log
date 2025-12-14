@@ -38,6 +38,7 @@ INSTALLED_APPS = [
     "forms.apps.FormsConfig",
     "students.apps.StudentsConfig",
     "maintenance.apps.MaintenanceConfig",
+    "transport_planning.apps.TransportPlanningConfig",
 ]
 
 MIDDLEWARE = [

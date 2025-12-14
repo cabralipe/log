@@ -19,6 +19,7 @@ import { StudentCardsPage } from "./pages/StudentCards";
 import { FormTemplatesPage } from "./pages/FormTemplates";
 import { Layout } from "./components/Layout";
 import { CardValidatorPage } from "./pages/CardValidator";
+import { TransportPlanningPage } from "./pages/TransportPlanning";
 
 const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading } = useAuth();
@@ -50,6 +51,8 @@ const AppRoutes = () => (
       <Route path="/fuel-stations" element={<FuelStationsPage />} />
       <Route path="/trips" element={<TripsPage />} />
       <Route path="/reports" element={<ReportsPage />} />
+      <Route path="/transport-planning" element={<TransportPlanningPage />} />
+      <Route path="/transport-planning/eligibility" element={<TransportPlanningPage initialTab="eligibility" />} />
       <Route path="/municipalities" element={<MunicipalitiesPage />} />
       <Route path="/users" element={<UsersPage />} />
       <Route path="/form-templates" element={<FormTemplatesPage />} />

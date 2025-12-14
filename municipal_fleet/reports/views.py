@@ -1,4 +1,4 @@
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from django.db.models import Count, Sum, F, ExpressionWrapper, IntegerField
 from django.utils import timezone
 from rest_framework import permissions, response, views
@@ -6,6 +6,7 @@ from fleet.models import Vehicle, FuelLog
 from trips.models import Trip, TripIncident, MonthlyOdometer
 from contracts.models import Contract, RentalPeriod
 from maintenance.models import ServiceOrder, MaintenancePlan, InventoryPart, InventoryMovement, Tire
+from transport_planning.models import TransportService, Route, Assignment, ServiceApplication
 
 
 class DashboardView(views.APIView):
@@ -376,6 +377,78 @@ class InventoryReportView(views.APIView):
                     )
                 ),
                 "consumption": list(consumption),
+            }
+        )
+
+
+class TransportPlanningReportView(views.APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        date_param = request.query_params.get("date")
+        try:
+            target_date = datetime.strptime(date_param, "%Y-%m-%d").date() if date_param else timezone.localdate()
+        except ValueError:
+            target_date = timezone.localdate()
+
+        services = TransportService.objects.all()
+        routes = Route.objects.select_related("transport_service")
+        assignments = Assignment.objects.select_related("route", "vehicle")
+        applications = ServiceApplication.objects.all()
+        if user.role != "SUPERADMIN":
+            services = services.filter(municipality=user.municipality)
+            routes = routes.filter(municipality=user.municipality)
+            assignments = assignments.filter(municipality=user.municipality)
+            applications = applications.filter(municipality=user.municipality)
+
+        assignments_for_day = assignments.filter(date=target_date)
+        routes_with_assignment = set(assignments_for_day.values_list("route_id", flat=True))
+        routes_without_assignment = routes.filter(active=True).exclude(id__in=routes_with_assignment)
+
+        services_summary = []
+        for service in services:
+            service_routes = routes.filter(transport_service=service)
+            service_assignments = assignments_for_day.filter(route__transport_service=service)
+            service_apps = applications.filter(transport_service=service)
+            services_summary.append(
+                {
+                    "id": service.id,
+                    "name": service.name,
+                    "routes": service_routes.count(),
+                    "assignments_day": service_assignments.count(),
+                    "applications": service_apps.count(),
+                    "applications_by_status": list(
+                        service_apps.values("status").annotate(total=Count("id"))
+                    ),
+                }
+            )
+
+        capacity = []
+        for item in assignments_for_day:
+            capacity.append(
+                {
+                    "assignment_id": item.id,
+                    "route": item.route.name,
+                    "vehicle": item.vehicle.license_plate,
+                    "planned_capacity": item.route.planned_capacity,
+                    "vehicle_capacity": item.vehicle.max_passengers,
+                }
+            )
+
+        summary = {
+            "date": target_date,
+            "active_routes": routes.filter(active=True).count(),
+            "inactive_routes": routes.filter(active=False).count(),
+            "routes_without_assignment": routes_without_assignment.count(),
+            "assignments_conflicts": assignments_for_day.filter(status=Assignment.Status.DRAFT).count(),
+        }
+
+        return response.Response(
+            {
+                "summary": summary,
+                "services": services_summary,
+                "capacity": capacity,
             }
         )
 
