@@ -21,6 +21,8 @@ class TripSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         request = self.context.get("request")
         user = getattr(request, "user", None)
+        if user is not None and not getattr(user, "is_authenticated", False):
+            user = None
         vehicle = attrs.get("vehicle", getattr(self.instance, "vehicle", None))
         driver = attrs.get("driver", getattr(self.instance, "driver", None))
         contract = attrs.get("contract", getattr(self.instance, "contract", None))
@@ -124,7 +126,7 @@ class TripSerializer(serializers.ModelSerializer):
             if driver and contract.municipality_id != driver.municipality_id:
                 raise serializers.ValidationError("Contrato precisa ser da mesma prefeitura do motorista.")
 
-        if user and user.role != "SUPERADMIN":
+        if user and getattr(user, "role", None) != "SUPERADMIN":
             if vehicle and vehicle.municipality_id != user.municipality_id:
                 raise serializers.ValidationError("Veículo precisa pertencer à prefeitura do usuário.")
             if driver and driver.municipality_id != user.municipality_id:
@@ -155,12 +157,16 @@ class TripSerializer(serializers.ModelSerializer):
 
     @transaction.atomic
     def create(self, validated_data):
-        user = self.context["request"].user
+        request_user = getattr(self.context.get("request"), "user", None)
+        user = request_user if request_user and getattr(request_user, "is_authenticated", False) else None
         vehicle = validated_data.get("vehicle")
         contract = validated_data.get("contract")
         if not contract and vehicle and vehicle.current_contract and vehicle.current_contract.status == Contract.Status.ACTIVE:
             validated_data["contract"] = vehicle.current_contract
-        validated_data["municipality"] = user.municipality if user.role != "SUPERADMIN" else validated_data.get("municipality")
+        if user and getattr(user, "role", None) != "SUPERADMIN":
+            validated_data["municipality"] = user.municipality
+        else:
+            validated_data["municipality"] = validated_data.get("municipality")
         trip = super().create(validated_data)
         self._update_odometer(trip)
         return trip

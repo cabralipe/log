@@ -46,6 +46,27 @@ type TripPortal = {
   vehicle__license_plate: string;
 };
 
+type AssignmentPortal = {
+  id: number;
+  status: "DRAFT" | "CONFIRMED" | "CANCELLED";
+  date: string;
+  period_start?: string | null;
+  period_end?: string | null;
+  notes?: string | null;
+  generated_trip_id?: number | null;
+  route: {
+    id: number;
+    code: string;
+    name: string;
+    route_type: string;
+    service_name?: string | null;
+    time_window_start?: string | null;
+    time_window_end?: string | null;
+    planned_capacity?: number | null;
+  };
+  vehicle: { id: number; license_plate: string };
+};
+
 type FuelLogPortal = {
   id: number;
   filled_at: string;
@@ -64,6 +85,7 @@ export const DriverPortalPage = () => {
   const [token, setToken] = useState<string | null>(localStorage.getItem("driver_portal_token"));
   const [driverName, setDriverName] = useState<string>("");
   const [trips, setTrips] = useState<TripPortal[]>([]);
+  const [assignments, setAssignments] = useState<AssignmentPortal[]>([]);
   const [fuelLogs, setFuelLogs] = useState<FuelLogPortal[]>([]);
   const [stations, setStations] = useState<FuelStation[]>([]);
   const [fuelForm, setFuelForm] = useState<{ vehicle: number | ""; fuel_station_id: number | ""; filled_at: string; liters: string; notes: string; receipt_image: File | null }>({
@@ -76,6 +98,7 @@ export const DriverPortalPage = () => {
   });
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
+  const [completingTripIds, setCompletingTripIds] = useState<number[]>([]);
   const [showPassengersModal, setShowPassengersModal] = useState(false);
   const [incidentTrip, setIncidentTrip] = useState<TripPortal | null>(null);
   const [incidentText, setIncidentText] = useState("");
@@ -110,11 +133,48 @@ export const DriverPortalPage = () => {
     }
   };
 
+  const assignmentStatusLabel = (value: AssignmentPortal["status"]) => {
+    switch (value) {
+      case "DRAFT":
+        return "Rascunho";
+      case "CONFIRMED":
+        return "Confirmado";
+      case "CANCELLED":
+        return "Cancelado";
+      default:
+        return value;
+    }
+  };
+
+  const parseDateOnly = (value: string) => new Date(`${value}T00:00:00`);
+
+  const formatDateLabel = (value: string) =>
+    parseDateOnly(value).toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "short" });
+
+  const formatPeriod = (assignment: AssignmentPortal) => {
+    const trimTime = (timeValue?: string | null) => (timeValue ? timeValue.slice(0, 5) : "--:--");
+    const start = assignment.period_start ? new Date(assignment.period_start) : null;
+    const end = assignment.period_end ? new Date(assignment.period_end) : null;
+    if (start && end) {
+      const startLabel = start.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+      const endLabel = end.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+      return `${startLabel} - ${endLabel}`;
+    }
+    if (start) {
+      return start.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+    }
+    if (assignment.route.time_window_start || assignment.route.time_window_end) {
+      return `${trimTime(assignment.route.time_window_start)} - ${trimTime(assignment.route.time_window_end)}`;
+    }
+    return "Horário a definir";
+  };
+
   const availableVehicles = useMemo(() => {
     const uniques = new Map<number, string>();
     trips.forEach((t) => uniques.set(t.vehicle_id, t.vehicle__license_plate));
+    assignments.forEach((a) => uniques.set(a.vehicle.id, a.vehicle.license_plate));
     return Array.from(uniques.entries()).map(([id, plate]) => ({ id, plate }));
-  }, [trips]);
+  }, [assignments, trips]);
 
   const sortedTrips = useMemo(() => {
     return [...trips].sort((a, b) => {
@@ -124,6 +184,46 @@ export const DriverPortalPage = () => {
       return aTime - bTime;
     });
   }, [trips]);
+
+  const sortedAssignments = useMemo(() => {
+    return [...assignments].sort((a, b) => {
+      const aDate = parseDateOnly(a.date).getTime();
+      const bDate = parseDateOnly(b.date).getTime();
+      if (aDate === bDate) {
+        const aStart = a.period_start ? new Date(a.period_start).getTime() : 0;
+        const bStart = b.period_start ? new Date(b.period_start).getTime() : 0;
+        return aStart - bStart;
+      }
+      return aDate - bDate;
+    });
+  }, [assignments]);
+
+  const thisWeekAssignments = useMemo(() => {
+    const now = new Date();
+    const start = new Date(now);
+    const weekday = start.getDay();
+    const diff = weekday === 0 ? -6 : 1 - weekday;
+    start.setDate(start.getDate() + diff);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(start);
+    end.setDate(start.getDate() + 6);
+    end.setHours(23, 59, 59, 999);
+    return sortedAssignments.filter((a) => {
+      const dateValue = parseDateOnly(a.date);
+      return dateValue >= start && dateValue <= end;
+    });
+  }, [sortedAssignments]);
+
+  const thisMonthAssignments = useMemo(() => {
+    const now = new Date();
+    const month = now.getMonth();
+    const year = now.getFullYear();
+    const monthData = sortedAssignments.filter((a) => {
+      const dateValue = parseDateOnly(a.date);
+      return dateValue.getMonth() === month && dateValue.getFullYear() === year;
+    });
+    return monthData.length ? monthData : sortedAssignments;
+  }, [sortedAssignments]);
 
   const passengerTrips = useMemo(
     () => sortedTrips.filter((t) => (t.passengers_details?.length || 0) > 0),
@@ -157,6 +257,8 @@ export const DriverPortalPage = () => {
       const tripsRes = await driverPortalApi.get<{ driver: string; trips: TripPortal[] }>("/drivers/portal/trips/");
       setDriverName(tripsRes.data.driver);
       setTrips(tripsRes.data.trips);
+      const assignmentsRes = await driverPortalApi.get<{ assignments: AssignmentPortal[] }>("/drivers/portal/assignments/");
+      setAssignments(assignmentsRes.data.assignments || []);
       const fuelRes = await driverPortalApi.get<{ logs: FuelLogPortal[] }>("/drivers/portal/fuel_logs/");
       setFuelLogs(fuelRes.data.logs);
       const stationsRes = await driverPortalApi.get<{ stations: FuelStation[] }>("/drivers/portal/fuel_stations/");
@@ -170,13 +272,17 @@ export const DriverPortalPage = () => {
   };
 
   const handleCompleteTrip = async (tripId: number) => {
+    setCompletingTripIds((ids) => (ids.includes(tripId) ? ids : [...ids, tripId]));
     try {
       await driverPortalApi.post(`/drivers/portal/trips/${tripId}/complete/`);
+      setTrips((prev) => prev.map((trip) => (trip.id === tripId ? { ...trip, status: "COMPLETED" } : trip)));
       setInfo("Viagem marcada como concluída.");
       setError(null);
-      loadPortalData();
     } catch (err: any) {
       setError(err.response?.data?.detail || "Não foi possível concluir a viagem.");
+    } finally {
+      setCompletingTripIds((ids) => ids.filter((id) => id !== tripId));
+      loadPortalData();
     }
   };
 
@@ -245,6 +351,7 @@ export const DriverPortalPage = () => {
     localStorage.removeItem("driver_portal_token");
     setToken(null);
     setTrips([]);
+    setAssignments([]);
     setFuelLogs([]);
     setDriverName("");
     setIncidentTrip(null);
@@ -281,6 +388,88 @@ export const DriverPortalPage = () => {
       </div>
       {error && <div className="card" style={{ color: "#f87171" }}>{error}</div>}
       {info && <div className="card" style={{ color: "#22c55e" }}>{info}</div>}
+      <div className="card" style={{ background: "#0f1724", border: "1px solid var(--border)", marginBottom: "1rem" }}>
+        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "1rem", marginBottom: "0.75rem" }}>
+          <div>
+            <h3 style={{ margin: 0 }}>Escala do planejamento</h3>
+            <p style={{ color: "var(--muted)", margin: "0.25rem 0 0" }}>
+              Integração com o planejador de viagens para que você veja a rotina da semana e do mês.
+            </p>
+          </div>
+        </div>
+        <div className="grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: "0.75rem" }}>
+          <div style={{ border: "1px solid var(--border)", borderRadius: "12px", padding: "0.75rem", background: "#0b1422" }}>
+            <h4 style={{ margin: "0 0 0.5rem 0" }}>Semana atual</h4>
+            {thisWeekAssignments.length === 0 ? (
+              <p style={{ color: "var(--muted)", margin: 0 }}>Nenhuma escala cadastrada para esta semana.</p>
+            ) : (
+              <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "grid", gap: "0.55rem" }}>
+                {thisWeekAssignments.map((assignment) => (
+                  <li
+                    key={assignment.id}
+                    style={{
+                      border: "1px solid var(--border)",
+                      borderRadius: "10px",
+                      padding: "0.65rem",
+                      background: "#0f1a2b",
+                    }}
+                  >
+                    <div style={{ display: "flex", justifyContent: "space-between", gap: "0.75rem" }}>
+                      <div>
+                        <div style={{ fontWeight: 700 }}>{formatDateLabel(assignment.date)}</div>
+                        <div style={{ color: "var(--muted)", fontSize: "0.95rem" }}>
+                          {assignment.route.code} · {assignment.route.name}
+                        </div>
+                        <div style={{ color: "var(--muted)", fontSize: "0.9rem" }}>
+                          Veículo {assignment.vehicle.license_plate}
+                        </div>
+                        {assignment.route.service_name && (
+                          <div style={{ color: "var(--muted)", fontSize: "0.9rem" }}>{assignment.route.service_name}</div>
+                        )}
+                      </div>
+                      <div style={{ textAlign: "right" }}>
+                        <div style={{ color: "var(--accent)", fontWeight: 700 }}>{formatPeriod(assignment)}</div>
+                        <div
+                          style={{
+                            display: "inline-block",
+                            marginTop: "0.35rem",
+                            padding: "0.15rem 0.55rem",
+                            borderRadius: "999px",
+                            border: "1px solid var(--border)",
+                            background: assignment.status === "CONFIRMED" ? "#0f5132" : "#2a2438",
+                            color: assignment.status === "CONFIRMED" ? "#c6f6d5" : "var(--muted)",
+                            fontSize: "0.9rem",
+                          }}
+                        >
+                          {assignmentStatusLabel(assignment.status)}
+                        </div>
+                      </div>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+          <div>
+            <h4 style={{ margin: "0 0 0.35rem 0" }}>Agenda do mês</h4>
+            <Table
+              columns={[
+                { key: "date", label: "Data", render: (row) => formatDateLabel(row.date) },
+                { key: "period_start", label: "Horário", render: (row) => formatPeriod(row) },
+                { key: "route", label: "Rota", render: (row) => `${row.route.code} — ${row.route.name}` },
+                {
+                  key: "service",
+                  label: "Serviço",
+                  render: (row) => row.route.service_name || "—",
+                },
+                { key: "vehicle", label: "Veículo", render: (row) => row.vehicle.license_plate },
+                { key: "status", label: "Status", render: (row) => assignmentStatusLabel(row.status) },
+              ]}
+              data={thisMonthAssignments}
+            />
+          </div>
+        </div>
+      </div>
       <div className="grid" style={{ gridTemplateColumns: "1fr", gap: "1rem" }}>
         <div className="card" style={{ background: "#0f1724", border: "1px solid var(--border)" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.75rem", marginBottom: "0.5rem" }}>
@@ -303,15 +492,17 @@ export const DriverPortalPage = () => {
                 label: "Ações",
                 render: (row) => (
                   <div style={{ display: "flex", gap: "0.35rem", flexWrap: "wrap" }}>
-                    <Button
-                      variant="ghost"
-                      onClick={() => handleCompleteTrip(row.id)}
-                      disabled={row.status === "COMPLETED"}
-                      title={row.status === "COMPLETED" ? "Viagem já concluída" : "Marcar como concluída"}
-                      style={{ padding: "0.4rem 0.6rem" }}
-                    >
-                      Concluir
-                    </Button>
+                    {row.status !== "COMPLETED" && (
+                      <Button
+                        variant="ghost"
+                        onClick={() => handleCompleteTrip(row.id)}
+                        disabled={completingTripIds.includes(row.id)}
+                        title={completingTripIds.includes(row.id) ? "Enviando..." : "Marcar como concluída"}
+                        style={{ padding: "0.4rem 0.6rem" }}
+                      >
+                        {completingTripIds.includes(row.id) ? "Enviando..." : "Concluir"}
+                      </Button>
+                    )}
                     <Button
                       variant="ghost"
                       onClick={() => openIncidentModal(row)}

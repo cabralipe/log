@@ -1,3 +1,4 @@
+from datetime import timedelta
 from rest_framework import viewsets, permissions, filters, views, response, exceptions, parsers, status
 from rest_framework.exceptions import ValidationError
 from django.utils import timezone
@@ -10,6 +11,7 @@ from fleet.models import FuelLog, FuelStation, Vehicle
 from fleet.serializers import FuelLogSerializer
 from trips.models import Trip, TripIncident, FreeTrip
 from trips.serializers import TripSerializer, TripIncidentSerializer, FreeTripSerializer
+from transport_planning.models import Assignment
 
 
 class DriverViewSet(MunicipalityQuerysetMixin, viewsets.ModelViewSet):
@@ -94,6 +96,55 @@ class DriverPortalTripsView(DriverPortalAuthMixin, views.APIView):
             )
         )
         return response.Response({"driver": driver.name, "trips": list(trips)})
+
+
+class DriverPortalAssignmentsView(DriverPortalAuthMixin, views.APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        driver = self.get_portal_driver(request)
+        today = timezone.localdate()
+        try:
+            days = int(request.query_params.get("days", 60))
+        except (TypeError, ValueError):
+            days = 60
+        days = max(1, min(days, 180))
+        end_date = today + timedelta(days=days)
+        assignments = (
+            Assignment.objects.filter(driver=driver, date__gte=today, date__lte=end_date)
+            .select_related("route__transport_service", "vehicle")
+            .order_by("date", "route__time_window_start", "id")
+        )
+        payload = []
+        for assignment in assignments:
+            start, end = assignment.estimated_period()
+            route = assignment.route
+            payload.append(
+                {
+                    "id": assignment.id,
+                    "status": assignment.status,
+                    "date": assignment.date,
+                    "notes": assignment.notes,
+                    "generated_trip_id": assignment.generated_trip_id,
+                    "route": {
+                        "id": route.id,
+                        "code": route.code,
+                        "name": route.name,
+                        "route_type": route.route_type,
+                        "service_name": route.transport_service.name if route.transport_service else None,
+                        "time_window_start": route.time_window_start,
+                        "time_window_end": route.time_window_end,
+                        "planned_capacity": route.planned_capacity,
+                    },
+                    "vehicle": {
+                        "id": assignment.vehicle_id,
+                        "license_plate": assignment.vehicle.license_plate,
+                    },
+                    "period_start": start,
+                    "period_end": end,
+                }
+            )
+        return response.Response({"assignments": payload})
 
 
 class DriverPortalTripCompleteView(DriverPortalAuthMixin, views.APIView):

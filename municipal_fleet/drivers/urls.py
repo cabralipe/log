@@ -4,6 +4,7 @@ from drivers.views import (
     DriverViewSet,
     DriverPortalLoginView,
     DriverPortalTripsView,
+    DriverPortalAssignmentsView,
     DriverPortalFuelLogView,
     DriverPortalFuelStationsView,
     DriverPortalTripCompleteView,
@@ -19,6 +20,7 @@ router.register(r"", DriverViewSet, basename="driver")
 urlpatterns = [
     path("portal/login/", DriverPortalLoginView.as_view(), name="driver-portal-login"),
     path("portal/trips/", DriverPortalTripsView.as_view(), name="driver-portal-trips"),
+    path("portal/assignments/", DriverPortalAssignmentsView.as_view(), name="driver-portal-assignments"),
     path("portal/trips/<int:trip_id>/complete/", DriverPortalTripCompleteView.as_view(), name="driver-portal-trip-complete"),
     path("portal/trips/<int:trip_id>/incidents/", DriverPortalTripIncidentView.as_view(), name="driver-portal-trip-incident"),
     path("portal/fuel_logs/", DriverPortalFuelLogView.as_view(), name="driver-portal-fuel-logs"),
