@@ -67,7 +67,7 @@
 /* Mobile styles */
 @media (max-width: 768px) {
   .vehicle-list {
-    padding: 0.75rem;
+    padding: 0rem;
   }
   
   .vehicle-list h2 {
