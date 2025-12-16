@@ -97,7 +97,14 @@ type FreeTripListPortal = {
   recent_closed: FreeTripPortal[];
 };
 
-type PortalVehicle = { id: number; license_plate: string; brand?: string; model?: string };
+type PortalVehicle = {
+  id: number;
+  license_plate: string;
+  brand?: string;
+  model?: string;
+  odometer_current?: number;
+  odometer_initial?: number;
+};
 
 export const DriverPortalPage = () => {
   const [code, setCode] = useState("");
@@ -254,26 +261,43 @@ export const DriverPortalPage = () => {
   };
 
   const startFreeTrip = async () => {
-    if (!freeTripStart.vehicle_id || !freeTripStart.odometer_start) return;
+    if (!freeTripStart.vehicle_id) return;
     try {
       const fd = new FormData();
       fd.append("vehicle_id", String(freeTripStart.vehicle_id));
-      fd.append("odometer_start", freeTripStart.odometer_start);
       if (freeTripStart.photo) fd.append("odometer_start_photo", freeTripStart.photo);
-      await driverPortalApi.post("/drivers/portal/free_trips/start/", fd);
-      setFreeTripStart({ vehicle_id: "", odometer_start: "", photo: null });
+      const { data } = await driverPortalApi.post<FreeTripPortal>("/drivers/portal/free_trips/start/", fd);
+      const startValue = data.odometer_start ?? "";
+      setFreeTripStart({
+        vehicle_id: "",
+        odometer_start: startValue === "" ? "" : String(startValue),
+        photo: null,
+      });
       await loadFreeTrips();
     } catch (err: any) {
-      setFreeTripError(err.response?.data?.detail || "Não foi possível iniciar a viagem livre.");
+      const data = err.response?.data;
+      const firstError =
+        data?.detail ||
+        (data && typeof data === "object" ? Object.values(data as Record<string, any>).flat().find(Boolean) : null);
+      setFreeTripError(firstError || "Não foi possível iniciar a viagem livre.");
     }
   };
 
   const closeFreeTrip = async () => {
     const openTrip = freeTrips?.open_trip;
     if (!openTrip || !freeTripClose.odometer_end) return;
+    const endValue = Number(freeTripClose.odometer_end);
+    if (!Number.isFinite(endValue)) {
+      setFreeTripError("Informe um odômetro final válido.");
+      return;
+    }
+    if (typeof openTrip.odometer_start === "number" && endValue < openTrip.odometer_start) {
+      setFreeTripError("Odômetro final não pode ser menor que o inicial.");
+      return;
+    }
     try {
       const fd = new FormData();
-      fd.append("odometer_end", freeTripClose.odometer_end);
+      fd.append("odometer_end", String(endValue));
       if (freeTripClose.photo) fd.append("odometer_end_photo", freeTripClose.photo);
       await driverPortalApi.post(`/drivers/portal/free_trips/${openTrip.id}/close/`, fd);
       if (freeTripClose.incident.trim()) {
@@ -284,7 +308,11 @@ export const DriverPortalPage = () => {
       setFreeTripClose({ odometer_end: "", photo: null, incident: "" });
       await loadFreeTrips();
     } catch (err: any) {
-      setFreeTripError(err.response?.data?.detail || "Não foi possível encerrar a viagem livre.");
+      const data = err.response?.data;
+      const firstError =
+        data?.detail ||
+        (data && typeof data === "object" ? Object.values(data as Record<string, any>).flat().find(Boolean) : null);
+      setFreeTripError(firstError || "Não foi possível encerrar a viagem livre.");
     }
   };
 
@@ -511,7 +539,20 @@ export const DriverPortalPage = () => {
           <div className="grid form-grid responsive">
             <select
               value={freeTripStart.vehicle_id}
-              onChange={(e) => setFreeTripStart((f) => ({ ...f, vehicle_id: Number(e.target.value) }))}
+              onChange={(e) => {
+                const value = e.target.value;
+                const vehicleId = value ? Number(value) : "";
+                const selectedVehicle =
+                  typeof vehicleId === "number" ? freeTripVehicles.find((v) => v.id === vehicleId) : undefined;
+                const initialOdometer = selectedVehicle
+                  ? selectedVehicle.odometer_current ?? selectedVehicle.odometer_initial ?? ""
+                  : "";
+                setFreeTripStart((f) => ({
+                  ...f,
+                  vehicle_id: vehicleId,
+                  odometer_start: initialOdometer === "" ? "" : String(initialOdometer),
+                }));
+              }}
             >
               <option value="">Selecione o veículo</option>
               {freeTripVehicles.map((v) => (
@@ -520,17 +561,15 @@ export const DriverPortalPage = () => {
                 </option>
               ))}
             </select>
-            <input
-              type="number"
-              placeholder="Odômetro inicial"
-              value={freeTripStart.odometer_start}
-              onChange={(e) => setFreeTripStart((f) => ({ ...f, odometer_start: e.target.value }))}
-            />
+            <div>
+              <div style={{ color: "var(--muted)" }}>Odômetro inicial (pré-preenchido)</div>
+              <input type="number" placeholder="Odômetro inicial" value={freeTripStart.odometer_start} readOnly />
+            </div>
             <label>
               Foto do painel (opcional)
               <input type="file" accept="image/*" onChange={(e) => setFreeTripStart((f) => ({ ...f, photo: e.target.files?.[0] || null }))} />
             </label>
-            <Button onClick={startFreeTrip} disabled={!freeTripStart.vehicle_id || !freeTripStart.odometer_start}>
+            <Button onClick={startFreeTrip} disabled={!freeTripStart.vehicle_id || freeTripStart.odometer_start === ""}>
               Iniciar viagem livre
             </Button>
           </div>

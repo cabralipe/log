@@ -368,6 +368,6 @@ class DriverPortalVehiclesView(DriverPortalAuthMixin, views.APIView):
                 status__in=[Vehicle.Status.AVAILABLE, Vehicle.Status.IN_USE],
             )
             .order_by("license_plate")
-            .values("id", "license_plate", "brand", "model")
+            .values("id", "license_plate", "brand", "model", "odometer_current", "odometer_initial")
         )
         return response.Response({"vehicles": list(vehicles)})
