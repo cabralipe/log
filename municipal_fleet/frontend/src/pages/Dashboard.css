@@ -174,7 +174,7 @@
 }
 
 /* On large screens, lay out KPI cards horizontally inside the dashboard hero */
-@media (min-width: 1024px) {
+@media (min-width: 650px) {
   .dashboard-hero .summary-grid {
     display: flex;
     flex-wrap: wrap;
