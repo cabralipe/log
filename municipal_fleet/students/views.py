@@ -4,6 +4,7 @@ from rest_framework.views import APIView
 from tenants.mixins import MunicipalityQuerysetMixin
 from accounts.permissions import IsMunicipalityAdminOrReadOnly, IsMunicipalityAdmin
 from students.models import School, Student, StudentCard, StudentTransportRegistration
+from forms.models import FormSubmission
 from students.serializers import (
     SchoolSerializer,
     StudentSerializer,
@@ -107,6 +108,49 @@ class StudentCardValidateView(APIView):
             return response.Response({"valid": False, "reason": card.status})
         if card.expiration_date and card.expiration_date < today:
             return response.Response({"valid": False, "reason": "CARD_EXPIRED"})
+
+        submission = (
+            FormSubmission.objects.filter(linked_student_card=card)
+            .prefetch_related("answers__question")
+            .order_by("-created_at")
+            .first()
+        )
+
+        if submission and submission.status == FormSubmission.Status.REJECTED:
+            # Se a submissão foi rejeitada após emissão, inativamos a carteirinha e bloqueamos o QR.
+            if card.status == StudentCard.Status.ACTIVE:
+                card.status = StudentCard.Status.BLOCKED
+                card.save(update_fields=["status", "updated_at"])
+            return response.Response({"valid": False, "reason": FormSubmission.Status.REJECTED})
+
+        student_payload = None
+        if submission:
+            answers = submission.answers.all()
+            answer_map = {ans.question.field_name: ans for ans in answers}
+
+            def answer_value(field_name):
+                ans = answer_map.get(field_name)
+                if not ans:
+                    return None
+                if ans.value_json is not None:
+                    return ans.value_json
+                return ans.value_text
+
+            data = {}
+            name_val = answer_value("full_name")
+            if name_val:
+                data["full_name"] = name_val
+            school_val = answer_value("school") or answer_value("school_name")
+            if school_val:
+                data["school"] = school_val
+            else:
+                school_id_val = answer_value("school_id")
+                if school_id_val:
+                    # Se o formulário enviou school_id, usamos o nome real da escola se existir.
+                    data["school"] = card.student.school.name if card.student and card.student.school else school_id_val
+            if data:
+                student_payload = data
+
         payload = {
             "valid": True,
             "reason": None,
@@ -115,12 +159,6 @@ class StudentCardValidateView(APIView):
                 "status": card.status,
                 "expiration_date": card.expiration_date,
             },
-            "student": {
-                "id": card.student.id,
-                "full_name": card.student.full_name,
-                "school": card.student.school.name if card.student.school else None,
-                "grade": card.student.grade,
-                "shift": card.student.shift,
-            },
+            "student": student_payload,
         }
         return response.Response(payload)

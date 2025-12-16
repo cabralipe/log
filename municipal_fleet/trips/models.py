@@ -113,3 +113,17 @@ class FreeTrip(models.Model):
         if self.odometer_end is None:
             return None
         return self.odometer_end - self.odometer_start
+
+
+class FreeTripIncident(models.Model):
+    municipality = models.ForeignKey("tenants.Municipality", on_delete=models.CASCADE, related_name="free_trip_incidents")
+    free_trip = models.ForeignKey(FreeTrip, on_delete=models.CASCADE, related_name="incidents")
+    driver = models.ForeignKey("drivers.Driver", on_delete=models.CASCADE, related_name="free_trip_incidents")
+    description = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"Ocorrência viagem livre #{self.free_trip_id}"

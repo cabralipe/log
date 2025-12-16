@@ -9,8 +9,8 @@ from accounts.permissions import IsMunicipalityAdminOrReadOnly
 from drivers.portal import generate_portal_token, resolve_portal_token
 from fleet.models import FuelLog, FuelStation, Vehicle
 from fleet.serializers import FuelLogSerializer
-from trips.models import Trip, TripIncident, FreeTrip
-from trips.serializers import TripSerializer, TripIncidentSerializer, FreeTripSerializer
+from trips.models import Trip, TripIncident, FreeTrip, FreeTripIncident
+from trips.serializers import TripSerializer, TripIncidentSerializer, FreeTripSerializer, FreeTripIncidentSerializer
 from transport_planning.models import Assignment
 
 
@@ -243,8 +243,18 @@ class DriverPortalFreeTripListView(DriverPortalAuthMixin, views.APIView):
 
     def get(self, request):
         driver = self.get_portal_driver(request)
-        open_trip = driver.free_trips.filter(status=FreeTrip.Status.OPEN).select_related("vehicle").first()
-        recent_closed = driver.free_trips.filter(status=FreeTrip.Status.CLOSED).order_by("-ended_at")[:5]
+        open_trip = (
+            driver.free_trips.filter(status=FreeTrip.Status.OPEN)
+            .select_related("vehicle")
+            .prefetch_related("incidents")
+            .first()
+        )
+        recent_closed = (
+            driver.free_trips.filter(status=FreeTrip.Status.CLOSED)
+            .select_related("vehicle")
+            .prefetch_related("incidents")
+            .order_by("-ended_at")[:5]
+        )
         data = {
             "open_trip": FreeTripSerializer(
                 open_trip, context={"portal_driver": driver, "request": request}
@@ -271,7 +281,10 @@ class DriverPortalFreeTripStartView(DriverPortalAuthMixin, views.APIView):
 
         vehicle_id = request.data.get("vehicle_id")
         license_plate = request.data.get("license_plate")
-        vehicle_qs = Vehicle.objects.filter(municipality=driver.municipality)
+        vehicle_qs = Vehicle.objects.filter(
+            municipality=driver.municipality,
+            status__in=[Vehicle.Status.AVAILABLE, Vehicle.Status.IN_USE],
+        )
         vehicle = None
         if vehicle_id:
             vehicle = vehicle_qs.filter(id=vehicle_id).first()
@@ -284,8 +297,8 @@ class DriverPortalFreeTripStartView(DriverPortalAuthMixin, views.APIView):
             odometer_start = int(request.data.get("odometer_start", 0))
         except (TypeError, ValueError):
             return response.Response({"detail": "Quilometragem inicial inválida."}, status=status.HTTP_400_BAD_REQUEST)
-        if odometer_start < 0:
-            return response.Response({"detail": "Quilometragem inicial inválida."}, status=status.HTTP_400_BAD_REQUEST)
+        # Sempre iniciar a viagem com o último odômetro conhecido do veículo.
+        odometer_start = vehicle.odometer_current or vehicle.odometer_initial or odometer_start
 
         payload = {
             "driver": driver.id,
@@ -324,3 +337,37 @@ class DriverPortalFreeTripCloseView(DriverPortalAuthMixin, views.APIView):
         serializer.is_valid(raise_exception=True)
         free_trip = serializer.save()
         return response.Response(serializer.data)
+
+
+class DriverPortalFreeTripIncidentView(DriverPortalAuthMixin, views.APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request, free_trip_id: int):
+        driver = self.get_portal_driver(request)
+        free_trip = driver.free_trips.filter(id=free_trip_id).first()
+        if not free_trip:
+            return response.Response({"detail": "Viagem livre não encontrada."}, status=status.HTTP_404_NOT_FOUND)
+        description = str(request.data.get("description", "")).strip()
+        if not description:
+            return response.Response({"detail": "Descrição é obrigatória."}, status=status.HTTP_400_BAD_REQUEST)
+        incident = FreeTripIncident.objects.create(
+            municipality=driver.municipality, free_trip=free_trip, driver=driver, description=description
+        )
+        serializer = FreeTripIncidentSerializer(incident)
+        return response.Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+class DriverPortalVehiclesView(DriverPortalAuthMixin, views.APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        driver = self.get_portal_driver(request)
+        vehicles = (
+            Vehicle.objects.filter(
+                municipality=driver.municipality,
+                status__in=[Vehicle.Status.AVAILABLE, Vehicle.Status.IN_USE],
+            )
+            .order_by("license_plate")
+            .values("id", "license_plate", "brand", "model")
+        )
+        return response.Response({"vehicles": list(vehicles)})

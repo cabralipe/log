@@ -16,6 +16,7 @@ from forms.serializers import (
 )
 from tenants.mixins import MunicipalityQuerysetMixin
 from accounts.permissions import IsMunicipalityAdminOrReadOnly, IsMunicipalityAdmin
+from students.models import StudentCard
 
 
 class FormTemplateViewSet(MunicipalityQuerysetMixin, viewsets.ModelViewSet):
@@ -113,13 +114,20 @@ class FormSubmissionViewSet(MunicipalityQuerysetMixin, viewsets.ReadOnlyModelVie
         submission.save()
         return submission
 
+    def _block_linked_card(self, submission: FormSubmission):
+        card = submission.linked_student_card
+        if not card:
+            return
+        if card.status == StudentCard.Status.ACTIVE:
+            card.status = StudentCard.Status.BLOCKED
+            card.save(update_fields=["status", "updated_at"])
+
     @transaction.atomic
     def _update_status(self, submission: FormSubmission, status_value: str, notes: str):
         if status_value == FormSubmission.Status.APPROVED:
             return self._approve_submission(submission, notes)
         if status_value == FormSubmission.Status.REJECTED:
-            submission.linked_student = None
-            submission.linked_student_card = None
+            self._block_linked_card(submission)
         submission.status = status_value
         submission.status_notes = notes
         submission.save(update_fields=["status", "status_notes", "linked_student", "linked_student_card", "updated_at"])
@@ -237,6 +245,7 @@ class PublicFormStatusView(views.APIView):
         submissions = (
             FormSubmission.objects.filter(form_template=template, cpf=cpf)
             .select_related("linked_student", "linked_student_card", "form_template", "linked_student__school")
+            .prefetch_related("answers__question")
             .order_by("-created_at")
         )
         serializer = PublicSubmissionStatusSerializer(submissions, many=True)

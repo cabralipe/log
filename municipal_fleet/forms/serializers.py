@@ -213,6 +213,7 @@ class PublicSubmissionStatusSerializer(serializers.ModelSerializer):
     form_name = serializers.CharField(source="form_template.name", read_only=True)
     card = serializers.SerializerMethodField()
     student = serializers.SerializerMethodField()
+    answers = FormAnswerSerializer(many=True, read_only=True)
 
     class Meta:
         model = FormSubmission
@@ -223,13 +224,14 @@ class PublicSubmissionStatusSerializer(serializers.ModelSerializer):
             "form_name",
             "card",
             "student",
+            "answers",
             "created_at",
             "updated_at",
         ]
 
     def get_card(self, obj):
         card = obj.linked_student_card
-        if not card:
+        if not card or obj.status != FormSubmission.Status.APPROVED:
             return None
         return {
             "card_number": card.card_number,
@@ -239,16 +241,37 @@ class PublicSubmissionStatusSerializer(serializers.ModelSerializer):
         }
 
     def get_student(self, obj):
-        student = obj.linked_student
-        if not student:
-            return None
-        return {
-            "id": student.id,
-            "full_name": student.full_name,
-            "school": student.school.name if student.school else None,
-            "grade": student.grade,
-            "shift": student.shift,
-        }
+        # Expor somente campos que vieram do formulário.
+        answers = getattr(obj, "answers", [])
+        answer_map = {ans.question.field_name: ans for ans in answers}
+
+        def answer_value(field_name):
+            ans = answer_map.get(field_name)
+            if not ans:
+                return None
+            if ans.value_json is not None:
+                return ans.value_json
+            return ans.value_text
+
+        data = {}
+        full_name = answer_value("full_name")
+        if full_name:
+            data["full_name"] = full_name
+
+        school_name = answer_value("school") or answer_value("school_name")
+        if school_name:
+            data["school"] = school_name
+        else:
+            school_id = answer_value("school_id")
+            if school_id:
+                data["school_id"] = school_id
+
+        for field in ["grade", "shift"]:
+            value = answer_value(field)
+            if value not in [None, ""]:
+                data[field] = value
+
+        return data or None
 
 
 class StudentFromSubmissionMapper:

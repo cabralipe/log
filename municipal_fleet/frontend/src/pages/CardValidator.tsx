@@ -16,11 +16,9 @@ type ValidationResult = {
         expiration_date: string;
     };
     student?: {
-        id: number;
-        full_name: string;
+        full_name?: string;
         school?: string | null;
-        grade?: string | null;
-        shift?: string | null;
+        school_id?: string | number;
     };
 };
 
@@ -194,12 +192,14 @@ export const CardValidatorPage = () => {
                                     <div className="muted">Status: {result.card.status}</div>
                                 </div>
                             )}
-                            {result.student && (
+                            {result.student && (result.student.full_name || result.student.school || result.student.school_id) && (
                                 <div className="info-block">
                                     <p className="eyebrow">Aluno</p>
-                                    <div className="muted">{result.student.full_name}</div>
+                                    {result.student.full_name && <div className="muted">{result.student.full_name}</div>}
                                     {result.student.school && <div className="muted">Escola: {result.student.school}</div>}
-                                    {result.student.shift && <div className="muted">Turno: {result.student.shift}</div>}
+                                    {!result.student.school && result.student.school_id && (
+                                        <div className="muted">Escola: {result.student.school_id}</div>
+                                    )}
                                 </div>
                             )}
                         </div>

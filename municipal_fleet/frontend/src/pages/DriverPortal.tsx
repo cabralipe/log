@@ -80,6 +80,25 @@ type FuelLogPortal = {
 
 type FuelStation = { id: number; name: string; address?: string };
 
+type FreeTripPortal = {
+  id: number;
+  vehicle: number;
+  vehicle_plate: string;
+  odometer_start: number;
+  odometer_end?: number | null;
+  status: "OPEN" | "CLOSED";
+  started_at: string;
+  ended_at?: string | null;
+  distance?: number | null;
+};
+
+type FreeTripListPortal = {
+  open_trip: FreeTripPortal | null;
+  recent_closed: FreeTripPortal[];
+};
+
+type PortalVehicle = { id: number; license_plate: string; brand?: string; model?: string };
+
 export const DriverPortalPage = () => {
   const [code, setCode] = useState("");
   const [token, setToken] = useState<string | null>(localStorage.getItem("driver_portal_token"));
@@ -103,6 +122,19 @@ export const DriverPortalPage = () => {
   const [incidentTrip, setIncidentTrip] = useState<TripPortal | null>(null);
   const [incidentText, setIncidentText] = useState("");
   const [incidentError, setIncidentError] = useState<string | null>(null);
+  const [freeTrips, setFreeTrips] = useState<FreeTripListPortal | null>(null);
+  const [freeTripError, setFreeTripError] = useState<string | null>(null);
+  const [freeTripVehicles, setFreeTripVehicles] = useState<PortalVehicle[]>([]);
+  const [freeTripStart, setFreeTripStart] = useState<{ vehicle_id: number | ""; odometer_start: string; photo: File | null }>({
+    vehicle_id: "",
+    odometer_start: "",
+    photo: null,
+  });
+  const [freeTripClose, setFreeTripClose] = useState<{ odometer_end: string; photo: File | null; incident: string }>({
+    odometer_end: "",
+    photo: null,
+    incident: "",
+  });
   const specialNeedLabel = (value?: string) => {
     switch (value) {
       case "TEA":
@@ -198,6 +230,78 @@ export const DriverPortalPage = () => {
     });
   }, [assignments]);
 
+  const loadFreeTrips = async () => {
+    if (!token) return;
+    try {
+      const { data } = await driverPortalApi.get<FreeTripListPortal>("/drivers/portal/free_trips/");
+      setFreeTrips(data);
+      setFreeTripError(null);
+    } catch (err: any) {
+      setFreeTripError(err.response?.data?.detail || "Erro ao carregar viagens livres.");
+    }
+  };
+
+  const loadPortalVehicles = async () => {
+    if (!token) return;
+    try {
+      const { data } = await driverPortalApi.get<{ vehicles: PortalVehicle[] }>("/drivers/portal/vehicles/");
+      setFreeTripVehicles(data.vehicles);
+      setFreeTripError(null);
+    } catch (err: any) {
+      setFreeTripVehicles([]);
+      setFreeTripError(err.response?.data?.detail || "Erro ao carregar veículos disponíveis.");
+    }
+  };
+
+  const startFreeTrip = async () => {
+    if (!freeTripStart.vehicle_id || !freeTripStart.odometer_start) return;
+    try {
+      const fd = new FormData();
+      fd.append("vehicle_id", String(freeTripStart.vehicle_id));
+      fd.append("odometer_start", freeTripStart.odometer_start);
+      if (freeTripStart.photo) fd.append("odometer_start_photo", freeTripStart.photo);
+      await driverPortalApi.post("/drivers/portal/free_trips/start/", fd);
+      setFreeTripStart({ vehicle_id: "", odometer_start: "", photo: null });
+      await loadFreeTrips();
+    } catch (err: any) {
+      setFreeTripError(err.response?.data?.detail || "Não foi possível iniciar a viagem livre.");
+    }
+  };
+
+  const closeFreeTrip = async () => {
+    const openTrip = freeTrips?.open_trip;
+    if (!openTrip || !freeTripClose.odometer_end) return;
+    try {
+      const fd = new FormData();
+      fd.append("odometer_end", freeTripClose.odometer_end);
+      if (freeTripClose.photo) fd.append("odometer_end_photo", freeTripClose.photo);
+      await driverPortalApi.post(`/drivers/portal/free_trips/${openTrip.id}/close/`, fd);
+      if (freeTripClose.incident.trim()) {
+        await driverPortalApi.post(`/drivers/portal/free_trips/${openTrip.id}/incidents/`, {
+          description: freeTripClose.incident,
+        });
+      }
+      setFreeTripClose({ odometer_end: "", photo: null, incident: "" });
+      await loadFreeTrips();
+    } catch (err: any) {
+      setFreeTripError(err.response?.data?.detail || "Não foi possível encerrar a viagem livre.");
+    }
+  };
+
+  const reportFreeTripIncident = async () => {
+    const openTrip = freeTrips?.open_trip;
+    if (!openTrip || !freeTripClose.incident.trim()) return;
+    try {
+      await driverPortalApi.post(`/drivers/portal/free_trips/${openTrip.id}/incidents/`, {
+        description: freeTripClose.incident,
+      });
+      setFreeTripClose((prev) => ({ ...prev, incident: "" }));
+      await loadFreeTrips();
+    } catch (err: any) {
+      setFreeTripError(err.response?.data?.detail || "Não foi possível registrar a ocorrência.");
+    }
+  };
+
   const thisWeekAssignments = useMemo(() => {
     const now = new Date();
     const start = new Date(now);
@@ -263,6 +367,8 @@ export const DriverPortalPage = () => {
       setFuelLogs(fuelRes.data.logs);
       const stationsRes = await driverPortalApi.get<{ stations: FuelStation[] }>("/drivers/portal/fuel_stations/");
       setStations(stationsRes.data.stations);
+      await loadFreeTrips();
+      await loadPortalVehicles();
       setError(null);
     } catch (err: any) {
       setError(err.response?.data?.detail || "Sessão expirada ou código inválido. Entre novamente.");
@@ -388,6 +494,102 @@ export const DriverPortalPage = () => {
       </div>
       {error && <div className="card" style={{ color: "#f87171" }}>{error}</div>}
       {info && <div className="card" style={{ color: "#22c55e" }}>{info}</div>}
+      <div className="card" style={{ background: "#0f1724", border: "1px solid var(--border)", marginBottom: "1rem" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "0.75rem", marginBottom: "0.5rem" }}>
+          <div>
+            <h3 style={{ margin: 0 }}>Viagem livre (uso avulso do veículo)</h3>
+            <p style={{ color: "var(--muted)", margin: 0 }}>
+              Registre qual veículo está usando, quilometragem inicial/final e trocas durante o dia.
+            </p>
+          </div>
+          <Button variant="ghost" onClick={() => { loadFreeTrips(); loadPortalVehicles(); }}>
+            Atualizar
+          </Button>
+        </div>
+        {freeTripError && <div className="card" style={{ color: "#f87171" }}>{freeTripError}</div>}
+        {!freeTrips?.open_trip ? (
+          <div className="grid form-grid responsive">
+            <select
+              value={freeTripStart.vehicle_id}
+              onChange={(e) => setFreeTripStart((f) => ({ ...f, vehicle_id: Number(e.target.value) }))}
+            >
+              <option value="">Selecione o veículo</option>
+              {freeTripVehicles.map((v) => (
+                <option key={v.id} value={v.id}>
+                  {v.license_plate} {v.brand || v.model ? `— ${v.brand || ""} ${v.model || ""}` : ""}
+                </option>
+              ))}
+            </select>
+            <input
+              type="number"
+              placeholder="Odômetro inicial"
+              value={freeTripStart.odometer_start}
+              onChange={(e) => setFreeTripStart((f) => ({ ...f, odometer_start: e.target.value }))}
+            />
+            <label>
+              Foto do painel (opcional)
+              <input type="file" accept="image/*" onChange={(e) => setFreeTripStart((f) => ({ ...f, photo: e.target.files?.[0] || null }))} />
+            </label>
+            <Button onClick={startFreeTrip} disabled={!freeTripStart.vehicle_id || !freeTripStart.odometer_start}>
+              Iniciar viagem livre
+            </Button>
+          </div>
+        ) : (
+          <div className="grid form-grid responsive">
+            <div>
+              <div style={{ color: "var(--muted)" }}>Veículo em uso</div>
+              <strong>{freeTrips.open_trip.vehicle_plate}</strong>
+            </div>
+            <div>
+              <div style={{ color: "var(--muted)" }}>Início</div>
+              <strong>{new Date(freeTrips.open_trip.started_at).toLocaleString("pt-BR")}</strong>
+            </div>
+            <div>
+              <div style={{ color: "var(--muted)" }}>KM inicial</div>
+              <strong>{freeTrips.open_trip.odometer_start}</strong>
+            </div>
+            <input
+              type="number"
+              placeholder="Odômetro final"
+              value={freeTripClose.odometer_end}
+              onChange={(e) => setFreeTripClose((f) => ({ ...f, odometer_end: e.target.value }))}
+            />
+            <label>
+              Foto do painel (opcional)
+              <input type="file" accept="image/*" onChange={(e) => setFreeTripClose((f) => ({ ...f, photo: e.target.files?.[0] || null }))} />
+            </label>
+            <textarea
+              rows={3}
+              placeholder="Relatar ocorrência (opcional)"
+              value={freeTripClose.incident}
+              onChange={(e) => setFreeTripClose((f) => ({ ...f, incident: e.target.value }))}
+            />
+            <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+              <Button onClick={closeFreeTrip} disabled={!freeTripClose.odometer_end}>
+                Encerrar viagem livre
+              </Button>
+              <Button variant="ghost" onClick={reportFreeTripIncident} disabled={!freeTripClose.incident.trim()}>
+                Registrar ocorrência
+              </Button>
+            </div>
+          </div>
+        )}
+        {freeTrips?.recent_closed?.length ? (
+          <div style={{ marginTop: "0.75rem" }}>
+            <p className="eyebrow">Últimas encerradas</p>
+            <Table
+              columns={[
+                { key: "vehicle_plate", label: "Veículo" },
+                { key: "odometer_start", label: "KM inicial" },
+                { key: "odometer_end", label: "KM final" },
+                { key: "distance", label: "Rodado", render: (row) => row.distance ?? "—" },
+                { key: "ended_at", label: "Fim", render: (row) => new Date(row.ended_at || "").toLocaleString("pt-BR") },
+              ]}
+              data={freeTrips.recent_closed}
+            />
+          </div>
+        ) : null}
+      </div>
       <div className="card" style={{ background: "#0f1724", border: "1px solid var(--border)", marginBottom: "1rem" }}>
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "1rem", marginBottom: "0.75rem" }}>
           <div>

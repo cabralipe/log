@@ -2,7 +2,7 @@ from datetime import datetime
 from django.db import transaction
 from django.utils import timezone
 from rest_framework import serializers
-from trips.models import Trip, TripIncident, MonthlyOdometer, FreeTrip
+from trips.models import Trip, TripIncident, MonthlyOdometer, FreeTrip, FreeTripIncident
 from contracts.models import Contract
 from fleet.models import Vehicle
 from drivers.models import Driver
@@ -204,10 +204,28 @@ class TripIncidentSerializer(serializers.ModelSerializer):
 
 
 class FreeTripSerializer(serializers.ModelSerializer):
+    distance = serializers.SerializerMethodField()
+    driver_name = serializers.CharField(source="driver.name", read_only=True)
+    vehicle_plate = serializers.CharField(source="vehicle.license_plate", read_only=True)
+    incidents_count = serializers.SerializerMethodField()
+    incidents = serializers.SerializerMethodField()
+
     class Meta:
         model = FreeTrip
         fields = "__all__"
-        read_only_fields = ["id", "municipality", "started_at", "ended_at", "created_at", "updated_at"]
+        read_only_fields = [
+            "id",
+            "municipality",
+            "started_at",
+            "ended_at",
+            "created_at",
+            "updated_at",
+            "distance",
+            "driver_name",
+            "vehicle_plate",
+            "incidents_count",
+            "incidents",
+        ]
 
     def validate(self, attrs):
         request = self.context.get("request")
@@ -236,11 +254,13 @@ class FreeTripSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Veículo é obrigatório.")
         if vehicle.municipality_id != driver.municipality_id:
             raise serializers.ValidationError("Motorista e veículo precisam ser da mesma prefeitura.")
+        if vehicle.status in [Vehicle.Status.MAINTENANCE, Vehicle.Status.INACTIVE]:
+            raise serializers.ValidationError("Veículo está inativo/manutenção e não pode ser usado.")
 
-        if user and getattr(user, "role", None) != "SUPERADMIN":
-            if driver.municipality_id != user.municipality_id:
+        if user and getattr(user, "is_authenticated", False) and getattr(user, "role", None) != "SUPERADMIN":
+            if driver.municipality_id != getattr(user, "municipality_id", None):
                 raise serializers.ValidationError("Motorista precisa pertencer à prefeitura do usuário.")
-            if vehicle.municipality_id != user.municipality_id:
+            if vehicle.municipality_id != getattr(user, "municipality_id", None):
                 raise serializers.ValidationError("Veículo precisa pertencer à prefeitura do usuário.")
 
         if odometer_end is not None and odometer_start is not None and odometer_end < odometer_start:
@@ -304,3 +324,27 @@ class FreeTripSerializer(serializers.ModelSerializer):
             vehicle.status = Vehicle.Status.MAINTENANCE
             vehicle.save(update_fields=["status"])
         handle_trip_completion(vehicle, distance)
+
+    def get_distance(self, obj: FreeTrip):
+        return obj.distance
+
+    def get_incidents(self, obj: FreeTrip):
+        if not hasattr(obj, "incidents"):
+            return []
+        # Only include a small set for summaries
+        recent = obj.incidents.all()[:5]
+        return [{"id": inc.id, "description": inc.description, "created_at": inc.created_at} for inc in recent]
+
+    def get_incidents_count(self, obj: FreeTrip):
+        if hasattr(obj, "incidents"):
+            return obj.incidents.count()
+        return 0
+
+
+class FreeTripIncidentSerializer(serializers.ModelSerializer):
+    driver_name = serializers.CharField(source="driver.name", read_only=True)
+
+    class Meta:
+        model = FreeTripIncident
+        fields = ["id", "free_trip", "driver", "driver_name", "municipality", "description", "created_at"]
+        read_only_fields = ["id", "driver", "municipality", "created_at", "driver_name"]

@@ -12,6 +12,7 @@ import { MaintenancePage } from "./pages/Maintenance";
 import { MunicipalitiesPage } from "./pages/Municipalities";
 import { UsersPage } from "./pages/Users";
 import { ContractsPage } from "./pages/Contracts";
+import { FreeTripsPage } from "./pages/FreeTrips";
 import { RentalPeriodsPage } from "./pages/RentalPeriods";
 import { PublicFormPage } from "./pages/PublicForm";
 import { FormSubmissionsPage } from "./pages/FormSubmissions";
@@ -50,6 +51,7 @@ const AppRoutes = () => (
       <Route path="/rental-periods" element={<RentalPeriodsPage />} />
       <Route path="/fuel-stations" element={<FuelStationsPage />} />
       <Route path="/trips" element={<TripsPage />} />
+      <Route path="/free-trips" element={<FreeTripsPage />} />
       <Route path="/reports" element={<ReportsPage />} />
       <Route path="/transport-planning" element={<TransportPlanningPage />} />
       <Route path="/transport-planning/eligibility" element={<TransportPlanningPage initialTab="eligibility" />} />

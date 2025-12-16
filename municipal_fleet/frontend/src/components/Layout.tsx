@@ -20,6 +20,7 @@ import {
   BadgeCheck,
   ShieldCheck,
   Route as RouteIcon,
+  Shuffle,
 } from "lucide-react";
 import { useEffect } from "react";
 import "./Layout.css";
@@ -56,6 +57,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
     { to: "/rental-periods", label: "Locações", icon: Clock3 },
     ...(isAdmin ? [{ to: "/fuel-stations", label: "Postos", icon: Fuel }] : []),
     { to: "/trips", label: "Viagens", icon: MapPin },
+    { to: "/free-trips", label: "Viagens livres", icon: Shuffle },
     { to: "/transport-planning", label: "Planejamento logístico", icon: RouteIcon },
     { to: "/transport-planning/eligibility", label: "Elegibilidade", icon: ShieldCheck },
     ...(isAdmin

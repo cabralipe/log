@@ -38,13 +38,14 @@ type SubmissionStatus = {
     expiration_date: string;
     qr_payload: string;
   };
-  student?: {
+  answers?: {
     id: number;
-    full_name: string;
-    school?: string;
-    grade?: string;
-    shift?: string;
-  };
+    field_name: string;
+    question_label: string;
+    value_text?: string;
+    value_json?: any;
+    file?: string;
+  }[];
   created_at: string;
   updated_at: string;
 };
@@ -136,6 +137,18 @@ export const PublicFormPage = () => {
   useEffect(() => {
     if (cpfStatus) fetchStatus(cpfStatus);
   }, [cpfStatus]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const getAnswerValue = (answers: SubmissionStatus["answers"] | undefined, fieldNames: string | string[]) => {
+    const fields = Array.isArray(fieldNames) ? fieldNames : [fieldNames];
+    const ans = answers?.find((a) => fields.includes(a.field_name));
+    if (!ans) return "";
+    if (ans.value_json !== null && ans.value_json !== undefined) {
+      if (Array.isArray(ans.value_json)) return ans.value_json.join(", ");
+      if (typeof ans.value_json === "object") return JSON.stringify(ans.value_json);
+      return String(ans.value_json);
+    }
+    return ans.value_text || "";
+  };
 
   if (loading) return <div className="public-form-page"><div className="card">Carregando formulário...</div></div>;
   if (error && !template)
@@ -290,6 +303,23 @@ export const PublicFormPage = () => {
               <p className="eyebrow">Carteirinha estudantil</p>
               <h2 className="card-title">Status: {approvedSubmission.status}</h2>
               <p className="muted">Protocolo {approvedSubmission.protocol_number}</p>
+              <div className="alert success" style={{ margin: "0.5rem 0" }}>
+                Dados informados no formulário:
+              </div>
+              <div className="student-card">
+                <div className="student-card__body">
+                  <div>
+                    <p className="eyebrow">Aluno</p>
+                    <strong>{getAnswerValue(approvedSubmission.answers, "full_name") || "—"}</strong>
+                  </div>
+                  <div>
+                    <p className="eyebrow">Escola</p>
+                    <strong>
+                      {getAnswerValue(approvedSubmission.answers, ["school", "school_name", "school_id"]) || "—"}
+                    </strong>
+                  </div>
+                </div>
+              </div>
               <div className="student-card">
                 <div className="student-card__header">
                   <span className="pill">Aprovada</span>
@@ -297,20 +327,10 @@ export const PublicFormPage = () => {
                 </div>
                 <div className="student-card__body">
                   <div>
-                    <p className="eyebrow">Aluno</p>
-                    <strong>{approvedSubmission.student?.full_name || "—"}</strong>
-                  </div>
-                  <div>
                     <p className="eyebrow">Carteirinha</p>
                     <strong>{approvedSubmission.card.card_number}</strong>
                     <p className="muted">Validade: {approvedSubmission.card.expiration_date}</p>
                   </div>
-                  {approvedSubmission.student?.school && (
-                    <div>
-                      <p className="eyebrow">Escola</p>
-                      <strong>{approvedSubmission.student.school}</strong>
-                    </div>
-                  )}
                 </div>
               </div>
               <div className="card-overlay__actions">
@@ -402,18 +422,30 @@ export const PublicFormPage = () => {
                     <div className="status-chip">{s.status}</div>
                   </div>
                   {s.status_notes && <p className="muted">{s.status_notes}</p>}
+                  {s.answers?.length ? (
+                    <div className="status-meta muted">
+                      {s.answers.map((ans) => (
+                        <div key={ans.id}>
+                          <strong>{ans.question_label}:</strong>{" "}
+                          {ans.value_json !== undefined && ans.value_json !== null
+                            ? Array.isArray(ans.value_json)
+                              ? ans.value_json.join(", ")
+                              : typeof ans.value_json === "object"
+                              ? JSON.stringify(ans.value_json)
+                              : String(ans.value_json)
+                            : ans.value_text || ""}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="muted">Sem dados informados.</p>
+                  )}
                   {s.card && (
                     <div className="status-meta">
                       <p>
                         <strong>Carteirinha:</strong> {s.card.card_number}
                       </p>
                       <p className="muted">Validade: {s.card.expiration_date}</p>
-                    </div>
-                  )}
-                  {s.student && (
-                    <div className="status-meta muted">
-                      <p>Aluno: {s.student.full_name}</p>
-                      {s.student.school && <p>Escola: {s.student.school}</p>}
                     </div>
                   )}
                 </div>

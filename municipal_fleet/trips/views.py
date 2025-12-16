@@ -1,7 +1,7 @@
 import urllib.parse
-from rest_framework import viewsets, permissions, response, decorators, filters
-from trips.models import Trip, FreeTrip
-from trips.serializers import TripSerializer, FreeTripSerializer
+from rest_framework import viewsets, permissions, response, decorators, filters, status
+from trips.models import Trip, FreeTrip, FreeTripIncident
+from trips.serializers import TripSerializer, FreeTripSerializer, FreeTripIncidentSerializer
 from tenants.mixins import MunicipalityQuerysetMixin
 from accounts.permissions import IsMunicipalityAdminOrReadOnly
 
@@ -54,23 +54,30 @@ class TripViewSet(MunicipalityQuerysetMixin, viewsets.ModelViewSet):
 
 
 class FreeTripViewSet(MunicipalityQuerysetMixin, viewsets.ModelViewSet):
-    queryset = FreeTrip.objects.select_related("vehicle", "driver", "municipality")
+    queryset = FreeTrip.objects.select_related("vehicle", "driver", "municipality").prefetch_related("incidents")
     serializer_class = FreeTripSerializer
     permission_classes = [permissions.IsAuthenticated, IsMunicipalityAdminOrReadOnly]
-    filter_backends = [filters.SearchFilter]
+    filter_backends = [filters.SearchFilter, filters.OrderingFilter]
     search_fields = ["driver__name", "vehicle__license_plate"]
+    ordering_fields = ["started_at", "ended_at", "odometer_start", "odometer_end"]
 
     def get_queryset(self):
         qs = super().get_queryset()
         driver_id = self.request.query_params.get("driver_id")
         vehicle_id = self.request.query_params.get("vehicle_id")
         status_param = self.request.query_params.get("status")
+        started_from = self.request.query_params.get("started_from")
+        started_to = self.request.query_params.get("started_to")
         if driver_id:
             qs = qs.filter(driver_id=driver_id)
         if vehicle_id:
             qs = qs.filter(vehicle_id=vehicle_id)
         if status_param:
             qs = qs.filter(status=status_param)
+        if started_from:
+            qs = qs.filter(started_at__date__gte=started_from)
+        if started_to:
+            qs = qs.filter(started_at__date__lte=started_to)
         return qs
 
     @decorators.action(detail=False, methods=["get"], url_path="summary")
@@ -92,3 +99,19 @@ class FreeTripViewSet(MunicipalityQuerysetMixin, viewsets.ModelViewSet):
                 "open_trips": list(open_list),
             }
         )
+
+    @decorators.action(detail=True, methods=["get", "post"], url_path="incidents")
+    def incidents(self, request, pk=None):
+        free_trip = self.get_object()
+        if request.method == "GET":
+            incidents = free_trip.incidents.all()
+            serializer = FreeTripIncidentSerializer(incidents, many=True)
+            return response.Response(serializer.data)
+        serializer = FreeTripIncidentSerializer(
+            data=request.data, context={"request": request}
+        )
+        serializer.is_valid(raise_exception=True)
+        incident = serializer.save(
+            free_trip=free_trip, driver=free_trip.driver, municipality=free_trip.municipality
+        )
+        return response.Response(FreeTripIncidentSerializer(incident).data, status=status.HTTP_201_CREATED)

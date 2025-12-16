@@ -12,6 +12,8 @@ from drivers.views import (
     DriverPortalFreeTripListView,
     DriverPortalFreeTripStartView,
     DriverPortalFreeTripCloseView,
+    DriverPortalFreeTripIncidentView,
+    DriverPortalVehiclesView,
 )
 
 router = DefaultRouter()
@@ -28,5 +30,7 @@ urlpatterns = [
     path("portal/free_trips/", DriverPortalFreeTripListView.as_view(), name="driver-portal-free-trips"),
     path("portal/free_trips/start/", DriverPortalFreeTripStartView.as_view(), name="driver-portal-free-trip-start"),
     path("portal/free_trips/<int:free_trip_id>/close/", DriverPortalFreeTripCloseView.as_view(), name="driver-portal-free-trip-close"),
+    path("portal/free_trips/<int:free_trip_id>/incidents/", DriverPortalFreeTripIncidentView.as_view(), name="driver-portal-free-trip-incident"),
+    path("portal/vehicles/", DriverPortalVehiclesView.as_view(), name="driver-portal-vehicles"),
 ]
 urlpatterns += router.urls

@@ -22,6 +22,7 @@ type Driver = {
   cnh_category: string;
   cnh_expiration_date: string;
   access_code: string;
+  free_trip_enabled?: boolean;
 };
 
 export const DriversPage = () => {
@@ -30,6 +31,7 @@ export const DriversPage = () => {
   const [form, setForm] = useState<Partial<Driver>>({
     status: "ACTIVE",
     cnh_category: "B",
+    free_trip_enabled: false,
   });
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
@@ -137,6 +139,7 @@ export const DriversPage = () => {
       cnh_number: driver.cnh_number,
       cnh_category: driver.cnh_category,
       cnh_expiration_date: driver.cnh_expiration_date,
+      free_trip_enabled: !!driver.free_trip_enabled,
     });
   };
 
@@ -202,6 +205,14 @@ export const DriversPage = () => {
             <option value="E">E</option>
           </select>
           {formErrors.cnh_category && <span className="error-message">{formErrors.cnh_category}</span>}
+        </label>
+        <label style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+          <input
+            type="checkbox"
+            checked={!!form.free_trip_enabled}
+            onChange={(e) => setForm((f) => ({ ...f, free_trip_enabled: e.target.checked }))}
+          />
+          Habilitar viagem livre
         </label>
         <select value={form.status} onChange={(e) => setForm((f) => ({ ...f, status: e.target.value }))} aria-invalid={!!formErrors.status}>
           <option value="ACTIVE">Ativo</option>

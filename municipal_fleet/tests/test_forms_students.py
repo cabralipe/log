@@ -122,3 +122,32 @@ class StudentCardFlowTests(TestCase):
         submission.refresh_from_db()
         self.assertEqual(submission.status, FormSubmission.Status.NEEDS_CORRECTION)
         self.assertEqual(submission.status_notes, "Enviar RG legível")
+
+    def test_reject_after_approved_blocks_card_and_qr(self):
+        submission = self._submit_public("77711122233")
+        self.client.force_authenticate(self.admin)
+        approve_resp = self.client.patch(
+            f"/api/forms/submissions/{submission.id}/review/",
+            {"status": FormSubmission.Status.APPROVED},
+            format="json",
+        )
+        self.assertEqual(approve_resp.status_code, 200)
+        submission.refresh_from_db()
+        card = submission.linked_student_card
+        self.assertIsNotNone(card)
+
+        reject_resp = self.client.patch(
+            f"/api/forms/submissions/{submission.id}/review/",
+            {"status": FormSubmission.Status.REJECTED, "status_notes": "Docs inválidos"},
+            format="json",
+        )
+        self.assertEqual(reject_resp.status_code, 200)
+        card.refresh_from_db()
+        self.assertEqual(card.status, StudentCard.Status.BLOCKED)
+        submission.refresh_from_db()
+        self.assertEqual(submission.linked_student_card_id, card.id)
+
+        validate_resp = self.client.get(f"/api/students/student-cards/validate/?payload={card.qr_payload}")
+        self.assertEqual(validate_resp.status_code, 200)
+        self.assertFalse(validate_resp.data["valid"])
+        self.assertEqual(validate_resp.data["reason"], FormSubmission.Status.REJECTED)
