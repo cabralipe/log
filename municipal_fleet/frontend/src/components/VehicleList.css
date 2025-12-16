@@ -64,6 +64,11 @@
   gap: 0.5rem;
 }
 
+/* Make sure the table card stretches to the full width of its container */
+.vehicle-table .card {
+  width: 100%;
+}
+
 /* Mobile styles */
 @media (max-width: 768px) {
   .vehicle-list {
@@ -223,7 +228,9 @@
     display: none;
   }
   
+  /* Ensure the table 'card' always fills the available horizontal space */
   .vehicle-table {
-    display: table;
+    display: block;
+    width: 100%;
   }
 }
