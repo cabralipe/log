@@ -13,12 +13,15 @@ export interface VehicleFormData {
 }
 
 interface VehicleFormProps {
+  // `initialData` is the prop name used elsewhere in the app (e.g., Responsive*Layout),
+  // but some places may pass `vehicle`. Support both for backward compatibility.
+  initialData?: VehicleFormData;
   vehicle?: VehicleFormData;
   onSubmit: (data: VehicleFormData) => void;
   onClose?: () => void;
 }
 
-export const VehicleForm = ({ vehicle, onSubmit, onClose }: VehicleFormProps) => {
+export const VehicleForm = ({ initialData, vehicle, onSubmit, onClose }: VehicleFormProps) => {
   const [form, setForm] = useState<VehicleFormData>({
     license_plate: "",
     brand: "",
@@ -28,11 +31,14 @@ export const VehicleForm = ({ vehicle, onSubmit, onClose }: VehicleFormProps) =>
     status: "AVAILABLE",
   });
 
+  // prefer `initialData` if provided, otherwise fall back to `vehicle`
+  const data = initialData ?? vehicle;
+
   useEffect(() => {
-    if (vehicle) {
-      setForm(vehicle);
+    if (data) {
+      setForm(data);
     }
-  }, [vehicle]);
+  }, [data]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -83,7 +89,7 @@ export const VehicleForm = ({ vehicle, onSubmit, onClose }: VehicleFormProps) =>
         <option value="INACTIVE">Inativo</option>
       </select>
       <div className="grid" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "0.5rem" }}>
-        <Button type="submit">{vehicle ? "Atualizar" : "Salvar"}</Button>
+        <Button type="submit">{data ? "Atualizar" : "Salvar"}</Button>
         {onClose && (
           <Button
             type="button"

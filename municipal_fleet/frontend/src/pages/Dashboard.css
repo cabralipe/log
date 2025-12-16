@@ -172,3 +172,20 @@
     grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
   }
 }
+
+/* On large screens, lay out KPI cards horizontally inside the dashboard hero */
+@media (min-width: 650px) {
+  .dashboard-hero .summary-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    align-items: stretch;
+  }
+
+  .dashboard-hero .summary-grid .kpi-card.card {
+    /* allow cards to grow and wrap while keeping a reasonable minimum width */
+    flex: 1 1 220px;
+    min-width: 220px;
+    max-width: calc(33.333% - 1rem);
+  }
+}
