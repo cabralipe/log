@@ -13,10 +13,77 @@ from forms.serializers import (
     PublicFormTemplateSerializer,
     PublicSubmissionStatusSerializer,
     StudentFromSubmissionMapper,
+    TransportRequestMapper,
 )
 from tenants.mixins import MunicipalityQuerysetMixin
 from accounts.permissions import IsMunicipalityAdminOrReadOnly, IsMunicipalityAdmin
 from students.models import StudentCard
+from trips.serializers import TripSerializer
+from drivers.models import Driver
+from fleet.models import Vehicle
+
+
+def create_default_transport_questions(template: FormTemplate):
+    """
+    Seed a transport request form with the basic fields needed to generate a Trip.
+    Only runs when the template has no questions yet to avoid duplicates.
+    """
+    if template.questions.exists():
+        return
+    defaults = [
+        ("CPF do solicitante", "cpf", FormQuestion.QuestionType.SHORT_TEXT, True, ""),
+        ("Nome do solicitante", "requester_name", FormQuestion.QuestionType.SHORT_TEXT, True, ""),
+        ("Contato (telefone ou e-mail)", "requester_contact", FormQuestion.QuestionType.SHORT_TEXT, True, ""),
+        ("Origem", "origin", FormQuestion.QuestionType.SHORT_TEXT, True, ""),
+        ("Destino", "destination", FormQuestion.QuestionType.SHORT_TEXT, True, ""),
+        ("Data de saída", "departure_date", FormQuestion.QuestionType.DATE, True, ""),
+        ("Horário de saída", "departure_time", FormQuestion.QuestionType.TIME, True, ""),
+        ("Data de retorno", "return_date", FormQuestion.QuestionType.DATE, True, ""),
+        ("Horário de retorno", "return_time", FormQuestion.QuestionType.TIME, True, ""),
+        ("Quantidade de passageiros", "passengers_count", FormQuestion.QuestionType.SHORT_TEXT, False, "0"),
+        ("Listar passageiros (opcional)", "passengers_details", FormQuestion.QuestionType.LONG_TEXT, False, ""),
+        ("Precisa de motorista dedicado?", "need_driver", FormQuestion.QuestionType.MULTIPLE_CHOICE, True, "yes"),
+        ("Precisa reservar veículo?", "need_vehicle", FormQuestion.QuestionType.MULTIPLE_CHOICE, True, "yes"),
+        ("Motorista", "driver_id", FormQuestion.QuestionType.DROPDOWN, False, ""),
+        ("Veículo", "vehicle_id", FormQuestion.QuestionType.DROPDOWN, False, ""),
+        ("Anexar ofício (PDF)", "request_letter", FormQuestion.QuestionType.FILE_UPLOAD, True, ""),
+        ("Observações", "notes", FormQuestion.QuestionType.LONG_TEXT, False, ""),
+    ]
+    order = 1
+    for label, field_name, qtype, required, default_value in defaults:
+        question = FormQuestion.objects.create(
+            form_template=template,
+            order=order,
+            label=label,
+            field_name=field_name,
+            type=qtype,
+            required=required,
+            config={"default": default_value} if default_value != "" else {},
+        )
+        if field_name in ["need_driver", "need_vehicle"]:
+            FormOption.objects.bulk_create(
+                [
+                    FormOption(question=question, label="Sim", value="yes", order=1),
+                    FormOption(question=question, label="Não", value="no", order=2),
+                ]
+            )
+        if field_name == "driver_id":
+            drivers = Driver.objects.filter(municipality=template.municipality, status=Driver.Status.ACTIVE).order_by("name")[:200]
+            FormOption.objects.bulk_create(
+                [FormOption(question=question, label=drv.name, value=str(drv.id), order=idx + 1) for idx, drv in enumerate(drivers)]
+            )
+        if field_name == "vehicle_id":
+            vehicles = (
+                Vehicle.objects.filter(municipality=template.municipality, status=Vehicle.Status.AVAILABLE)
+                .order_by("license_plate")[:200]
+            )
+            FormOption.objects.bulk_create(
+                [
+                    FormOption(question=question, label=f"{veh.license_plate} — {veh.model}", value=str(veh.id), order=idx + 1)
+                    for idx, veh in enumerate(vehicles)
+                ]
+            )
+        order += 1
 
 
 class FormTemplateViewSet(MunicipalityQuerysetMixin, viewsets.ModelViewSet):
@@ -24,10 +91,19 @@ class FormTemplateViewSet(MunicipalityQuerysetMixin, viewsets.ModelViewSet):
     serializer_class = FormTemplateSerializer
     permission_classes = [permissions.IsAuthenticated, IsMunicipalityAdminOrReadOnly]
 
+    def get_queryset(self):
+        qs = super().get_queryset()
+        form_type = self.request.query_params.get("form_type")
+        if form_type:
+            qs = qs.filter(form_type=form_type)
+        return qs
+
     def perform_create(self, serializer):
         user = self.request.user
         municipality = user.municipality if user.role != "SUPERADMIN" else serializer.validated_data.get("municipality")
-        serializer.save(municipality=municipality)
+        template = serializer.save(municipality=municipality)
+        if template.form_type == FormTemplate.FormType.TRANSPORT_REQUEST:
+            create_default_transport_questions(template)
 
 
 class FormQuestionViewSet(MunicipalityQuerysetMixin, viewsets.ModelViewSet):
@@ -47,6 +123,8 @@ class FormQuestionViewSet(MunicipalityQuerysetMixin, viewsets.ModelViewSet):
         if template.require_cpf and template.form_type == FormTemplate.FormType.STUDENT_CARD_APPLICATION:
             if serializer.validated_data.get("field_name") != "cpf" and not template.questions.filter(field_name="cpf").exists():
                 raise exceptions.ValidationError("Crie primeiro a pergunta de CPF obrigatória.")
+        if template.require_cpf and serializer.validated_data.get("field_name") == "cpf" and not serializer.validated_data.get("required", False):
+            raise exceptions.ValidationError("O campo CPF deve ser obrigatório.")
         serializer.save()
         self._ensure_cpf_present(template)
 
@@ -66,6 +144,14 @@ class FormQuestionViewSet(MunicipalityQuerysetMixin, viewsets.ModelViewSet):
         super().perform_destroy(instance)
         self._ensure_cpf_present(template)
 
+    @action(detail=True, methods=["post"], url_path="refresh-options", permission_classes=[permissions.IsAuthenticated, IsMunicipalityAdmin])
+    def refresh_options(self, request, pk=None):
+        template = self.get_object()
+        if template.form_type != FormTemplate.FormType.TRANSPORT_REQUEST:
+            return response.Response({"detail": "Apenas para formulários de transporte."}, status=status.HTTP_400_BAD_REQUEST)
+        create_default_transport_questions(template)
+        return response.Response({"detail": "Opções atualizadas."})
+
 
 class FormOptionViewSet(MunicipalityQuerysetMixin, viewsets.ModelViewSet):
     queryset = FormOption.objects.select_related("question", "question__form_template")
@@ -83,7 +169,13 @@ class FormOptionViewSet(MunicipalityQuerysetMixin, viewsets.ModelViewSet):
 
 class FormSubmissionViewSet(MunicipalityQuerysetMixin, viewsets.ReadOnlyModelViewSet):
     serializer_class = FormSubmissionSerializer
-    queryset = FormSubmission.objects.select_related("form_template", "municipality", "linked_student", "linked_student_card").prefetch_related("answers__question")
+    queryset = FormSubmission.objects.select_related(
+        "form_template",
+        "municipality",
+        "linked_student",
+        "linked_student_card",
+        "linked_trip",
+    ).prefetch_related("answers__question")
     permission_classes = [permissions.IsAuthenticated, IsMunicipalityAdmin]
 
     def get_queryset(self):
@@ -103,7 +195,7 @@ class FormSubmissionViewSet(MunicipalityQuerysetMixin, viewsets.ReadOnlyModelVie
         return qs
 
     @transaction.atomic
-    def _approve_submission(self, submission: FormSubmission, notes: str):
+    def _approve_student_submission(self, submission: FormSubmission, notes: str):
         mapper = StudentFromSubmissionMapper(submission)
         student = mapper.ensure_student()
         card = mapper.issue_card(student)
@@ -112,6 +204,20 @@ class FormSubmissionViewSet(MunicipalityQuerysetMixin, viewsets.ReadOnlyModelVie
         submission.linked_student = student
         submission.linked_student_card = card
         submission.save()
+        return submission
+
+    @transaction.atomic
+    def _approve_transport_submission(self, submission: FormSubmission, notes: str, request):
+        mapper = TransportRequestMapper(submission)
+        trip_payload = mapper.build_trip_payload()
+        serializer = TripSerializer(data=trip_payload, context={"request": request})
+        serializer.is_valid(raise_exception=True)
+        trip = serializer.save()
+        mapper.apply_post_actions(trip)
+        submission.status = FormSubmission.Status.APPROVED
+        submission.status_notes = notes or "Solicitação aprovada e viagem criada automaticamente."
+        submission.linked_trip = trip
+        submission.save(update_fields=["status", "status_notes", "linked_trip", "updated_at"])
         return submission
 
     def _block_linked_card(self, submission: FormSubmission):
@@ -123,9 +229,26 @@ class FormSubmissionViewSet(MunicipalityQuerysetMixin, viewsets.ReadOnlyModelVie
             card.save(update_fields=["status", "updated_at"])
 
     @transaction.atomic
-    def _update_status(self, submission: FormSubmission, status_value: str, notes: str):
+    def _apply_updates(self, submission: FormSubmission, updates: dict):
+        if not updates:
+            return
+        answers = {ans.question.field_name: ans for ans in submission.answers.select_related("question")}
+        for field, value in updates.items():
+            ans = answers.get(field)
+            if not ans:
+                continue
+            ans.modified_by_staff = True
+            ans.staff_value_json = None
+            ans.staff_value_text = str(value)
+            ans.save(update_fields=["modified_by_staff", "staff_value_text", "staff_value_json"])
+
+    def _update_status(self, submission: FormSubmission, status_value: str, notes: str, request, updates: dict | None = None):
+        if updates:
+            self._apply_updates(submission, updates)
         if status_value == FormSubmission.Status.APPROVED:
-            return self._approve_submission(submission, notes)
+            if submission.form_template.form_type == FormTemplate.FormType.TRANSPORT_REQUEST:
+                return self._approve_transport_submission(submission, notes, request)
+            return self._approve_student_submission(submission, notes)
         if status_value == FormSubmission.Status.REJECTED:
             self._block_linked_card(submission)
         submission.status = status_value
@@ -146,7 +269,11 @@ class FormSubmissionViewSet(MunicipalityQuerysetMixin, viewsets.ReadOnlyModelVie
         serializer.is_valid(raise_exception=True)
         status_value = serializer.validated_data["status"]
         notes = serializer.validated_data.get("status_notes", "")
-        submission = self._update_status(submission, status_value, notes)
+        updates = serializer.validated_data.get("updates") or {}
+        try:
+            submission = self._update_status(submission, status_value, notes, request, updates)
+        except serializers.ValidationError as exc:  # type: ignore
+            return response.Response(exc.detail, status=status.HTTP_400_BAD_REQUEST)
         return response.Response(FormSubmissionSerializer(submission).data)
 
 
@@ -155,8 +282,22 @@ class PublicFormDetailView(views.APIView):
 
     def get(self, request, slug: str):
         template = get_object_or_404(FormTemplate, slug=slug, is_active=True)
-        serializer = PublicFormTemplateSerializer(template)
-        return response.Response(serializer.data)
+        data = PublicFormTemplateSerializer(template).data
+        if template.form_type == FormTemplate.FormType.TRANSPORT_REQUEST:
+            driver_options = [
+                {"id": drv.id, "label": drv.name, "value": str(drv.id)}
+                for drv in Driver.objects.filter(municipality=template.municipality, status=Driver.Status.ACTIVE).order_by("name")[:200]
+            ]
+            vehicle_options = [
+                {"id": veh.id, "label": f"{veh.license_plate} — {veh.model}", "value": str(veh.id)}
+                for veh in Vehicle.objects.filter(municipality=template.municipality, status=Vehicle.Status.AVAILABLE).order_by("license_plate")[:200]
+            ]
+            for q in data.get("questions", []):
+                if q.get("field_name") == "driver_id":
+                    q["options"] = driver_options
+                if q.get("field_name") == "vehicle_id":
+                    q["options"] = vehicle_options
+        return response.Response(data)
 
 
 class PublicFormSubmitView(views.APIView):

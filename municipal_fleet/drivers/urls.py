@@ -14,6 +14,7 @@ from drivers.views import (
     DriverPortalFreeTripCloseView,
     DriverPortalFreeTripIncidentView,
     DriverPortalVehiclesView,
+    DriverPortalAvailabilityBlocksView,
 )
 
 router = DefaultRouter()
@@ -25,6 +26,7 @@ urlpatterns = [
     path("portal/assignments/", DriverPortalAssignmentsView.as_view(), name="driver-portal-assignments"),
     path("portal/trips/<int:trip_id>/complete/", DriverPortalTripCompleteView.as_view(), name="driver-portal-trip-complete"),
     path("portal/trips/<int:trip_id>/incidents/", DriverPortalTripIncidentView.as_view(), name="driver-portal-trip-incident"),
+    path("portal/availability-blocks/", DriverPortalAvailabilityBlocksView.as_view(), name="driver-portal-availability-blocks"),
     path("portal/fuel_logs/", DriverPortalFuelLogView.as_view(), name="driver-portal-fuel-logs"),
     path("portal/fuel_stations/", DriverPortalFuelStationsView.as_view(), name="driver-portal-fuel-stations"),
     path("portal/free_trips/", DriverPortalFreeTripListView.as_view(), name="driver-portal-free-trips"),

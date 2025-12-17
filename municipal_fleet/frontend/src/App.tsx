@@ -22,6 +22,7 @@ import { Layout } from "./components/Layout";
 import { CardValidatorPage } from "./pages/CardValidator";
 import { TransportPlanningPage } from "./pages/TransportPlanning";
 import { SchedulingPage } from "./pages/Scheduling";
+import { TransportRequestsPage } from "./pages/TransportRequests";
 
 const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading } = useAuth();
@@ -34,6 +35,7 @@ const AppRoutes = () => (
   <Routes>
     <Route path="/login" element={<LoginPage />} />
     <Route path="/driver-portal" element={<DriverPortalPage />} />
+    <Route path="/forms/:slug" element={<PublicFormPage />} />
     <Route path="/public/forms/:slug" element={<PublicFormPage />} />
     <Route
       element={
@@ -57,6 +59,7 @@ const AppRoutes = () => (
       <Route path="/reports" element={<ReportsPage />} />
       <Route path="/transport-planning" element={<TransportPlanningPage />} />
       <Route path="/transport-planning/eligibility" element={<TransportPlanningPage initialTab="eligibility" />} />
+      <Route path="/transport-requests" element={<TransportRequestsPage />} />
       <Route path="/municipalities" element={<MunicipalitiesPage />} />
       <Route path="/users" element={<UsersPage />} />
       <Route path="/form-templates" element={<FormTemplatesPage />} />

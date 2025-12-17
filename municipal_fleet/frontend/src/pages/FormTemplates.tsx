@@ -45,6 +45,7 @@ const QUESTION_TYPES = [
 
 const FORM_TYPES = [
   { value: "STUDENT_CARD_APPLICATION", label: "Carteirinha Estudantil (CPF obrigatório)" },
+  { value: "TRANSPORT_REQUEST", label: "Solicitação de Transporte/Viagem (gera link público)" },
   { value: "GENERIC", label: "Genérico (CPF opcional)" },
 ];
 
@@ -77,7 +78,7 @@ export const FormTemplatesPage = () => {
     if (!selected) return "";
     const origin = typeof window !== "undefined" ? window.location.origin : "";
     const base = origin || API_ROOT?.replace(/\/api\/?$/, "") || "";
-    return `${base}/public/forms/${selected.slug}`;
+    return `${base}/forms/${selected.slug}`;
   }, [selected]);
 
   useEffect(() => {
@@ -277,7 +278,7 @@ export const FormTemplatesPage = () => {
                     setNewTemplate((t) => ({
                       ...t,
                       form_type: nextType,
-                      require_cpf: nextType === "STUDENT_CARD_APPLICATION" ? true : t.require_cpf ?? false,
+                      require_cpf: nextType === "STUDENT_CARD_APPLICATION" || nextType === "TRANSPORT_REQUEST",
                     }));
                   }}
                 >

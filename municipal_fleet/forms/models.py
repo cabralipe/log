@@ -10,6 +10,7 @@ def default_public_id() -> str:
 class FormTemplate(models.Model):
     class FormType(models.TextChoices):
         STUDENT_CARD_APPLICATION = "STUDENT_CARD_APPLICATION", "Solicitação de Carteirinha"
+        TRANSPORT_REQUEST = "TRANSPORT_REQUEST", "Solicitação de Transporte"
         GENERIC = "GENERIC", "Genérico"
 
     municipality = models.ForeignKey(
@@ -113,6 +114,13 @@ class FormSubmission(models.Model):
         blank=True,
         related_name="form_submissions",
     )
+    linked_trip = models.ForeignKey(
+        "trips.Trip",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="form_submissions",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -157,6 +165,9 @@ class FormAnswer(models.Model):
     value_text = models.TextField(blank=True)
     value_json = models.JSONField(null=True, blank=True)
     file = models.FileField(upload_to=form_answer_upload_path, null=True, blank=True)
+    modified_by_staff = models.BooleanField(default=False)
+    staff_value_text = models.TextField(blank=True)
+    staff_value_json = models.JSONField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

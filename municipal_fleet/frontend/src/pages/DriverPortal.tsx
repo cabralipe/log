@@ -106,6 +106,17 @@ type PortalVehicle = {
   odometer_initial?: number;
 };
 
+type AvailabilityBlockPortal = {
+  id: number;
+  type: string;
+  type_label: string;
+  start_datetime: string;
+  end_datetime: string;
+  reason?: string | null;
+  all_day?: boolean;
+  is_current: boolean;
+};
+
 export const DriverPortalPage = () => {
   const [code, setCode] = useState("");
   const [token, setToken] = useState<string | null>(localStorage.getItem("driver_portal_token"));
@@ -142,6 +153,8 @@ export const DriverPortalPage = () => {
     photo: null,
     incident: "",
   });
+  const [availabilityBlocks, setAvailabilityBlocks] = useState<AvailabilityBlockPortal[]>([]);
+  const [availabilityError, setAvailabilityError] = useState<string | null>(null);
   const specialNeedLabel = (value?: string) => {
     switch (value) {
       case "TEA":
@@ -190,6 +203,18 @@ export const DriverPortalPage = () => {
   const formatDateLabel = (value: string) =>
     parseDateOnly(value).toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "short" });
 
+  const formatBlockPeriod = (start: string, end: string) => {
+    const startDate = new Date(start);
+    const endDate = new Date(end);
+    const sameDay = startDate.toDateString() === endDate.toDateString();
+    const dateLabel = startDate.toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "short" });
+    const startHour = startDate.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+    const endHour = endDate.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+    return sameDay
+      ? `${dateLabel} · ${startHour} - ${endHour}`
+      : `${startDate.toLocaleString("pt-BR")} - ${endDate.toLocaleString("pt-BR")}`;
+  };
+
   const formatPeriod = (assignment: AssignmentPortal) => {
     const trimTime = (timeValue?: string | null) => (timeValue ? timeValue.slice(0, 5) : "--:--");
     const start = assignment.period_start ? new Date(assignment.period_start) : null;
@@ -237,6 +262,12 @@ export const DriverPortalPage = () => {
     });
   }, [assignments]);
 
+  const sortedBlocks = useMemo(() => {
+    return [...availabilityBlocks].sort(
+      (a, b) => new Date(a.start_datetime).getTime() - new Date(b.start_datetime).getTime()
+    );
+  }, [availabilityBlocks]);
+
   const loadFreeTrips = async () => {
     if (!token) return;
     try {
@@ -257,6 +288,18 @@ export const DriverPortalPage = () => {
     } catch (err: any) {
       setFreeTripVehicles([]);
       setFreeTripError(err.response?.data?.detail || "Erro ao carregar veículos disponíveis.");
+    }
+  };
+
+  const loadAvailabilityBlocks = async () => {
+    if (!token) return;
+    try {
+      const { data } = await driverPortalApi.get<{ blocks: AvailabilityBlockPortal[] }>("/drivers/portal/availability-blocks/");
+      setAvailabilityBlocks(data.blocks || []);
+      setAvailabilityError(null);
+    } catch (err: any) {
+      setAvailabilityBlocks([]);
+      setAvailabilityError(err.response?.data?.detail || "Erro ao carregar bloqueios de agenda.");
     }
   };
 
@@ -397,6 +440,7 @@ export const DriverPortalPage = () => {
       setStations(stationsRes.data.stations);
       await loadFreeTrips();
       await loadPortalVehicles();
+      await loadAvailabilityBlocks();
       setError(null);
     } catch (err: any) {
       setError(err.response?.data?.detail || "Sessão expirada ou código inválido. Entre novamente.");
@@ -522,6 +566,58 @@ export const DriverPortalPage = () => {
       </div>
       {error && <div className="card" style={{ color: "#f87171" }}>{error}</div>}
       {info && <div className="card" style={{ color: "#22c55e" }}>{info}</div>}
+      {availabilityError && <div className="card" style={{ color: "#f87171" }}>{availabilityError}</div>}
+      <div className="card" style={{ background: "#0f1724", border: "1px solid var(--border)", marginBottom: "1rem" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "0.75rem", marginBottom: "0.5rem" }}>
+          <div>
+            <p className="eyebrow">Agenda</p>
+            <h3 style={{ margin: 0 }}>Bloqueios e folgas cadastrados</h3>
+            <p style={{ color: "var(--muted)", margin: 0 }}>
+              Se houver uma folga, férias ou afastamento ativo, novas viagens serão bloqueadas automaticamente.
+            </p>
+          </div>
+          <Button variant="ghost" onClick={loadAvailabilityBlocks}>
+            Atualizar
+          </Button>
+        </div>
+        {sortedBlocks.length ? (
+          <div className="grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: "0.75rem" }}>
+            {sortedBlocks.map((block) => {
+              const isCurrent = block.is_current;
+              return (
+                <div
+                  key={block.id}
+                  style={{
+                    border: "1px solid var(--border)",
+                    borderRadius: "12px",
+                    padding: "0.75rem",
+                    background: isCurrent ? "rgba(239, 68, 68, 0.08)" : "#0b1422",
+                  }}
+                >
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.25rem" }}>
+                    <strong>{block.type_label}</strong>
+                    <span
+                      style={{
+                        padding: "0.2rem 0.6rem",
+                        borderRadius: "999px",
+                        background: isCurrent ? "#7f1d1d" : "#1f2937",
+                        color: isCurrent ? "#fecaca" : "var(--muted)",
+                        fontSize: "0.9rem",
+                      }}
+                    >
+                      {isCurrent ? "Em vigor" : "Agendado"}
+                    </span>
+                  </div>
+                  <div style={{ color: "var(--muted)" }}>{formatBlockPeriod(block.start_datetime, block.end_datetime)}</div>
+                  {block.reason && <p style={{ color: "var(--muted)", marginTop: "0.35rem" }}>{block.reason}</p>}
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <p style={{ color: "var(--muted)", margin: 0 }}>Nenhum bloqueio ativo ou agendado.</p>
+        )}
+      </div>
       <div className="card" style={{ background: "#0f1724", border: "1px solid var(--border)", marginBottom: "1rem" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "0.75rem", marginBottom: "0.5rem" }}>
           <div>

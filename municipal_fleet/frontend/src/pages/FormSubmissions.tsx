@@ -14,6 +14,7 @@ type Submission = {
   status_notes?: string;
   form_name?: string;
   created_at: string;
+  linked_trip?: number;
   answers?: {
     id: number;
     field_name: string;
@@ -195,6 +196,7 @@ export const FormSubmissionsPage = () => {
                 <div>CPF: {selected.cpf}</div>
                 <div>Status atual: {selected.status}</div>
                 {selected.linked_student_card && <div>Carteirinha: {selected.linked_student_card.card_number}</div>}
+                {selected.linked_trip && <div>Viagem gerada: #{selected.linked_trip}</div>}
               </div>
               <div>
                 <label>Status</label>

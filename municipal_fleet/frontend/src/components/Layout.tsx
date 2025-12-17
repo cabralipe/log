@@ -22,6 +22,7 @@ import {
   Route as RouteIcon,
   Shuffle,
   CalendarClock,
+  Send,
 } from "lucide-react";
 import { useEffect } from "react";
 import "./Layout.css";
@@ -66,6 +67,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
       ? [
           { to: "/form-templates", label: "Formulários", icon: ClipboardList },
           { to: "/form-submissions", label: "Submissões", icon: Inbox },
+          { to: "/transport-requests", label: "Solicitação de transporte", icon: Send },
         ]
       : []),
     ...(canValidateCard ? [{ to: "/card-validator", label: "Validar carteirinha", icon: BadgeCheck }] : []),

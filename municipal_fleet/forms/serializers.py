@@ -1,4 +1,4 @@
-from datetime import date, timedelta
+from datetime import date, datetime, time, timedelta
 from django.utils import timezone
 from rest_framework import serializers
 from forms.models import (
@@ -9,6 +9,11 @@ from forms.models import (
     FormAnswer,
 )
 from students.models import Student, StudentCard, School
+from trips.serializers import TripSerializer
+from trips.models import Trip
+from fleet.models import Vehicle
+from drivers.models import Driver
+from scheduling.models import DriverAvailabilityBlock
 
 
 class FormOptionSerializer(serializers.ModelSerializer):
@@ -98,6 +103,8 @@ class FormTemplateSerializer(serializers.ModelSerializer):
 
         if form_type == FormTemplate.FormType.STUDENT_CARD_APPLICATION:
             attrs["require_cpf"] = True
+        if form_type == FormTemplate.FormType.TRANSPORT_REQUEST:
+            attrs["require_cpf"] = True
         return attrs
 
     def create(self, validated_data):
@@ -112,6 +119,9 @@ class FormTemplateSerializer(serializers.ModelSerializer):
 class FormAnswerSerializer(serializers.ModelSerializer):
     question_label = serializers.CharField(source="question.label", read_only=True)
     field_name = serializers.CharField(source="question.field_name", read_only=True)
+    modified_by_staff = serializers.BooleanField(read_only=True)
+    staff_value_text = serializers.CharField(read_only=True)
+    staff_value_json = serializers.JSONField(read_only=True)
 
     class Meta:
         model = FormAnswer
@@ -122,6 +132,9 @@ class FormAnswerSerializer(serializers.ModelSerializer):
             "field_name",
             "value_text",
             "value_json",
+            "modified_by_staff",
+            "staff_value_text",
+            "staff_value_json",
             "file",
             "created_at",
         ]
@@ -145,6 +158,7 @@ class FormSubmissionSerializer(serializers.ModelSerializer):
             "status_notes",
             "linked_student",
             "linked_student_card",
+            "linked_trip",
             "answers",
             "created_at",
             "updated_at",
@@ -154,6 +168,7 @@ class FormSubmissionSerializer(serializers.ModelSerializer):
             "protocol_number",
             "linked_student",
             "linked_student_card",
+            "linked_trip",
             "created_at",
             "updated_at",
         ]
@@ -162,6 +177,7 @@ class FormSubmissionSerializer(serializers.ModelSerializer):
 class FormSubmissionReviewSerializer(serializers.Serializer):
     status = serializers.ChoiceField(choices=FormSubmission.Status.choices)
     status_notes = serializers.CharField(allow_blank=True, required=False)
+    updates = serializers.DictField(child=serializers.CharField(allow_blank=True), required=False, allow_empty=True)
 
     def validate_status(self, value):
         if value not in [
@@ -243,6 +259,8 @@ class PublicSubmissionStatusSerializer(serializers.ModelSerializer):
     def get_student(self, obj):
         # Expor somente campos que vieram do formulário.
         answers = getattr(obj, "answers", [])
+        if hasattr(answers, "all"):
+            answers = answers.all()
         answer_map = {ans.question.field_name: ans for ans in answers}
 
         def answer_value(field_name):
@@ -395,3 +413,151 @@ class StudentFromSubmissionMapper:
         card.qr_payload = f"STDCARD:{municipality.id}:{student.id}:{card.id}"
         card.save(update_fields=["qr_payload"])
         return card
+
+
+class TransportRequestMapper:
+    """
+    Helper to map answers of a transport request into a Trip and related actions.
+    """
+
+    def __init__(self, submission: FormSubmission):
+        self.submission = submission
+        self.answer_map = {ans.question.field_name: ans for ans in submission.answers.select_related("question")}
+
+    def _get_text(self, field: str, required=False, default: str | None = None) -> str:
+        ans = self.answer_map.get(field)
+        value_source = ans.staff_value_text if ans and ans.modified_by_staff and ans.staff_value_text else None
+        value = value_source or (ans.value_text if ans else None) or default or ""
+        if required and not value:
+            raise serializers.ValidationError({field: "Campo obrigatório para gerar a viagem."})
+        return value
+
+    def _get_bool(self, field: str, default=False) -> bool:
+        value = self._get_text(field, default=str(default).lower())
+        return str(value).strip().lower() in {"true", "1", "yes", "sim", "on"}
+
+    def _get_int(self, field: str, default: int = 0) -> int:
+        value = self._get_text(field, default=str(default))
+        if value == "":
+            return default
+        try:
+            return int(float(value))
+        except (TypeError, ValueError):
+            raise serializers.ValidationError({field: "Valor numérico inválido."})
+
+    def _parse_datetime(self, date_field: str, time_field: str) -> datetime:
+        date_str = self._get_text(date_field, required=True)
+        time_str = self._get_text(time_field, required=True)
+        try:
+            date_obj = date.fromisoformat(date_str)
+        except ValueError:
+            raise serializers.ValidationError({date_field: "Data inválida."})
+        try:
+            time_obj = time.fromisoformat(time_str)
+        except ValueError:
+            raise serializers.ValidationError({time_field: "Horário inválido."})
+        dt = datetime.combine(date_obj, time_obj)
+        if timezone.is_naive(dt):
+            dt = timezone.make_aware(dt, timezone.get_default_timezone())
+        return dt
+
+    def build_trip_payload(self):
+        departure = self._parse_datetime("departure_date", "departure_time")
+        return_expected = self._parse_datetime("return_date", "return_time")
+        if return_expected <= departure:
+            raise serializers.ValidationError({"return_time": "Retorno deve ser após a saída."})
+
+        need_driver = self._get_bool("need_driver", default=True)
+        need_vehicle = self._get_bool("need_vehicle", default=True)
+        vehicle_id = self._get_text("vehicle_id")
+        driver_id = self._get_text("driver_id")
+        if need_vehicle and not vehicle_id:
+            auto_vehicle = (
+                Vehicle.objects.filter(municipality=self.submission.municipality, status=Vehicle.Status.AVAILABLE)
+                .order_by("license_plate")
+                .first()
+            )
+            if auto_vehicle:
+                vehicle_id = auto_vehicle.id
+            else:
+                raise serializers.ValidationError({"vehicle_id": "Selecione o veículo para gerar a viagem."})
+        if need_driver and not driver_id:
+            auto_driver = (
+                Driver.objects.filter(municipality=self.submission.municipality, status=Driver.Status.ACTIVE)
+                .order_by("name")
+                .first()
+            )
+            if auto_driver:
+                driver_id = auto_driver.id
+            else:
+                raise serializers.ValidationError({"driver_id": "Selecione o motorista para gerar a viagem."})
+        if not need_vehicle and not vehicle_id:
+            # Tentativa de auto-preencher para manter a viagem consistente, mas não obriga o solicitante.
+            auto_vehicle = (
+                Vehicle.objects.filter(municipality=self.submission.municipality, status=Vehicle.Status.AVAILABLE)
+                .order_by("license_plate")
+                .first()
+            )
+            if auto_vehicle:
+                vehicle_id = auto_vehicle.id
+        if not need_driver and not driver_id:
+            auto_driver = (
+                Driver.objects.filter(municipality=self.submission.municipality, status=Driver.Status.ACTIVE)
+                .order_by("name")
+                .first()
+            )
+            if auto_driver:
+                driver_id = auto_driver.id
+
+        if not vehicle_id:
+            raise serializers.ValidationError({"vehicle_id": "Informe o veículo antes de aprovar a solicitação."})
+        if not driver_id:
+            raise serializers.ValidationError({"driver_id": "Informe o motorista antes de aprovar a solicitação."})
+
+        try:
+            vehicle_pk = int(vehicle_id)
+            driver_pk = int(driver_id)
+        except (TypeError, ValueError):
+            raise serializers.ValidationError({"vehicle_id": "IDs de veículo e motorista devem ser numéricos."})
+
+        passengers_text = self._get_text("passengers_details", default="")
+        notes = self._get_text("notes", default="")
+        if passengers_text:
+            notes = (notes + "\n" if notes else "") + f"Passageiros informados: {passengers_text}"
+
+        return {
+            "origin": self._get_text("origin", required=True),
+            "destination": self._get_text("destination", required=True),
+            "departure_datetime": departure,
+            "return_datetime_expected": return_expected,
+            "vehicle": vehicle_pk,
+            "driver": driver_pk,
+            "municipality": self.submission.municipality,
+            "passengers_count": max(0, self._get_int("passengers_count", default=0)),
+            "notes": notes,
+            "odometer_start": 0,
+            "status": Trip.Status.PLANNED,
+            "category": Trip.Category.PASSENGER,
+            # request_letter is stored in FormAnswer; Trip doesn't need it directly.
+        }
+
+    def apply_post_actions(self, trip: Trip):
+        need_driver_block = self._get_bool("need_driver", default=True)
+        need_vehicle_lock = self._get_bool("need_vehicle", default=True)
+        if need_driver_block:
+            DriverAvailabilityBlock.objects.get_or_create(
+                municipality=trip.municipality,
+                driver=trip.driver,
+                type=DriverAvailabilityBlock.BlockType.ADMIN_BLOCK,
+                start_datetime=trip.departure_datetime,
+                end_datetime=trip.return_datetime_expected,
+                defaults={
+                    "status": DriverAvailabilityBlock.Status.ACTIVE,
+                    "reason": f"Bloqueio automático da solicitação {trip.id} / protocolo {self.submission.protocol_number}",
+                },
+            )
+        if need_vehicle_lock:
+            vehicle = trip.vehicle
+            if vehicle.status != Vehicle.Status.IN_USE:
+                vehicle.status = Vehicle.Status.IN_USE
+                vehicle.save(update_fields=["status", "updated_at"])

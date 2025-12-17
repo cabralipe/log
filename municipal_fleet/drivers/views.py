@@ -12,6 +12,7 @@ from fleet.serializers import FuelLogSerializer
 from trips.models import Trip, TripIncident, FreeTrip, FreeTripIncident
 from trips.serializers import TripSerializer, TripIncidentSerializer, FreeTripSerializer, FreeTripIncidentSerializer
 from transport_planning.models import Assignment
+from scheduling.models import DriverAvailabilityBlock
 
 
 class DriverViewSet(MunicipalityQuerysetMixin, viewsets.ModelViewSet):
@@ -96,6 +97,37 @@ class DriverPortalTripsView(DriverPortalAuthMixin, views.APIView):
             )
         )
         return response.Response({"driver": driver.name, "trips": list(trips)})
+
+
+class DriverPortalAvailabilityBlocksView(DriverPortalAuthMixin, views.APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        driver = self.get_portal_driver(request)
+        now = timezone.now()
+        blocks_qs = (
+            DriverAvailabilityBlock.objects.filter(
+                driver=driver,
+                status=DriverAvailabilityBlock.Status.ACTIVE,
+                end_datetime__gt=now,
+            )
+            .order_by("start_datetime")
+        )
+        blocks = []
+        for block in blocks_qs:
+            blocks.append(
+                {
+                    "id": block.id,
+                    "type": block.type,
+                    "type_label": block.get_type_display(),
+                    "start_datetime": block.start_datetime,
+                    "end_datetime": block.end_datetime,
+                    "reason": block.reason,
+                    "all_day": block.all_day,
+                    "is_current": block.start_datetime <= now <= block.end_datetime,
+                }
+            )
+        return response.Response({"blocks": blocks})
 
 
 class DriverPortalAssignmentsView(DriverPortalAuthMixin, views.APIView):

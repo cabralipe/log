@@ -262,3 +262,24 @@ class SchedulingIntegrationTests(TestCase):
         self.client.force_authenticate(self.admin)
         resp = self.client.get(f"/api/driver-availability-blocks/{block.id}/")
         self.assertEqual(resp.status_code, 404)
+
+    def test_free_trip_respects_driver_block(self):
+        now = timezone.now()
+        DriverAvailabilityBlock.objects.create(
+            municipality=self.muni,
+            driver=self.driver,
+            type=DriverAvailabilityBlock.BlockType.DAY_OFF,
+            start_datetime=now - timedelta(minutes=30),
+            end_datetime=now + timedelta(hours=2),
+        )
+        resp = self.client.post(
+            "/api/free-trips/",
+            {
+                "driver": self.driver.id,
+                "vehicle": self.vehicle.id,
+                "odometer_start": 100,
+            },
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 400)
+        self.assertIn("Motorista indisponível", str(resp.data))

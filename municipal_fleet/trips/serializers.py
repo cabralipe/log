@@ -266,6 +266,7 @@ class FreeTripSerializer(serializers.ModelSerializer):
         odometer_start = attrs.get("odometer_start", getattr(instance, "odometer_start", None))
         odometer_end = attrs.get("odometer_end", getattr(instance, "odometer_end", None))
         status = attrs.get("status", getattr(instance, "status", FreeTrip.Status.OPEN))
+        now = timezone.now()
 
         if portal_driver:
             driver = portal_driver
@@ -306,6 +307,22 @@ class FreeTripSerializer(serializers.ModelSerializer):
             vehicle_open_qs = vehicle_open_qs.exclude(id=instance.id)
         if not instance and status == FreeTrip.Status.OPEN and vehicle_open_qs.exists():
             raise serializers.ValidationError("Este veículo já está em uma viagem livre em andamento.")
+
+        # Respeita bloqueios cadastrados na agenda do motorista.
+        if status == FreeTrip.Status.OPEN:
+            block_qs = DriverAvailabilityBlock.objects.filter(
+                driver=driver,
+                status=DriverAvailabilityBlock.Status.ACTIVE,
+                start_datetime__lte=now,
+                end_datetime__gt=now,
+            )
+            if block_qs.exists():
+                block = block_qs.first()
+                start_fmt = timezone.localtime(block.start_datetime).strftime("%d/%m %H:%M")
+                end_fmt = timezone.localtime(block.end_datetime).strftime("%d/%m %H:%M")
+                raise serializers.ValidationError(
+                    f"Motorista indisponível ({block.get_type_display()}) de {start_fmt} até {end_fmt}."
+                )
 
         return attrs
 
