@@ -21,6 +21,7 @@ import {
   ShieldCheck,
   Route as RouteIcon,
   Shuffle,
+  CalendarClock,
 } from "lucide-react";
 import { useEffect } from "react";
 import "./Layout.css";
@@ -58,6 +59,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
     ...(isAdmin ? [{ to: "/fuel-stations", label: "Postos", icon: Fuel }] : []),
     { to: "/trips", label: "Viagens", icon: MapPin },
     { to: "/free-trips", label: "Viagens livres", icon: Shuffle },
+    { to: "/scheduling", label: "Agenda de motoristas", icon: CalendarClock },
     { to: "/transport-planning", label: "Planejamento logístico", icon: RouteIcon },
     { to: "/transport-planning/eligibility", label: "Elegibilidade", icon: ShieldCheck },
     ...(isAdmin
