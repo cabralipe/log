@@ -69,13 +69,13 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
     ...(canValidateCard ? [{ to: "/card-validator", label: "Validar carteirinha", icon: BadgeCheck }] : []),
     { to: "/reports", label: "Relatórios", icon: BarChart3 },
   ];
-  const adminItems =
-    user?.role === "SUPERADMIN"
-      ? [
-          { to: "/municipalities", label: "Prefeituras", icon: Building2 },
-          { to: "/users", label: "Usuários", icon: UserCircle },
-        ]
-      : [];
+  const adminItems = [];
+  if (user?.role === "SUPERADMIN") {
+    adminItems.push({ to: "/municipalities", label: "Prefeituras", icon: Building2 });
+  }
+  if (isAdmin) {
+    adminItems.push({ to: "/users", label: "Usuários", icon: UserCircle });
+  }
 
   return (
     <div className="layout">

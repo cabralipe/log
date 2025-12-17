@@ -13,6 +13,7 @@ from reports.views import (
     InventoryReportView,
     TireReportView,
     TransportPlanningReportView,
+    DriverAvailabilityReportView,
 )
 
 urlpatterns = [
@@ -29,4 +30,5 @@ urlpatterns = [
     path("inventory/", InventoryReportView.as_view(), name="inventory-report"),
     path("tires/", TireReportView.as_view(), name="tires-report"),
     path("transport-planning/", TransportPlanningReportView.as_view(), name="transport-planning-report"),
+    path("driver-availability/", DriverAvailabilityReportView.as_view(), name="driver-availability-report"),
 ]

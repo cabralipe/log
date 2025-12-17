@@ -4,6 +4,7 @@ import { api } from "../lib/api";
 import { Card } from "../components/Card";
 import { Table } from "../components/Table";
 import { StatusBadge } from "../components/StatusBadge";
+import { useAuth } from "../hooks/useAuth";
 
 type CountItem = { status: string; total: number };
 type OwnershipItem = { ownership_type: string; total: number };
@@ -92,6 +93,7 @@ type DashboardData = {
   forms: { templates_active: number; submissions_by_status: CountItem[] };
   students: { total: number; cards_active: number; cards_expiring_soon: number; cards_by_status: CountItem[] };
   tires: { status_counts: CountItem[]; nearing_end_of_life: TireNear[] };
+  users?: { total: number; operators: number; by_role: { role: string; total: number }[] };
   // campos antigos preservados para compatibilidade
   total_vehicles?: number;
   trips_month_total?: number;
@@ -114,6 +116,7 @@ const formatDate = (value?: string | null) => (value ? new Date(value).toLocaleD
 export const DashboardPage = () => {
   const [data, setData] = useState<DashboardData | null>(null);
   const [tab, setTab] = useState<TabKey>("overview");
+  const { user } = useAuth();
 
   useEffect(() => {
     api
@@ -135,6 +138,7 @@ export const DashboardPage = () => {
 
   const tripsMonth = data.summary?.trips_month_total ?? data.trips?.month_total ?? data.trips_month_total ?? 0;
   const vehiclesTotal = data.summary?.total_vehicles ?? data.total_vehicles ?? data.vehicles?.total ?? 0;
+  const isAdmin = user?.role === "SUPERADMIN" || user?.role === "ADMIN_MUNICIPALITY";
   const showSection = (keys: TabKey | TabKey[]) => {
     const list = Array.isArray(keys) ? keys : [keys];
     return list.includes(tab);
@@ -148,6 +152,19 @@ export const DashboardPage = () => {
     { title: "OS em aberto", value: formatNumber(data.summary?.open_service_orders ?? 0), hint: "Manutenção" },
     { title: "Solicitações pendentes", value: formatNumber(data.summary?.pending_applications ?? 0), hint: "Transportes/Serviços" },
   ];
+  if (isAdmin) {
+    summaryCards.push({
+      title: "Operadores",
+      value: formatNumber(data.users?.operators ?? 0),
+      hint: `Usuários: ${formatNumber(data.users?.total ?? 0)}`,
+    });
+  }
+  const roleLabels: Record<string, string> = {
+    SUPERADMIN: "Superadmin",
+    ADMIN_MUNICIPALITY: "Admin prefeitura",
+    OPERATOR: "Operador",
+    VIEWER: "Visualizador",
+  };
 
   return (
     <div className="dashboard-page">
@@ -259,6 +276,28 @@ export const DashboardPage = () => {
               data={(data.drivers?.cnh_expiring_soon ?? []).map((item) => ({ ...item, id: item.id }))}
             />
           </div>
+          {isAdmin && (
+            <div className="card">
+              <div className="card-head">
+                <div>
+                  <p className="muted">Equipe</p>
+                  <h4>Operadores e permissões</h4>
+                </div>
+                <span className="pill ghost">Total {formatNumber(data.users?.total ?? 0)}</span>
+              </div>
+              <div className="chip-grid">
+                {(data.users?.by_role ?? []).map((item) => (
+                  <div className="chip ghost" key={item.role}>
+                    <span>{roleLabels[item.role] ?? item.role}</span>
+                    <strong>{formatNumber(item.total)}</strong>
+                  </div>
+                ))}
+              </div>
+              <div className="divider" />
+              <p className="muted">Operadores com acesso</p>
+              <strong>{formatNumber(data.users?.operators ?? 0)}</strong>
+            </div>
+          )}
         </div>
       </section>
       )}

@@ -1,7 +1,8 @@
 from datetime import date, datetime, timedelta
-from django.db.models import Count, Sum, F, ExpressionWrapper, IntegerField, Q
+from django.contrib.auth import get_user_model
+from django.db.models import Count, Sum, F, ExpressionWrapper, IntegerField, Q, DurationField
 from django.utils import timezone
-from rest_framework import permissions, response, views
+from rest_framework import permissions, response, views, status
 from fleet.models import Vehicle, FuelLog
 from trips.models import Trip, TripIncident, MonthlyOdometer, FreeTrip
 from contracts.models import Contract, RentalPeriod
@@ -10,6 +11,9 @@ from transport_planning.models import TransportService, Route, Assignment, Servi
 from drivers.models import Driver
 from forms.models import FormTemplate, FormSubmission
 from students.models import Student, StudentCard
+from scheduling.models import DriverAvailabilityBlock
+
+User = get_user_model()
 
 
 class DashboardView(views.APIView):
@@ -41,6 +45,7 @@ class DashboardView(views.APIView):
         qs_free_trips = FreeTrip.objects.select_related("vehicle", "driver")
         qs_incidents = TripIncident.objects.select_related("trip", "driver")
         odometer_month = MonthlyOdometer.objects.filter(year=now.year, month=now.month)
+        qs_users = User.objects.all()
 
         if user.role != "SUPERADMIN":
             municipality_filter = {"municipality": user.municipality}
@@ -65,6 +70,7 @@ class DashboardView(views.APIView):
             qs_free_trips = qs_free_trips.filter(**municipality_filter)
             qs_incidents = qs_incidents.filter(**municipality_filter)
             odometer_month = odometer_month.filter(vehicle__municipality=user.municipality)
+            qs_users = qs_users.filter(**municipality_filter)
 
         vehicles_total = qs_vehicle.count()
         drivers_active_count = qs_driver.filter(status=Driver.Status.ACTIVE).count()
@@ -173,6 +179,9 @@ class DashboardView(views.APIView):
         odometer_month_data = list(
             odometer_month.values("vehicle_id", "vehicle__license_plate", "kilometers")
         )
+        users_total = qs_users.count()
+        users_by_role = qs_users.values("role").annotate(total=Count("id"))
+        operators_total = qs_users.filter(role=User.Roles.OPERATOR).count()
 
         data = {
             "summary": {
@@ -253,6 +262,11 @@ class DashboardView(views.APIView):
             "tires": {
                 "status_counts": list(qs_tires.values("status").annotate(total=Count("id"))),
                 "nearing_end_of_life": tires_nearing_end[:8],
+            },
+            "users": {
+                "total": users_total,
+                "operators": operators_total,
+                "by_role": list(users_by_role),
             },
             # compatibilidade com o payload antigo para nГЈo quebrar telas existentes
             "total_vehicles": vehicles_total,
@@ -668,6 +682,79 @@ class TransportPlanningReportView(views.APIView):
                 "summary": summary,
                 "services": services_summary,
                 "capacity": capacity,
+            }
+        )
+
+
+class DriverAvailabilityReportView(views.APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        start_param = request.query_params.get("start_date")
+        end_param = request.query_params.get("end_date")
+        try:
+            start_date = datetime.strptime(start_param, "%Y-%m-%d").date() if start_param else timezone.localdate()
+            end_date = datetime.strptime(end_param, "%Y-%m-%d").date() if end_param else start_date + timedelta(days=30)
+        except ValueError:
+            return response.Response({"detail": "Datas inválidas. Use formato YYYY-MM-DD."}, status=status.HTTP_400_BAD_REQUEST)
+        if end_date < start_date:
+            return response.Response({"detail": "Data final deve ser posterior à inicial."}, status=status.HTTP_400_BAD_REQUEST)
+
+        start_dt = timezone.make_aware(datetime.combine(start_date, datetime.min.time()), timezone.get_default_timezone())
+        end_dt = timezone.make_aware(datetime.combine(end_date, datetime.max.time()), timezone.get_default_timezone())
+
+        trips_qs = Trip.objects.filter(
+            departure_datetime__lt=end_dt, return_datetime_expected__gt=start_dt
+        ).select_related("driver", "municipality")
+        blocks_qs = DriverAvailabilityBlock.objects.filter(
+            start_datetime__lt=end_dt, end_datetime__gt=start_dt, status=DriverAvailabilityBlock.Status.ACTIVE
+        ).select_related("driver", "municipality")
+
+        if user.role != "SUPERADMIN":
+            trips_qs = trips_qs.filter(municipality=user.municipality)
+            blocks_qs = blocks_qs.filter(municipality=user.municipality)
+
+        duration_expr = ExpressionWrapper(
+            F("return_datetime_expected") - F("departure_datetime"), output_field=DurationField()
+        )
+        allocation = trips_qs.values("driver_id", "driver__name").annotate(
+            total_duration=Sum(duration_expr), trips=Count("id")
+        )
+        allocation_payload = []
+        for item in allocation:
+            total_seconds = item["total_duration"].total_seconds() if item["total_duration"] else 0
+            allocation_payload.append(
+                {
+                    "driver_id": item["driver_id"],
+                    "driver_name": item["driver__name"],
+                    "hours": round(total_seconds / 3600, 2),
+                    "trips": item["trips"],
+                }
+            )
+        allocation_payload.sort(key=lambda i: i["hours"], reverse=True)
+
+        blocked = list(
+            blocks_qs.values(
+                "id",
+                "driver_id",
+                "driver__name",
+                "type",
+                "start_datetime",
+                "end_datetime",
+                "municipality_id",
+            ).order_by("start_datetime")
+        )
+
+        pending_trips = trips_qs.filter(driver__isnull=True, status=Trip.Status.PLANNED).count()
+
+        return response.Response(
+            {
+                "range": {"start": start_date, "end": end_date},
+                "blocked_drivers": blocked,
+                "allocation_hours": allocation_payload,
+                "top_load": allocation_payload[:5],
+                "pending_trips_without_driver": pending_trips,
             }
         )
 

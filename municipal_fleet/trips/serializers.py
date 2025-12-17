@@ -7,6 +7,7 @@ from contracts.models import Contract
 from fleet.models import Vehicle
 from drivers.models import Driver
 from maintenance.services import handle_trip_completion
+from scheduling.models import DriverAvailabilityBlock
 
 
 SPECIAL_NEED_CHOICES = {"NONE", "TEA", "ELDERLY", "PCD", "OTHER"}
@@ -39,6 +40,7 @@ class TripSerializer(serializers.ModelSerializer):
         cargo_size = attrs.get("cargo_size", getattr(self.instance, "cargo_size", ""))
         cargo_quantity = attrs.get("cargo_quantity", getattr(self.instance, "cargo_quantity", 0))
         cargo_purpose = attrs.get("cargo_purpose", getattr(self.instance, "cargo_purpose", ""))
+        municipality = attrs.get("municipality", getattr(self.instance, "municipality", None))
 
         if passengers_details:
             if not isinstance(passengers_details, list):
@@ -86,6 +88,8 @@ class TripSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Quantidade de passageiros excede a capacidade do veículo.")
         if vehicle and driver and vehicle.municipality_id != driver.municipality_id:
             raise serializers.ValidationError("Motorista e veículo precisam ser da mesma prefeitura.")
+        if driver and municipality and driver.municipality_id != getattr(municipality, "id", None):
+            raise serializers.ValidationError("Motorista precisa pertencer à mesma prefeitura da viagem.")
         if category in (Trip.Category.OBJECT, Trip.Category.MIXED):
             missing_fields = []
             if not cargo_description:
@@ -153,6 +157,30 @@ class TripSerializer(serializers.ModelSerializer):
                 qs = qs.exclude(id=self.instance.id)
             if qs.exists():
                 raise serializers.ValidationError("Conflito de agenda: veículo já está em outra viagem.")
+        if driver and departure and return_expected and status in [Trip.Status.PLANNED, Trip.Status.IN_PROGRESS]:
+            driver_qs = Trip.objects.filter(
+                driver=driver,
+                status__in=[Trip.Status.PLANNED, Trip.Status.IN_PROGRESS],
+                departure_datetime__lt=return_expected,
+                return_datetime_expected__gt=departure,
+            )
+            if self.instance:
+                driver_qs = driver_qs.exclude(id=self.instance.id)
+            if driver_qs.exists():
+                raise serializers.ValidationError("Conflito de agenda: motorista já está em outra viagem.")
+            block_qs = DriverAvailabilityBlock.objects.filter(
+                driver=driver,
+                status=DriverAvailabilityBlock.Status.ACTIVE,
+                start_datetime__lt=return_expected,
+                end_datetime__gt=departure,
+            )
+            if block_qs.exists():
+                block = block_qs.first()
+                start_fmt = timezone.localtime(block.start_datetime).strftime("%d/%m %H:%M")
+                end_fmt = timezone.localtime(block.end_datetime).strftime("%d/%m %H:%M")
+                raise serializers.ValidationError(
+                    f"Motorista indisponível ({block.get_type_display()}) de {start_fmt} até {end_fmt}."
+                )
         return attrs
 
     @transaction.atomic

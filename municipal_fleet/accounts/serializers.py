@@ -28,6 +28,8 @@ class UserSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError("Usuários não superadmin precisam de uma prefeitura.")
         if role == User.Roles.SUPERADMIN:
             attrs["municipality"] = None
+        if self.instance is None and not attrs.get("password"):
+            raise serializers.ValidationError("Senha obrigatória para criar usuário.")
         return attrs
 
     def create(self, validated_data):

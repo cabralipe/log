@@ -33,6 +33,7 @@ INSTALLED_APPS = [
     "fleet.apps.FleetConfig",
     "drivers.apps.DriversConfig",
     "trips.apps.TripsConfig",
+    "scheduling.apps.SchedulingConfig",
     "reports.apps.ReportsConfig",
     "contracts.apps.ContractsConfig",
     "forms.apps.FormsConfig",
