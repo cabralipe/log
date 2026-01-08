@@ -1,5 +1,12 @@
 from django.contrib import admin
-from fleet.models import Vehicle, VehicleMaintenance, FuelLog, FuelStation
+from fleet.models import (
+    Vehicle,
+    VehicleMaintenance,
+    FuelLog,
+    FuelStation,
+    VehicleInspection,
+    VehicleInspectionDamagePhoto,
+)
 
 
 @admin.register(Vehicle)
@@ -17,7 +24,7 @@ class VehicleMaintenanceAdmin(admin.ModelAdmin):
 
 @admin.register(FuelLog)
 class FuelLogAdmin(admin.ModelAdmin):
-    list_display = ("vehicle", "driver", "filled_at", "liters", "fuel_station")
+    list_display = ("vehicle", "driver", "filled_at", "liters", "price_per_liter", "total_cost", "fuel_station")
     list_filter = ("filled_at", "fuel_station")
     search_fields = ("vehicle__license_plate", "driver__name", "fuel_station")
 
@@ -27,3 +34,16 @@ class FuelStationAdmin(admin.ModelAdmin):
     list_display = ("name", "municipality", "cnpj", "active")
     list_filter = ("municipality", "active")
     search_fields = ("name", "cnpj", "address")
+
+
+class VehicleInspectionDamagePhotoInline(admin.TabularInline):
+    model = VehicleInspectionDamagePhoto
+    extra = 0
+
+
+@admin.register(VehicleInspection)
+class VehicleInspectionAdmin(admin.ModelAdmin):
+    list_display = ("vehicle", "driver", "inspection_date", "condition_status", "odometer")
+    list_filter = ("inspection_date", "condition_status")
+    search_fields = ("vehicle__license_plate", "driver__name", "notes")
+    inlines = [VehicleInspectionDamagePhotoInline]

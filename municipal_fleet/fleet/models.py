@@ -1,4 +1,6 @@
+from decimal import Decimal
 from django.db import models
+from django.utils import timezone
 
 
 class Vehicle(models.Model):
@@ -84,6 +86,8 @@ class FuelLog(models.Model):
     driver = models.ForeignKey("drivers.Driver", on_delete=models.PROTECT, related_name="fuel_logs")
     filled_at = models.DateField()
     liters = models.DecimalField(max_digits=8, decimal_places=2)
+    price_per_liter = models.DecimalField(max_digits=8, decimal_places=2, null=True, blank=True)
+    total_cost = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
     fuel_station = models.CharField(max_length=255)
     fuel_station_ref = models.ForeignKey(FuelStation, null=True, blank=True, on_delete=models.PROTECT, related_name="fuel_logs")
     receipt_image = models.FileField(upload_to="fuel_receipts/", null=True, blank=True)
@@ -95,3 +99,56 @@ class FuelLog(models.Model):
 
     def __str__(self):
         return f"{self.vehicle.license_plate} - {self.liters} L em {self.fuel_station}"
+
+    def save(self, *args, **kwargs):
+        if self.price_per_liter is not None and self.liters is not None:
+            self.total_cost = Decimal(self.price_per_liter) * Decimal(self.liters)
+        super().save(*args, **kwargs)
+
+
+class VehicleInspection(models.Model):
+    class ConditionStatus(models.TextChoices):
+        OK = "OK", "Aprovado"
+        ATTENTION = "ATTENTION", "Atenção"
+
+    municipality = models.ForeignKey("tenants.Municipality", on_delete=models.CASCADE, related_name="vehicle_inspections")
+    vehicle = models.ForeignKey(Vehicle, on_delete=models.PROTECT, related_name="inspections")
+    driver = models.ForeignKey("drivers.Driver", on_delete=models.PROTECT, related_name="inspections")
+    inspection_date = models.DateField()
+    inspected_at = models.DateTimeField(default=timezone.now)
+    odometer = models.PositiveIntegerField(null=True, blank=True)
+    checklist_items = models.JSONField(default=list, blank=True)
+    notes = models.TextField(blank=True)
+    condition_status = models.CharField(max_length=20, choices=ConditionStatus.choices, default=ConditionStatus.OK)
+    signature_name = models.CharField(max_length=255, blank=True)
+    signature_image = models.FileField(upload_to="inspection_signatures/", null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-inspection_date", "-inspected_at", "-id"]
+        constraints = [
+            models.UniqueConstraint(fields=["vehicle", "inspection_date"], name="unique_vehicle_inspection_per_day"),
+        ]
+
+    def __str__(self):
+        return f"{self.vehicle.license_plate} - {self.inspection_date}"
+
+    def save(self, *args, **kwargs):
+        if not self.inspection_date:
+            self.inspection_date = timezone.localdate(self.inspected_at)
+        super().save(*args, **kwargs)
+
+
+class VehicleInspectionDamagePhoto(models.Model):
+    inspection = models.ForeignKey(
+        VehicleInspection, on_delete=models.CASCADE, related_name="damage_photos"
+    )
+    image = models.FileField(upload_to="inspection_damages/")
+    notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+
+    def __str__(self):
+        return f"Avaria {self.inspection_id}"

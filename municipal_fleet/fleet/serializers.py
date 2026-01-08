@@ -1,7 +1,15 @@
 import datetime
+import json
 from rest_framework import serializers
 from django.utils import timezone
-from fleet.models import Vehicle, VehicleMaintenance, FuelLog, FuelStation
+from fleet.models import (
+    Vehicle,
+    VehicleMaintenance,
+    FuelLog,
+    FuelStation,
+    VehicleInspection,
+    VehicleInspectionDamagePhoto,
+)
 
 
 class VehicleSerializer(serializers.ModelSerializer):
@@ -54,7 +62,7 @@ class FuelLogSerializer(serializers.ModelSerializer):
     class Meta:
         model = FuelLog
         fields = "__all__"
-        read_only_fields = ["id", "created_at", "municipality"]
+        read_only_fields = ["id", "created_at", "municipality", "total_cost"]
         extra_kwargs = {
             "receipt_image": {"required": False},
             "driver": {"required": False},
@@ -68,10 +76,15 @@ class FuelLogSerializer(serializers.ModelSerializer):
         driver = attrs.get("driver", getattr(self.instance, "driver", None))
         vehicle = attrs.get("vehicle", getattr(self.instance, "vehicle", None))
         liters = attrs.get("liters", getattr(self.instance, "liters", 0))
+        price_per_liter = attrs.get("price_per_liter", getattr(self.instance, "price_per_liter", None))
         station = attrs.get("fuel_station_ref", getattr(self.instance, "fuel_station_ref", None))
 
         if liters is not None and liters <= 0:
             raise serializers.ValidationError("Quantidade de litros deve ser maior que zero.")
+        if price_per_liter is None and not self.instance:
+            raise serializers.ValidationError({"price_per_liter": "Preço por litro é obrigatório."})
+        if price_per_liter is not None and price_per_liter <= 0:
+            raise serializers.ValidationError({"price_per_liter": "Preço por litro deve ser maior que zero."})
 
         if driver and vehicle and driver.municipality_id != vehicle.municipality_id:
             raise serializers.ValidationError("Motorista e veículo precisam ser da mesma prefeitura.")
@@ -91,6 +104,8 @@ class FuelLogSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError("Selecione um posto credenciado.")
             attrs["driver"] = portal_driver
             attrs["municipality"] = portal_driver.municipality
+            if price_per_liter is not None and liters:
+                attrs["total_cost"] = price_per_liter * liters
             return attrs
 
         if not driver:
@@ -108,6 +123,8 @@ class FuelLogSerializer(serializers.ModelSerializer):
             attrs["fuel_station"] = station.name
         if not station and not attrs.get("fuel_station"):
             raise serializers.ValidationError("Posto é obrigatório.")
+        if price_per_liter is not None and liters:
+            attrs["total_cost"] = price_per_liter * liters
         return attrs
 
     def to_representation(self, instance):
@@ -124,3 +141,111 @@ class FuelStationSerializer(serializers.ModelSerializer):
         model = FuelStation
         fields = "__all__"
         read_only_fields = ["id", "created_at", "updated_at"]
+
+
+class VehicleInspectionDamagePhotoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = VehicleInspectionDamagePhoto
+        fields = "__all__"
+        read_only_fields = ["id", "created_at", "inspection"]
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        request = self.context.get("request")
+        if request and data.get("image"):
+            data["image"] = request.build_absolute_uri(data["image"])
+        return data
+
+
+class VehicleInspectionSerializer(serializers.ModelSerializer):
+    vehicle_plate = serializers.CharField(source="vehicle.license_plate", read_only=True)
+    driver_name = serializers.CharField(source="driver.name", read_only=True)
+    damage_photos = VehicleInspectionDamagePhotoSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = VehicleInspection
+        fields = "__all__"
+        read_only_fields = ["id", "created_at", "municipality"]
+        extra_kwargs = {
+            "signature_image": {"required": False},
+            "checklist_items": {"required": False},
+        }
+
+    def _parse_checklist(self, value):
+        if isinstance(value, str):
+            try:
+                return json.loads(value)
+            except json.JSONDecodeError as exc:
+                raise serializers.ValidationError("Checklist inválido.") from exc
+        return value
+
+    def validate(self, attrs):
+        request = self.context.get("request")
+        portal_driver = self.context.get("portal_driver")
+        user = getattr(request, "user", None)
+        driver = attrs.get("driver", getattr(self.instance, "driver", None))
+        vehicle = attrs.get("vehicle", getattr(self.instance, "vehicle", None))
+        inspected_at = attrs.get("inspected_at", getattr(self.instance, "inspected_at", None)) or timezone.now()
+        inspection_date = attrs.get("inspection_date", getattr(self.instance, "inspection_date", None))
+        checklist_items = attrs.get("checklist_items", getattr(self.instance, "checklist_items", []))
+        signature_image = attrs.get("signature_image", getattr(self.instance, "signature_image", None))
+        signature_name = attrs.get("signature_name", getattr(self.instance, "signature_name", ""))
+
+        checklist_items = self._parse_checklist(checklist_items)
+        if not isinstance(checklist_items, list) or not checklist_items:
+            raise serializers.ValidationError({"checklist_items": "Checklist diário é obrigatório."})
+        attrs["checklist_items"] = checklist_items
+
+        if not inspection_date:
+            inspection_date = timezone.localdate(inspected_at)
+            attrs["inspection_date"] = inspection_date
+
+        if portal_driver:
+            if not vehicle:
+                raise serializers.ValidationError({"vehicle": "Selecione o veículo."})
+            if vehicle.municipality_id != portal_driver.municipality_id:
+                raise serializers.ValidationError("Veículo precisa pertencer à prefeitura do motorista.")
+            attrs["driver"] = portal_driver
+            attrs["municipality"] = portal_driver.municipality
+        else:
+            if not driver:
+                raise serializers.ValidationError({"driver": "Motorista é obrigatório."})
+            if user and getattr(user, "role", None) != "SUPERADMIN":
+                if driver and driver.municipality_id != user.municipality_id:
+                    raise serializers.ValidationError("Motorista precisa pertencer à prefeitura do usuário.")
+                if vehicle and vehicle.municipality_id != user.municipality_id:
+                    raise serializers.ValidationError("Veículo precisa pertencer à prefeitura do usuário.")
+
+        if not signature_image:
+            raise serializers.ValidationError({"signature_image": "Assinatura do motorista é obrigatória."})
+        if not signature_name:
+            raise serializers.ValidationError({"signature_name": "Nome do motorista é obrigatório."})
+
+        if vehicle and inspection_date:
+            qs = VehicleInspection.objects.filter(vehicle=vehicle, inspection_date=inspection_date)
+            if self.instance:
+                qs = qs.exclude(id=self.instance.id)
+            if qs.exists():
+                raise serializers.ValidationError("Checklist diário já registrado para este veículo.")
+
+        has_issue = any(
+            str(item.get("status", "")).upper() in {"ISSUE", "FAIL", "NOK", "PROBLEM"}
+            for item in checklist_items
+            if isinstance(item, dict)
+        )
+        if request and request.FILES.getlist("damage_photos"):
+            has_issue = True
+        if not attrs.get("condition_status") and not getattr(self.instance, "condition_status", None):
+            attrs["condition_status"] = (
+                VehicleInspection.ConditionStatus.ATTENTION if has_issue else VehicleInspection.ConditionStatus.OK
+            )
+
+        return attrs
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        request = self.context.get("request")
+        signature_image = data.get("signature_image")
+        if request and signature_image:
+            data["signature_image"] = request.build_absolute_uri(signature_image)
+        return data

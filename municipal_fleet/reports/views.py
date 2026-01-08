@@ -1,6 +1,8 @@
 from datetime import date, datetime, timedelta
+from decimal import Decimal
 from django.contrib.auth import get_user_model
 from django.db.models import Count, Sum, F, ExpressionWrapper, IntegerField, Q, DurationField
+from django.db.models.functions import TruncMonth, TruncYear
 from django.utils import timezone
 from rest_framework import permissions, response, views, status
 from fleet.models import Vehicle, FuelLog
@@ -15,6 +17,76 @@ from scheduling.models import DriverAvailabilityBlock
 
 User = get_user_model()
 
+
+def _parse_date(value: str | None):
+    if not value:
+        return None
+    try:
+        return datetime.strptime(value, "%Y-%m-%d").date()
+    except ValueError:
+        return None
+
+
+def _month_bounds(target: date):
+    start = target.replace(day=1)
+    next_month = (start.replace(day=28) + timedelta(days=4)).replace(day=1)
+    return start, next_month - timedelta(days=1)
+
+
+def _quarter_bounds(target: date):
+    quarter = ((target.month - 1) // 3) + 1
+    start_month = (quarter - 1) * 3 + 1
+    start = date(target.year, start_month, 1)
+    if start_month == 10:
+        next_quarter = date(target.year + 1, 1, 1)
+    else:
+        next_quarter = date(target.year, start_month + 3, 1)
+    end = next_quarter - timedelta(days=1)
+    return start, end
+
+
+def _fuel_budget_status(municipality, qs):
+    if not municipality:
+        return None
+    limit = getattr(municipality, "fuel_contract_limit", None)
+    period = getattr(municipality, "fuel_contract_period", None)
+    if not limit:
+        return None
+    today = timezone.localdate()
+    if period == "WEEKLY":
+        start = today - timedelta(days=today.weekday())
+        end = start + timedelta(days=6)
+    elif period == "QUARTERLY":
+        start, end = _quarter_bounds(today)
+    else:
+        start, end = _month_bounds(today)
+        period = "MONTHLY"
+    spent = qs.filter(filled_at__gte=start, filled_at__lte=end).aggregate(total=Sum("total_cost"))["total"] or 0
+    remaining = Decimal(limit) - Decimal(spent)
+    percent = (Decimal(spent) / Decimal(limit) * Decimal("100")) if limit else Decimal("0")
+    return {
+        "limit": Decimal(limit),
+        "period": period,
+        "spent": Decimal(spent),
+        "remaining": remaining,
+        "percent": percent,
+        "over_limit": remaining < 0,
+        "period_start": start,
+        "period_end": end,
+    }
+
+
+def _filter_odometer_range(qs, start: date | None, end: date | None):
+    if start and end:
+        qs = qs.filter(
+            Q(year__gt=start.year) | Q(year=start.year, month__gte=start.month),
+            Q(year__lt=end.year) | Q(year=end.year, month__lte=end.month),
+        )
+    elif start:
+        qs = qs.filter(Q(year__gt=start.year) | Q(year=start.year, month__gte=start.month))
+    elif end:
+        qs = qs.filter(Q(year__lt=end.year) | Q(year=end.year, month__lte=end.month))
+    return qs
 
 class DashboardView(views.APIView):
     permission_classes = [permissions.IsAuthenticated]
@@ -240,6 +312,7 @@ class DashboardView(views.APIView):
             "fuel": {
                 "month_logs": fuel_month.count(),
                 "month_liters": fuel_month_liters,
+                "budget": _fuel_budget_status(user.municipality if user.role != "SUPERADMIN" else None, qs_fuel),
             },
             "transport_planning": {
                 "services": qs_services.count(),
@@ -356,8 +429,10 @@ class FuelReportView(views.APIView):
     def get(self, request):
         user = request.user
         qs = FuelLog.objects.select_related("vehicle", "driver")
+        qs_budget = FuelLog.objects.all()
         if user.role != "SUPERADMIN":
             qs = qs.filter(municipality=user.municipality)
+            qs_budget = qs_budget.filter(municipality=user.municipality)
         driver_id = request.query_params.get("driver_id")
         vehicle_id = request.query_params.get("vehicle_id")
         start_date = request.query_params.get("start_date")
@@ -374,7 +449,13 @@ class FuelReportView(views.APIView):
         summary = {
             "total_logs": qs.count(),
             "total_liters": qs.aggregate(total=Sum("liters"))["total"] or 0,
+            "total_cost": qs.aggregate(total=Sum("total_cost"))["total"] or 0,
         }
+        if summary["total_liters"]:
+            summary["avg_price_per_liter"] = Decimal(summary["total_cost"]) / Decimal(summary["total_liters"])
+        else:
+            summary["avg_price_per_liter"] = None
+        summary["budget"] = _fuel_budget_status(user.municipality if user.role != "SUPERADMIN" else None, qs_budget)
         logs_data = []
         for log in qs.select_related("vehicle", "driver").order_by("-filled_at", "-id"):
             receipt_url = request.build_absolute_uri(log.receipt_image.url) if log.receipt_image else None
@@ -383,6 +464,8 @@ class FuelReportView(views.APIView):
                     "id": log.id,
                     "filled_at": log.filled_at,
                     "liters": log.liters,
+                    "price_per_liter": log.price_per_liter,
+                    "total_cost": log.total_cost,
                     "fuel_station": log.fuel_station,
                     "notes": log.notes,
                     "receipt_image": receipt_url,
@@ -392,6 +475,174 @@ class FuelReportView(views.APIView):
             )
         return response.Response({"summary": summary, "logs": logs_data})
 
+
+class FuelCostReportView(views.APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        start = _parse_date(request.query_params.get("start_date"))
+        end = _parse_date(request.query_params.get("end_date"))
+        qs = FuelLog.objects.select_related("vehicle")
+        if user.role != "SUPERADMIN":
+            qs = qs.filter(municipality=user.municipality)
+        if start:
+            qs = qs.filter(filled_at__gte=start)
+        if end:
+            qs = qs.filter(filled_at__lte=end)
+
+        fleet_monthly = (
+            qs.annotate(period=TruncMonth("filled_at"))
+            .values("period")
+            .annotate(total_cost=Sum("total_cost"), total_liters=Sum("liters"))
+            .order_by("period")
+        )
+        fleet_annual = (
+            qs.annotate(period=TruncYear("filled_at"))
+            .values("period")
+            .annotate(total_cost=Sum("total_cost"), total_liters=Sum("liters"))
+            .order_by("period")
+        )
+        vehicle_monthly = (
+            qs.annotate(period=TruncMonth("filled_at"))
+            .values("vehicle_id", "vehicle__license_plate", "period")
+            .annotate(total_cost=Sum("total_cost"), total_liters=Sum("liters"))
+            .order_by("vehicle__license_plate", "period")
+        )
+        vehicle_annual = (
+            qs.annotate(period=TruncYear("filled_at"))
+            .values("vehicle_id", "vehicle__license_plate", "period")
+            .annotate(total_cost=Sum("total_cost"), total_liters=Sum("liters"))
+            .order_by("vehicle__license_plate", "period")
+        )
+
+        summary = {
+            "total_cost": qs.aggregate(total=Sum("total_cost"))["total"] or 0,
+            "total_liters": qs.aggregate(total=Sum("liters"))["total"] or 0,
+        }
+        summary["avg_price_per_liter"] = (
+            Decimal(summary["total_cost"]) / Decimal(summary["total_liters"])
+            if summary["total_liters"]
+            else None
+        )
+
+        def _normalize(rows):
+            normalized = []
+            for row in rows:
+                period = row.get("period")
+                normalized.append(
+                    {
+                        **row,
+                        "period": period.date() if isinstance(period, datetime) else period,
+                    }
+                )
+            return normalized
+
+        return response.Response(
+            {
+                "summary": summary,
+                "fleet_monthly": _normalize(fleet_monthly),
+                "fleet_annual": _normalize(fleet_annual),
+                "vehicle_monthly": _normalize(vehicle_monthly),
+                "vehicle_annual": _normalize(vehicle_annual),
+            }
+        )
+
+
+class TcoReportView(views.APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        start = _parse_date(request.query_params.get("start_date"))
+        end = _parse_date(request.query_params.get("end_date"))
+
+        qs_fuel = FuelLog.objects.select_related("vehicle")
+        qs_orders = ServiceOrder.objects.select_related("vehicle")
+        qs_rental = RentalPeriod.objects.select_related("vehicle")
+        qs_odometer = MonthlyOdometer.objects.select_related("vehicle")
+
+        if user.role != "SUPERADMIN":
+            municipality_filter = {"municipality": user.municipality}
+            qs_fuel = qs_fuel.filter(**municipality_filter)
+            qs_orders = qs_orders.filter(**municipality_filter)
+            qs_rental = qs_rental.filter(**municipality_filter)
+            qs_odometer = qs_odometer.filter(vehicle__municipality=user.municipality)
+
+        if start:
+            qs_fuel = qs_fuel.filter(filled_at__gte=start)
+            qs_orders = qs_orders.filter(completed_at__date__gte=start)
+            qs_rental = qs_rental.filter(start_datetime__date__gte=start)
+        if end:
+            qs_fuel = qs_fuel.filter(filled_at__lte=end)
+            qs_orders = qs_orders.filter(completed_at__date__lte=end)
+            qs_rental = qs_rental.filter(start_datetime__date__lte=end)
+        qs_orders = qs_orders.filter(status=ServiceOrder.Status.COMPLETED, completed_at__isnull=False)
+
+        qs_odometer = _filter_odometer_range(qs_odometer, start, end)
+
+        fuel_totals = qs_fuel.values("vehicle_id", "vehicle__license_plate").annotate(total=Sum("total_cost"))
+        maintenance_totals = qs_orders.values("vehicle_id", "vehicle__license_plate").annotate(total=Sum("total_cost"))
+        contract_totals = qs_rental.values("vehicle_id", "vehicle__license_plate").annotate(total=Sum("billed_amount"))
+        km_totals = qs_odometer.values("vehicle_id", "vehicle__license_plate").annotate(total_km=Sum("kilometers"))
+
+        vehicles_map = {}
+
+        def _merge(rows, key, label_key="vehicle__license_plate"):
+            for row in rows:
+                vehicle_id = row["vehicle_id"]
+                entry = vehicles_map.setdefault(
+                    vehicle_id,
+                    {
+                        "vehicle_id": vehicle_id,
+                        "vehicle__license_plate": row.get(label_key) or "",
+                        "fuel_cost": 0,
+                        "maintenance_cost": 0,
+                        "contract_cost": 0,
+                        "total_km": 0,
+                    },
+                )
+                if row.get(label_key):
+                    entry["vehicle__license_plate"] = row[label_key]
+                entry[key] = row.get("total") or row.get("total_km") or 0
+
+        _merge(fuel_totals, "fuel_cost")
+        _merge(maintenance_totals, "maintenance_cost")
+        _merge(contract_totals, "contract_cost")
+        _merge(km_totals, "total_km")
+
+        vehicles = []
+        total_cost = Decimal("0")
+        total_km = Decimal("0")
+        for entry in vehicles_map.values():
+            fuel_cost = Decimal(entry.get("fuel_cost") or 0)
+            maintenance_cost = Decimal(entry.get("maintenance_cost") or 0)
+            contract_cost = Decimal(entry.get("contract_cost") or 0)
+            total_vehicle_cost = fuel_cost + maintenance_cost + contract_cost
+            km = Decimal(entry.get("total_km") or 0)
+            total_cost += total_vehicle_cost
+            total_km += km
+            vehicles.append(
+                {
+                    "vehicle_id": entry["vehicle_id"],
+                    "vehicle__license_plate": entry["vehicle__license_plate"],
+                    "fuel_cost": float(fuel_cost),
+                    "maintenance_cost": float(maintenance_cost),
+                    "contract_cost": float(contract_cost),
+                    "total_cost": float(total_vehicle_cost),
+                    "total_km": float(km),
+                    "cost_per_km": float(total_vehicle_cost / km) if km else None,
+                }
+            )
+
+        vehicles.sort(key=lambda item: (item["cost_per_km"] is None, item["cost_per_km"] or 0), reverse=True)
+
+        summary = {
+            "total_cost": float(total_cost),
+            "total_km": float(total_km),
+            "cost_per_km": float(total_cost / total_km) if total_km else None,
+        }
+        return response.Response({"summary": summary, "vehicles": vehicles})
 
 class TripIncidentReportView(views.APIView):
     permission_classes = [permissions.IsAuthenticated]

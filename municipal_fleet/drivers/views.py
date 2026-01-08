@@ -9,8 +9,11 @@ from drivers.serializers import DriverSerializer
 from tenants.mixins import MunicipalityQuerysetMixin
 from accounts.permissions import IsMunicipalityAdminOrReadOnly
 from drivers.portal import generate_portal_token, resolve_portal_token
-from fleet.models import FuelLog, FuelStation, Vehicle
-from fleet.serializers import FuelLogSerializer
+from fleet.models import FuelLog, FuelStation, Vehicle, VehicleInspection, VehicleInspectionDamagePhoto
+from fleet.serializers import FuelLogSerializer, VehicleInspectionSerializer
+from notifications.models import Notification, NotificationDevice
+from notifications.serializers import NotificationSerializer, NotificationDeviceSerializer
+from notifications.services import dispatch_geofence_alert
 from trips.models import Trip, TripIncident, FreeTrip, FreeTripIncident
 from trips.serializers import TripSerializer, TripIncidentSerializer, FreeTripSerializer, FreeTripIncidentSerializer, TripGpsPingSerializer
 from trips.gps import resolve_status, STATUS_LABELS
@@ -201,6 +204,23 @@ class DriverPortalTripCompleteView(DriverPortalAuthMixin, views.APIView):
         return response.Response(serializer.data)
 
 
+class DriverPortalTripStartView(DriverPortalAuthMixin, views.APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request, trip_id: int):
+        driver = self.get_portal_driver(request)
+        trip = driver.trips.filter(id=trip_id).first()
+        if not trip:
+            return response.Response({"detail": "Viagem não encontrada."}, status=status.HTTP_404_NOT_FOUND)
+        if trip.status == Trip.Status.COMPLETED:
+            return response.Response({"detail": "Viagem já concluída."}, status=status.HTTP_400_BAD_REQUEST)
+        if trip.status == Trip.Status.IN_PROGRESS:
+            return response.Response({"detail": "Viagem já em andamento."}, status=status.HTTP_400_BAD_REQUEST)
+        trip.status = Trip.Status.IN_PROGRESS
+        trip.save(update_fields=["status", "updated_at"])
+        return response.Response(TripSerializer(trip).data)
+
+
 class DriverPortalGpsPingView(DriverPortalAuthMixin, views.APIView):
     permission_classes = [permissions.AllowAny]
 
@@ -224,6 +244,8 @@ class DriverPortalGpsPingView(DriverPortalAuthMixin, views.APIView):
         serializer = TripGpsPingSerializer(data=payload)
         serializer.is_valid(raise_exception=True)
         ping = serializer.save(driver=driver)
+
+        dispatch_geofence_alert(trip, ping)
 
         channel_layer = get_channel_layer()
         if channel_layer:
@@ -288,6 +310,8 @@ class DriverPortalFuelLogView(DriverPortalAuthMixin, views.APIView):
                     "id": log.id,
                     "filled_at": log.filled_at,
                     "liters": log.liters,
+                    "price_per_liter": log.price_per_liter,
+                    "total_cost": log.total_cost,
                     "fuel_station": log.fuel_station,
                     "fuel_station_ref_id": log.fuel_station_ref_id,
                     "notes": log.notes,
@@ -322,6 +346,65 @@ class DriverPortalFuelStationsView(DriverPortalAuthMixin, views.APIView):
             .values("id", "name", "address")
         )
         return response.Response({"stations": list(stations)})
+
+
+class DriverPortalNotificationsView(DriverPortalAuthMixin, views.APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        driver = self.get_portal_driver(request)
+        notifications = Notification.objects.filter(recipient_driver=driver).order_by("-created_at")
+        data = NotificationSerializer(notifications, many=True).data
+        return response.Response({"notifications": data})
+
+
+class DriverPortalNotificationDeviceView(DriverPortalAuthMixin, views.APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        driver = self.get_portal_driver(request)
+        serializer = NotificationDeviceSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        device = serializer.save(driver=driver, municipality=driver.municipality)
+        return response.Response(NotificationDeviceSerializer(device).data, status=status.HTTP_201_CREATED)
+
+    def delete(self, request):
+        driver = self.get_portal_driver(request)
+        token = request.data.get("token")
+        device_type = request.data.get("device_type")
+        if not token or not device_type:
+            return response.Response({"detail": "Token e device_type são obrigatórios."}, status=status.HTTP_400_BAD_REQUEST)
+        NotificationDevice.objects.filter(driver=driver, token=token, device_type=device_type).delete()
+        return response.Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class DriverPortalInspectionView(DriverPortalAuthMixin, views.APIView):
+    permission_classes = [permissions.AllowAny]
+    parser_classes = [parsers.MultiPartParser, parsers.FormParser, parsers.JSONParser]
+
+    def get(self, request):
+        driver = self.get_portal_driver(request)
+        inspections = (
+            VehicleInspection.objects.filter(driver=driver)
+            .select_related("vehicle")
+            .prefetch_related("damage_photos")
+            .order_by("-inspection_date", "-inspected_at")
+        )
+        data = VehicleInspectionSerializer(inspections, many=True, context={"request": request}).data
+        return response.Response({"inspections": data})
+
+    def post(self, request):
+        driver = self.get_portal_driver(request)
+        serializer = VehicleInspectionSerializer(
+            data=request.data,
+            context={"request": request, "portal_driver": driver},
+        )
+        serializer.is_valid(raise_exception=True)
+        inspection = serializer.save(driver=driver, municipality=driver.municipality)
+        for file in request.FILES.getlist("damage_photos"):
+            VehicleInspectionDamagePhoto.objects.create(inspection=inspection, image=file)
+        output = VehicleInspectionSerializer(inspection, context={"request": request}).data
+        return response.Response(output, status=status.HTTP_201_CREATED)
 
 
 class DriverPortalFreeTripListView(DriverPortalAuthMixin, views.APIView):

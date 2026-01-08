@@ -1,0 +1,49 @@
+{
+  "name": "Portal do Motorista - Gestão de Frotas",
+  "short_name": "Motorista",
+  "description": "Portal do motorista para gestão de frotas municipais - viagens, abastecimentos e escalas",
+  "theme_color": "#0f172a",
+  "background_color": "#0b1118",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "start_url": "/driver-portal",
+  "icons": [
+    {
+      "src": "/pwa-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "categories": ["business", "productivity"],
+  "screenshots": [],
+  "shortcuts": [
+    {
+      "name": "Minhas Viagens",
+      "short_name": "Viagens",
+      "description": "Ver viagens agendadas",
+      "url": "/driver-portal#viagens",
+      "icons": [{ "src": "/pwa-192x192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Abastecimento",
+      "short_name": "Abastecer",
+      "description": "Registrar abastecimento",
+      "url": "/driver-portal#abastecimento",
+      "icons": [{ "src": "/pwa-192x192.png", "sizes": "192x192" }]
+    }
+  ]
+}

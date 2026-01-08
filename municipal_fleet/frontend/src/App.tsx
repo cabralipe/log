@@ -24,6 +24,8 @@ import { CardValidatorPage } from "./pages/CardValidator";
 import { TransportPlanningPage } from "./pages/TransportPlanning";
 import { SchedulingPage } from "./pages/Scheduling";
 import { TransportRequestsPage } from "./pages/TransportRequests";
+import { NotificationsPage } from "./pages/Notifications";
+import { HelpPage } from "./pages/Help";
 
 const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading } = useAuth();
@@ -59,6 +61,7 @@ const AppRoutes = () => (
       <Route path="/free-trips" element={<FreeTripsPage />} />
       <Route path="/scheduling" element={<SchedulingPage />} />
       <Route path="/reports" element={<ReportsPage />} />
+      <Route path="/notifications" element={<NotificationsPage />} />
       <Route path="/transport-planning" element={<TransportPlanningPage />} />
       <Route path="/transport-planning/eligibility" element={<TransportPlanningPage initialTab="eligibility" />} />
       <Route path="/transport-requests" element={<TransportRequestsPage />} />
@@ -68,6 +71,7 @@ const AppRoutes = () => (
       <Route path="/form-submissions" element={<FormSubmissionsPage />} />
       <Route path="/student-cards" element={<StudentCardsPage />} />
       <Route path="/card-validator" element={<CardValidatorPage />} />
+      <Route path="/help" element={<HelpPage />} />
       <Route path="/" element={<Navigate to="/dashboard" replace />} />
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Route>

@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { api, driverPortalApi } from "../lib/api";
 import { Table } from "../components/Table";
 import { Button } from "../components/Button";
 import { useMediaQuery } from "../hooks/useMediaQuery";
+import { InstallPrompt } from "../components/InstallPrompt";
 import "../styles/login.css";
 import "./DriverPortal.css";
 
@@ -13,7 +14,20 @@ const NAV_ITEMS = [
   { id: "viagem-livre", label: "Viagem Livre", icon: "🚗" },
   { id: "escala", label: "Escala", icon: "📋" },
   { id: "viagens", label: "Minhas Viagens", icon: "🛣️" },
+  { id: "alertas", label: "Alertas", icon: "🔔" },
+  { id: "inspecao", label: "Checklist Diário", icon: "✅" },
   { id: "abastecimento", label: "Abastecimento", icon: "⛽" },
+];
+
+const CHECKLIST_ITEMS = [
+  { key: "pneus", label: "Pneus e calibragem" },
+  { key: "freios", label: "Sistema de freios" },
+  { key: "luzes", label: "Faróis, setas e lanternas" },
+  { key: "oleo", label: "Nível de óleo" },
+  { key: "agua", label: "Água do radiador" },
+  { key: "sinalizacao", label: "Sinalização/triângulo" },
+  { key: "limpeza", label: "Limpeza geral" },
+  { key: "documentos", label: "Documentos obrigatórios" },
 ];
 
 type TripPortal = {
@@ -59,6 +73,8 @@ type FuelLogPortal = {
   id: number;
   filled_at: string;
   liters: string;
+  price_per_liter?: string;
+  total_cost?: string;
   fuel_station: string;
   fuel_station_ref_id?: number | null;
   notes?: string;
@@ -67,6 +83,40 @@ type FuelLogPortal = {
 };
 
 type FuelStation = { id: number; name: string; address?: string };
+
+type InspectionChecklistItem = { key: string; label: string; status: "OK" | "ISSUE"; note?: string };
+
+type InspectionDamagePhoto = {
+  id: number;
+  image: string;
+  notes?: string;
+  created_at?: string;
+};
+
+type InspectionPortal = {
+  id: number;
+  vehicle: number;
+  vehicle_plate?: string;
+  inspection_date: string;
+  inspected_at: string;
+  odometer?: number | null;
+  condition_status: "OK" | "ATTENTION";
+  checklist_items: InspectionChecklistItem[];
+  notes?: string;
+  signature_name?: string;
+  signature_image?: string;
+  damage_photos: InspectionDamagePhoto[];
+};
+
+type DriverNotification = {
+  id: number;
+  title: string;
+  message: string;
+  event_type: string;
+  channel: "IN_APP" | "EMAIL" | "PUSH";
+  is_read: boolean;
+  created_at: string;
+};
 
 type FreeTripPortal = {
   id: number;
@@ -117,14 +167,47 @@ export const DriverPortalPage = () => {
   const [assignments, setAssignments] = useState<AssignmentPortal[]>([]);
   const [fuelLogs, setFuelLogs] = useState<FuelLogPortal[]>([]);
   const [stations, setStations] = useState<FuelStation[]>([]);
-  const [fuelForm, setFuelForm] = useState<{ vehicle: number | ""; fuel_station_id: number | ""; filled_at: string; liters: string; notes: string; receipt_image: File | null }>({
+  const [inspections, setInspections] = useState<InspectionPortal[]>([]);
+  const [notifications, setNotifications] = useState<DriverNotification[]>([]);
+  const [fuelForm, setFuelForm] = useState<{
+    vehicle: number | "";
+    fuel_station_id: number | "";
+    filled_at: string;
+    liters: string;
+    price_per_liter: string;
+    notes: string;
+    receipt_image: File | null;
+  }>({
     vehicle: "",
     fuel_station_id: "",
     filled_at: "",
     liters: "",
+    price_per_liter: "",
     notes: "",
     receipt_image: null,
   });
+  const [inspectionChecklist, setInspectionChecklist] = useState<InspectionChecklistItem[]>(
+    CHECKLIST_ITEMS.map((item) => ({ ...item, status: "OK", note: "" }))
+  );
+  const [inspectionForm, setInspectionForm] = useState<{
+    vehicle: number | "";
+    inspection_date: string;
+    odometer: string;
+    notes: string;
+    signature_name: string;
+    damage_photos: File[];
+  }>({
+    vehicle: "",
+    inspection_date: "",
+    odometer: "",
+    notes: "",
+    signature_name: "",
+    damage_photos: [],
+  });
+  const [signatureDataUrl, setSignatureDataUrl] = useState<string>("");
+  const signatureCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const signatureDrawingRef = useRef(false);
+  const signatureLastPosRef = useRef<{ x: number; y: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
   const [completingTripIds, setCompletingTripIds] = useState<number[]>([]);
@@ -176,6 +259,14 @@ export const DriverPortalPage = () => {
     }
   };
 
+  const inspectionStatusLabel = (value: InspectionPortal["condition_status"]) =>
+    value === "ATTENTION" ? "Atenção" : "Aprovado";
+
+  const notificationTime = (value: string) => {
+    const date = new Date(value);
+    return date.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+  };
+
   const assignmentStatusLabel = (value: AssignmentPortal["status"]) => {
     switch (value) {
       case "DRAFT": return "Rascunho";
@@ -222,6 +313,50 @@ export const DriverPortalPage = () => {
     const date = new Date(value);
     return date.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
   };
+
+  const toInputDate = (value: Date) => value.toISOString().split("T")[0];
+
+  const resizeSignatureCanvas = () => {
+    const canvas = signatureCanvasRef.current;
+    if (!canvas) return;
+    const ratio = window.devicePixelRatio || 1;
+    const { width, height } = canvas.getBoundingClientRect();
+    canvas.width = Math.max(1, Math.floor(width * ratio));
+    canvas.height = Math.max(1, Math.floor(height * ratio));
+    const ctx = canvas.getContext("2d");
+    if (ctx) {
+      ctx.scale(ratio, ratio);
+      ctx.lineWidth = 2.2;
+      ctx.lineCap = "round";
+      ctx.strokeStyle = "#e2e8f0";
+    }
+  };
+
+  const clearSignature = () => {
+    const canvas = signatureCanvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    setSignatureDataUrl("");
+  };
+
+  const saveSignature = () => {
+    const canvas = signatureCanvasRef.current;
+    if (!canvas) return;
+    const dataUrl = canvas.toDataURL("image/png");
+    setSignatureDataUrl(dataUrl);
+  };
+
+  useEffect(() => {
+    setInspectionForm((prev) =>
+      prev.inspection_date ? prev : { ...prev, inspection_date: toInputDate(new Date()) }
+    );
+    resizeSignatureCanvas();
+    const handleResize = () => resizeSignatureCanvas();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   const availableVehicles = useMemo(() => {
     const uniques = new Map<number, string>();
@@ -430,12 +565,17 @@ export const DriverPortalPage = () => {
         setTrackingError("Nenhuma viagem em andamento para rastrear.");
         return;
       }
+      const accuracy = position.coords.accuracy;
+      if (accuracy && accuracy > 1000) {
+        setTrackingInfo("Sinal de GPS fraco. Aguardando melhor precisão...");
+        return;
+      }
       trackingLastSentAt.current = now;
       const payload = {
         trip_id: activeTrip.id,
         lat: position.coords.latitude,
         lng: position.coords.longitude,
-        accuracy: position.coords.accuracy,
+        accuracy,
         speed: position.coords.speed,
         recorded_at: new Date(position.timestamp).toISOString(),
       };
@@ -457,8 +597,8 @@ export const DriverPortalPage = () => {
     };
     trackingWatchId.current = navigator.geolocation.watchPosition(onSuccess, onError, {
       enableHighAccuracy: true,
-      maximumAge: 5000,
-      timeout: 15000,
+      maximumAge: 0,
+      timeout: 20000,
     });
     return () => {
       if (trackingWatchId.current !== null) {
@@ -495,6 +635,10 @@ export const DriverPortalPage = () => {
       setFuelLogs(fuelRes.data.logs);
       const stationsRes = await driverPortalApi.get<{ stations: FuelStation[] }>("/drivers/portal/fuel_stations/");
       setStations(stationsRes.data.stations);
+      const inspectionsRes = await driverPortalApi.get<{ inspections: InspectionPortal[] }>("/drivers/portal/inspections/");
+      setInspections(inspectionsRes.data.inspections);
+      const notificationsRes = await driverPortalApi.get<{ notifications: DriverNotification[] }>("/drivers/portal/notifications/");
+      setNotifications(notificationsRes.data.notifications);
       await loadFreeTrips();
       await loadPortalVehicles();
       await loadAvailabilityBlocks();
@@ -515,6 +659,21 @@ export const DriverPortalPage = () => {
       setError(null);
     } catch (err: any) {
       setError(err.response?.data?.detail || "Não foi possível concluir a viagem.");
+    } finally {
+      setCompletingTripIds((ids) => ids.filter((id) => id !== tripId));
+      loadPortalData();
+    }
+  };
+
+  const handleStartTrip = async (tripId: number) => {
+    setCompletingTripIds((ids) => (ids.includes(tripId) ? ids : [...ids, tripId]));
+    try {
+      await driverPortalApi.post(`/drivers/portal/trips/${tripId}/start/`);
+      setTrips((prev) => prev.map((trip) => (trip.id === tripId ? { ...trip, status: "IN_PROGRESS" } : trip)));
+      setInfo("Viagem iniciada.");
+      setError(null);
+    } catch (err: any) {
+      setError(err.response?.data?.detail || "Não foi possível iniciar a viagem.");
     } finally {
       setCompletingTripIds((ids) => ids.filter((id) => id !== tripId));
       loadPortalData();
@@ -561,16 +720,29 @@ export const DriverPortalPage = () => {
       setError("Informe a quantidade de litros (maior que zero).");
       return;
     }
+    if (!fuelForm.price_per_liter || Number(fuelForm.price_per_liter) <= 0) {
+      setError("Informe o preço por litro (maior que zero).");
+      return;
+    }
     const fd = new FormData();
     fd.append("vehicle", String(fuelForm.vehicle));
     fd.append("fuel_station_id", String(fuelForm.fuel_station_id));
     fd.append("filled_at", fuelForm.filled_at);
     fd.append("liters", fuelForm.liters);
+    fd.append("price_per_liter", fuelForm.price_per_liter);
     if (fuelForm.notes) fd.append("notes", fuelForm.notes);
     if (fuelForm.receipt_image) fd.append("receipt_image", fuelForm.receipt_image);
     try {
       await driverPortalApi.post("/drivers/portal/fuel_logs/", fd);
-      setFuelForm({ vehicle: fuelForm.vehicle, fuel_station_id: "", filled_at: "", liters: "", notes: "", receipt_image: null });
+      setFuelForm({
+        vehicle: fuelForm.vehicle,
+        fuel_station_id: "",
+        filled_at: "",
+        liters: "",
+        price_per_liter: "",
+        notes: "",
+        receipt_image: null,
+      });
       setInfo("Abastecimento registrado.");
       loadPortalData();
     } catch (err: any) {
@@ -582,12 +754,113 @@ export const DriverPortalPage = () => {
     }
   };
 
+  const updateChecklistStatus = (key: string, status: "OK" | "ISSUE") => {
+    setInspectionChecklist((prev) =>
+      prev.map((item) => (item.key === key ? { ...item, status } : item))
+    );
+  };
+
+  const updateChecklistNote = (key: string, note: string) => {
+    setInspectionChecklist((prev) =>
+      prev.map((item) => (item.key === key ? { ...item, note } : item))
+    );
+  };
+
+  const getCanvasPoint = (event: React.PointerEvent<HTMLCanvasElement>) => {
+    const canvas = event.currentTarget;
+    const rect = canvas.getBoundingClientRect();
+    return { x: event.clientX - rect.left, y: event.clientY - rect.top };
+  };
+
+  const handleSignaturePointerDown = (event: React.PointerEvent<HTMLCanvasElement>) => {
+    const canvas = event.currentTarget;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    signatureDrawingRef.current = true;
+    signatureLastPosRef.current = getCanvasPoint(event);
+    canvas.setPointerCapture(event.pointerId);
+  };
+
+  const handleSignaturePointerMove = (event: React.PointerEvent<HTMLCanvasElement>) => {
+    if (!signatureDrawingRef.current) return;
+    const canvas = event.currentTarget;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    const current = getCanvasPoint(event);
+    const last = signatureLastPosRef.current || current;
+    ctx.beginPath();
+    ctx.moveTo(last.x, last.y);
+    ctx.lineTo(current.x, current.y);
+    ctx.stroke();
+    signatureLastPosRef.current = current;
+  };
+
+  const handleSignaturePointerUp = (event: React.PointerEvent<HTMLCanvasElement>) => {
+    if (!signatureDrawingRef.current) return;
+    signatureDrawingRef.current = false;
+    signatureLastPosRef.current = null;
+    event.currentTarget.releasePointerCapture(event.pointerId);
+    saveSignature();
+  };
+
+  const handleInspectionSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!inspectionForm.vehicle) {
+      setError("Selecione o veículo da inspeção.");
+      return;
+    }
+    if (!inspectionForm.inspection_date) {
+      setError("Informe a data da inspeção.");
+      return;
+    }
+    if (!inspectionForm.signature_name.trim()) {
+      setError("Informe seu nome na assinatura.");
+      return;
+    }
+    if (!signatureDataUrl) {
+      setError("Assine no campo indicado.");
+      return;
+    }
+    const fd = new FormData();
+    fd.append("vehicle", String(inspectionForm.vehicle));
+    fd.append("inspection_date", inspectionForm.inspection_date);
+    fd.append("signature_name", inspectionForm.signature_name);
+    const signatureBlob = await (await fetch(signatureDataUrl)).blob();
+    fd.append("signature_image", new File([signatureBlob], "signature.png", { type: "image/png" }));
+    if (inspectionForm.odometer) fd.append("odometer", inspectionForm.odometer);
+    if (inspectionForm.notes) fd.append("notes", inspectionForm.notes);
+    fd.append("checklist_items", JSON.stringify(inspectionChecklist));
+    inspectionForm.damage_photos.forEach((file) => fd.append("damage_photos", file));
+    try {
+      await driverPortalApi.post("/drivers/portal/inspections/", fd);
+      setInspectionForm({
+        vehicle: inspectionForm.vehicle,
+        inspection_date: toInputDate(new Date()),
+        odometer: "",
+        notes: "",
+        signature_name: "",
+        damage_photos: [],
+      });
+      setInspectionChecklist(CHECKLIST_ITEMS.map((item) => ({ ...item, status: "OK", note: "" })));
+      clearSignature();
+      setInfo("Checklist diário registrado.");
+      loadPortalData();
+    } catch (err: any) {
+      const data = err.response?.data;
+      const firstError =
+        data?.detail ||
+        (data && typeof data === "object" ? Object.values(data as Record<string, any>).flat().find(Boolean) : null);
+      setError(firstError || "Erro ao registrar checklist.");
+    }
+  };
+
   const logout = () => {
     localStorage.removeItem("driver_portal_token");
     setToken(null);
     setTrips([]);
     setAssignments([]);
     setFuelLogs([]);
+    setInspections([]);
     setDriverName("");
     setIncidentTrip(null);
   };
@@ -653,10 +926,22 @@ export const DriverPortalPage = () => {
             </div>
           </div>
           <div className="driver-portal__trip-actions">
+            {trip.status === "PLANNED" && (
+              <Button
+                variant="primary"
+                size="sm"
+                type="button"
+                onClick={() => handleStartTrip(trip.id)}
+                disabled={completingTripIds.includes(trip.id)}
+              >
+                {completingTripIds.includes(trip.id) ? "Enviando..." : "Iniciar"}
+              </Button>
+            )}
             {trip.status !== "COMPLETED" && (
               <Button
                 variant="primary"
                 size="sm"
+                type="button"
                 onClick={() => handleCompleteTrip(trip.id)}
                 disabled={completingTripIds.includes(trip.id)}
               >
@@ -688,6 +973,12 @@ export const DriverPortalPage = () => {
                 <> · <a href={log.receipt_image} target="_blank" rel="noopener noreferrer">Ver nota</a></>
               )}
             </div>
+            {(log.price_per_liter || log.total_cost) && (
+              <div className="driver-portal__fuel-card-details">
+                {log.price_per_liter && <>R$ {Number(log.price_per_liter).toFixed(2)} / L</>}
+                {log.total_cost && <> · Total R$ {Number(log.total_cost).toFixed(2)}</>}
+              </div>
+            )}
           </div>
           <div className="driver-portal__fuel-card-liters">{log.liters} L</div>
         </div>
@@ -698,8 +989,43 @@ export const DriverPortalPage = () => {
     </div>
   );
 
+  const renderInspectionCards = () => (
+    <div className="driver-portal__inspection-cards">
+      {inspections.map((inspection) => (
+        <div key={inspection.id} className="driver-portal__inspection-card">
+          <div className="driver-portal__inspection-card-header">
+            <div>
+              <div className="driver-portal__inspection-card-title">{inspection.vehicle_plate || "Veículo"}</div>
+              <div className="driver-portal__inspection-card-meta">
+                {formatDateLabel(inspection.inspection_date)} · {inspectionStatusLabel(inspection.condition_status)}
+              </div>
+            </div>
+            <span className={`driver-portal__inspection-pill ${inspection.condition_status === "ATTENTION" ? "danger" : ""}`}>
+              {inspectionStatusLabel(inspection.condition_status)}
+            </span>
+          </div>
+          {inspection.notes && <div className="driver-portal__inspection-card-notes">{inspection.notes}</div>}
+          <div className="driver-portal__inspection-card-links">
+            {inspection.signature_image && (
+              <a href={inspection.signature_image} target="_blank" rel="noopener noreferrer">Assinatura</a>
+            )}
+            {inspection.damage_photos?.length > 0 && (
+              <span>{inspection.damage_photos.length} avaria(s)</span>
+            )}
+          </div>
+        </div>
+      ))}
+      {inspections.length === 0 && (
+        <div className="driver-portal__empty">Nenhum checklist registrado.</div>
+      )}
+    </div>
+  );
+
   return (
     <div className="driver-portal">
+      {/* PWA Install Prompt & Offline Status */}
+      <InstallPrompt />
+
       {/* Mobile Menu Toggle */}
       <button
         className="driver-portal__menu-toggle"
@@ -1056,10 +1382,22 @@ export const DriverPortalPage = () => {
                   label: "Ações",
                   render: (row) => (
                     <div style={{ display: "flex", gap: "0.35rem", flexWrap: "wrap" }}>
+                      {row.status === "PLANNED" && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          type="button"
+                          onClick={() => handleStartTrip(row.id)}
+                          disabled={completingTripIds.includes(row.id)}
+                        >
+                          {completingTripIds.includes(row.id) ? "..." : "Iniciar"}
+                        </Button>
+                      )}
                       {row.status !== "COMPLETED" && (
                         <Button
                           variant="ghost"
                           size="sm"
+                          type="button"
                           onClick={() => handleCompleteTrip(row.id)}
                           disabled={completingTripIds.includes(row.id)}
                         >
@@ -1077,6 +1415,167 @@ export const DriverPortalPage = () => {
             />
           )}
           {!hasPassengers && <p style={{ color: "var(--muted)", marginTop: "0.5rem" }}>Nenhum passageiro cadastrado nas viagens.</p>}
+        </section>
+
+        {/* Alerts Section */}
+        <section id="alertas" className="driver-portal__section">
+          <div className="driver-portal__section-header">
+            <h3>Alertas e lembretes</h3>
+          </div>
+          <div className="driver-portal__alerts-list">
+            {notifications.map((notice) => (
+              <div key={notice.id} className={`driver-portal__alert-card ${notice.is_read ? "read" : ""}`}>
+                <div>
+                  <strong>{notice.title}</strong>
+                  <p>{notice.message}</p>
+                </div>
+                <span>{notificationTime(notice.created_at)}</span>
+              </div>
+            ))}
+            {notifications.length === 0 && (
+              <div className="driver-portal__empty">Nenhum alerta no momento.</div>
+            )}
+          </div>
+        </section>
+
+        {/* Inspection Section */}
+        <section id="inspecao" className="driver-portal__section">
+          <div className="driver-portal__section-header">
+            <h3>Checklist diário do veículo</h3>
+          </div>
+          <form className="driver-portal__inspection-form" onSubmit={handleInspectionSubmit}>
+            <select
+              value={inspectionForm.vehicle}
+              onChange={(e) => setInspectionForm((prev) => ({ ...prev, vehicle: Number(e.target.value) }))}
+              required
+            >
+              <option value="">Veículo</option>
+              {availableVehicles.map((v) => (
+                <option key={v.id} value={v.id}>{v.plate}</option>
+              ))}
+            </select>
+            <label>
+              Data da inspeção
+              <input
+                type="date"
+                value={inspectionForm.inspection_date}
+                onChange={(e) => setInspectionForm((prev) => ({ ...prev, inspection_date: e.target.value }))}
+                required
+              />
+            </label>
+            <label>
+              Odômetro atual (opcional)
+              <input
+                type="number"
+                placeholder="0"
+                value={inspectionForm.odometer}
+                onChange={(e) => setInspectionForm((prev) => ({ ...prev, odometer: e.target.value }))}
+              />
+            </label>
+            <div className="driver-portal__inspection-checklist full-width">
+              <h4>Checklist</h4>
+              {inspectionChecklist.map((item) => (
+                <div key={item.key} className="driver-portal__inspection-item">
+                  <span>{item.label}</span>
+                  <select
+                    value={item.status}
+                    onChange={(e) => updateChecklistStatus(item.key, e.target.value as "OK" | "ISSUE")}
+                  >
+                    <option value="OK">Ok</option>
+                    <option value="ISSUE">Problema</option>
+                  </select>
+                  {item.status === "ISSUE" && (
+                    <input
+                      type="text"
+                      placeholder="Descreva o problema"
+                      value={item.note || ""}
+                      onChange={(e) => updateChecklistNote(item.key, e.target.value)}
+                    />
+                  )}
+                </div>
+              ))}
+            </div>
+            <label className="full-width">
+              Observações gerais
+              <textarea
+                placeholder="Observações adicionais"
+                value={inspectionForm.notes}
+                onChange={(e) => setInspectionForm((prev) => ({ ...prev, notes: e.target.value }))}
+                rows={2}
+              />
+            </label>
+            <label>
+              Registro fotográfico de avarias
+              <input
+                type="file"
+                accept="image/*"
+                multiple
+                onChange={(e) =>
+                  setInspectionForm((prev) => ({ ...prev, damage_photos: Array.from(e.target.files || []) }))
+                }
+              />
+            </label>
+            <label>
+              Nome (assinatura)
+              <input
+                type="text"
+                placeholder="Seu nome"
+                value={inspectionForm.signature_name}
+                onChange={(e) => setInspectionForm((prev) => ({ ...prev, signature_name: e.target.value }))}
+                required
+              />
+            </label>
+            <div className="driver-portal__signature">
+              <div className="driver-portal__signature-header">
+                <span>Assinatura digital</span>
+                <Button type="button" variant="ghost" size="sm" onClick={clearSignature}>
+                  Limpar
+                </Button>
+              </div>
+              <div className="driver-portal__signature-pad">
+                <canvas
+                  ref={signatureCanvasRef}
+                  onPointerDown={handleSignaturePointerDown}
+                  onPointerMove={handleSignaturePointerMove}
+                  onPointerUp={handleSignaturePointerUp}
+                  onPointerLeave={handleSignaturePointerUp}
+                />
+                {!signatureDataUrl && <span className="driver-portal__signature-hint">Assine aqui com o dedo</span>}
+              </div>
+            </div>
+            <Button type="submit" fullWidth>Registrar checklist</Button>
+          </form>
+
+          <div className="driver-portal__inspection-history">
+            <h4>Histórico de condições</h4>
+            {isMobile ? (
+              renderInspectionCards()
+            ) : (
+              <Table
+                columns={[
+                  { key: "inspection_date", label: "Data", render: (row) => formatDateLabel(row.inspection_date) },
+                  { key: "vehicle_plate", label: "Veículo" },
+                  { key: "condition_status", label: "Status", render: (row) => inspectionStatusLabel(row.condition_status) },
+                  { key: "odometer", label: "Odômetro", render: (row) => (row.odometer ? `${row.odometer} km` : "—") },
+                  { key: "signature_name", label: "Assinatura" },
+                  {
+                    key: "damage_photos",
+                    label: "Avarias",
+                    render: (row) => (row.damage_photos?.length ? `${row.damage_photos.length} foto(s)` : "—"),
+                  },
+                  {
+                    key: "signature_image",
+                    label: "Arquivo",
+                    render: (row) =>
+                      row.signature_image ? (
+                        <a href={row.signature_image} target="_blank" rel="noopener noreferrer">Ver</a>
+                      ) : "—",
+                  },
+                ]}
+                data={inspections}
+              />
+            )}
+          </div>
         </section>
 
         {/* Fuel Section */}
@@ -1105,6 +1604,17 @@ export const DriverPortalPage = () => {
               Litros
               <input type="number" step="0.01" placeholder="0.00" value={fuelForm.liters} onChange={(e) => setFuelForm((f) => ({ ...f, liters: e.target.value }))} required />
             </label>
+            <label>
+              Preço por litro
+              <input
+                type="number"
+                step="0.01"
+                placeholder="0.00"
+                value={fuelForm.price_per_liter}
+                onChange={(e) => setFuelForm((f) => ({ ...f, price_per_liter: e.target.value }))}
+                required
+              />
+            </label>
             <label className="full-width">
               Observações (opcional)
               <textarea placeholder="Observações" value={fuelForm.notes} onChange={(e) => setFuelForm((f) => ({ ...f, notes: e.target.value }))} rows={2} />
@@ -1124,6 +1634,8 @@ export const DriverPortalPage = () => {
                   { key: "filled_at", label: "Data" },
                   { key: "fuel_station", label: "Posto" },
                   { key: "liters", label: "Litros" },
+                  { key: "price_per_liter", label: "Preço/L", render: (row) => (row.price_per_liter ? `R$ ${Number(row.price_per_liter).toFixed(2)}` : "—") },
+                  { key: "total_cost", label: "Total", render: (row) => (row.total_cost ? `R$ ${Number(row.total_cost).toFixed(2)}` : "—") },
                   { key: "vehicle__license_plate", label: "Veículo" },
                   { key: "receipt_image", label: "Nota", render: (row) => (row.receipt_image ? <a href={row.receipt_image} target="_blank" rel="noopener noreferrer">Ver</a> : "—") },
                 ]}

@@ -4,7 +4,8 @@ import { api } from "../lib/api";
 import { Table } from "../components/Table";
 import { Button } from "../components/Button";
 import { AreaTrendChart, DonutChart, SimpleBarChart } from "../components/Charts";
-import { MapPin, Gauge, Fuel, AlertTriangle, Download } from "lucide-react";
+import { MapPin, Gauge, Fuel, AlertTriangle, Download, DollarSign } from "lucide-react";
+import { useAuth } from "../hooks/useAuth";
 import "./Reports.css";
 
 type DashboardData = {
@@ -41,6 +42,8 @@ type FuelLogRow = {
   id: number;
   filled_at: string;
   liters: number;
+  price_per_liter?: number | null;
+  total_cost?: number | null;
   fuel_station: string;
   notes?: string;
   vehicle__license_plate: string;
@@ -48,7 +51,57 @@ type FuelLogRow = {
   receipt_image?: string;
 };
 
-type FuelSummary = { total_logs: number; total_liters: number };
+type BudgetStatus = {
+  limit: number;
+  period: "WEEKLY" | "MONTHLY" | "QUARTERLY";
+  spent: number;
+  remaining: number;
+  percent: number;
+  over_limit: boolean;
+  period_start: string;
+  period_end: string;
+};
+
+type FuelSummary = {
+  total_logs: number;
+  total_liters: number;
+  total_cost?: number;
+  avg_price_per_liter?: number | null;
+  budget?: BudgetStatus | null;
+};
+
+type FuelCostPeriodRow = { period: string; total_cost: number; total_liters: number };
+type FuelCostVehicleRow = { vehicle_id: number; vehicle__license_plate: string; period: string; total_cost: number; total_liters: number };
+type FuelCostReport = {
+  summary: { total_cost: number; total_liters: number; avg_price_per_liter?: number | null };
+  fleet_monthly: FuelCostPeriodRow[];
+  fleet_annual: FuelCostPeriodRow[];
+  vehicle_monthly: FuelCostVehicleRow[];
+  vehicle_annual: FuelCostVehicleRow[];
+};
+
+type TcoVehicle = {
+  vehicle_id: number;
+  vehicle__license_plate: string;
+  fuel_cost: number;
+  maintenance_cost: number;
+  contract_cost: number;
+  total_cost: number;
+  total_km: number;
+  cost_per_km: number | null;
+};
+
+type TcoReport = {
+  summary: { total_cost: number; total_km: number; cost_per_km: number | null };
+  vehicles: TcoVehicle[];
+};
+
+type MunicipalitySettings = {
+  id: number;
+  name: string;
+  fuel_contract_limit: number | null;
+  fuel_contract_period: "WEEKLY" | "MONTHLY" | "QUARTERLY" | null;
+};
 
 type TripIncidentRow = {
   id: number;
@@ -82,6 +135,8 @@ const EXPORT_COLUMNS: Record<ExportDatasetKey, Record<string, string>> = {
     filled_at: "Data",
     fuel_station: "Posto",
     liters: "Litros",
+    price_per_liter: "Preço/L",
+    total_cost: "Total (R$)",
     vehicle__license_plate: "Veículo",
     driver__name: "Motorista",
     notes: "Observações",
@@ -102,17 +157,19 @@ const EXPORT_COLUMNS: Record<ExportDatasetKey, Record<string, string>> = {
 
 const DEFAULT_COLUMNS: Record<ExportDatasetKey, string[]> = {
   trips: ["origin", "destination", "status", "departure_datetime", "vehicle__license_plate", "driver__name"],
-  fuel: ["filled_at", "fuel_station", "liters", "vehicle__license_plate"],
+  fuel: ["filled_at", "fuel_station", "liters", "price_per_liter", "total_cost", "vehicle__license_plate"],
   odometer: ["vehicle__license_plate", "kilometers"],
   incidents: ["created_at", "trip_id", "driver__name", "description"],
 };
 
 const toInputDate = (value: Date) => value.toISOString().split("T")[0];
 const formatNumber = (value: number) => value.toLocaleString("pt-BR");
+const formatCurrency = (value: number) => value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const formatDate = (value: string) => new Date(value).toLocaleDateString("pt-BR");
 const formatDateTime = (value: string) => new Date(value).toLocaleString("pt-BR");
 
 export const ReportsPage = () => {
+  const { user: current } = useAuth();
   const [filters, setFilters] = useState<Filters>({ start_date: "", end_date: "" });
   const [loading, setLoading] = useState(false);
   const [odometer, setOdometer] = useState<OdometerRow[]>([]);
@@ -120,9 +177,16 @@ export const ReportsPage = () => {
   const [tripSummary, setTripSummary] = useState<TripSummary | null>(null);
   const [fuelLogs, setFuelLogs] = useState<FuelLogRow[]>([]);
   const [fuelSummary, setFuelSummary] = useState<FuelSummary | null>(null);
+  const [fuelCosts, setFuelCosts] = useState<FuelCostReport | null>(null);
+  const [tco, setTco] = useState<TcoReport | null>(null);
   const [incidents, setIncidents] = useState<TripIncidentRow[]>([]);
   const [dashboard, setDashboard] = useState<DashboardData | null>(null);
   const [exportConfig, setExportConfig] = useState<ExportConfig>({ dataset: "trips", columns: DEFAULT_COLUMNS.trips });
+  const [settingsForm, setSettingsForm] = useState<{ fuel_contract_limit: string; fuel_contract_period: string }>({
+    fuel_contract_limit: "",
+    fuel_contract_period: "",
+  });
+  const [savingSettings, setSavingSettings] = useState(false);
 
   useEffect(() => {
     api
@@ -131,6 +195,19 @@ export const ReportsPage = () => {
       .catch(() => null);
   }, []);
 
+  useEffect(() => {
+    if (!current) return;
+    api
+      .get<MunicipalitySettings>("/municipalities/settings/")
+      .then((res) => {
+        setSettingsForm({
+          fuel_contract_limit: res.data.fuel_contract_limit ? String(res.data.fuel_contract_limit) : "",
+          fuel_contract_period: res.data.fuel_contract_period || "",
+        });
+      })
+      .catch(() => null);
+  }, [current]);
+
   const loadReports = useCallback(async () => {
     setLoading(true);
     const params = {
@@ -138,10 +215,12 @@ export const ReportsPage = () => {
       ...(filters.end_date ? { end_date: filters.end_date } : {}),
     };
     try {
-      const [odoRes, tripRes, fuelRes, incidentsRes] = await Promise.all([
+      const [odoRes, tripRes, fuelRes, fuelCostsRes, tcoRes, incidentsRes] = await Promise.all([
         api.get<OdometerApiRow[]>("/reports/odometer/", { params }),
         api.get<{ summary: TripSummary; trips: TripRow[] }>("/reports/trips/", { params }),
         api.get<{ summary: FuelSummary; logs: FuelLogRow[] }>("/reports/fuel/", { params }),
+        api.get<FuelCostReport>("/reports/fuel-costs/", { params }),
+        api.get<TcoReport>("/reports/tco/", { params }),
         api.get<{ incidents: TripIncidentRow[] }>("/reports/trip-incidents/"),
       ]);
       setOdometer(
@@ -154,6 +233,8 @@ export const ReportsPage = () => {
       setTrips(tripRes.data.trips);
       setFuelSummary(fuelRes.data.summary);
       setFuelLogs(fuelRes.data.logs);
+      setFuelCosts(fuelCostsRes.data);
+      setTco(tcoRes.data);
       setIncidents(incidentsRes.data.incidents);
     } finally {
       setLoading(false);
@@ -215,6 +296,40 @@ export const ReportsPage = () => {
       .slice(0, 5)
       .map<ChartDatum>(([label, value]) => ({ label, value }));
   }, [fuelLogs]);
+  const fuelCostByMonth = useMemo(() => {
+    const rows = fuelCosts?.fleet_monthly ?? [];
+    return rows.map((row) => ({
+      label: row.period,
+      value: Number(row.total_cost || 0),
+    }));
+  }, [fuelCosts]);
+  const topCostPerKm = useMemo(
+    () =>
+      (tco?.vehicles ?? [])
+        .filter((item) => item.cost_per_km !== null)
+        .sort((a, b) => (b.cost_per_km || 0) - (a.cost_per_km || 0))
+        .slice(0, 6)
+        .map((item) => ({ label: item.vehicle__license_plate, value: Number(item.cost_per_km || 0) })),
+    [tco]
+  );
+  const topAnnualFuelCost = useMemo(() => {
+    const rows = fuelCosts?.vehicle_annual ?? [];
+    const latestYear = rows.reduce((acc, row) => (row.period > acc ? row.period : acc), "");
+    return rows
+      .filter((row) => row.period === latestYear)
+      .sort((a, b) => Number(b.total_cost || 0) - Number(a.total_cost || 0))
+      .slice(0, 6)
+      .map((row) => ({ label: row.vehicle__license_plate, value: Number(row.total_cost || 0) }));
+  }, [fuelCosts]);
+  const topTcoCost = useMemo(
+    () =>
+      (tco?.vehicles ?? [])
+        .slice()
+        .sort((a, b) => Number(b.total_cost || 0) - Number(a.total_cost || 0))
+        .slice(0, 6)
+        .map((item) => ({ label: item.vehicle__license_plate, value: Number(item.total_cost || 0) })),
+    [tco]
+  );
 
   const quickRanges = [
     { label: "Últimos 30 dias", start: toInputDate(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)) },
@@ -283,6 +398,26 @@ export const ReportsPage = () => {
     setExportConfig({ dataset, columns: DEFAULT_COLUMNS[dataset] });
   };
 
+  const canEditBudget = current?.role === "ADMIN_MUNICIPALITY" || current?.role === "OPERATOR";
+
+  const handleSaveBudget = async () => {
+    if (!canEditBudget) return;
+    setSavingSettings(true);
+    try {
+      const payload = {
+        fuel_contract_limit: settingsForm.fuel_contract_limit ? Number(settingsForm.fuel_contract_limit) : null,
+        fuel_contract_period: settingsForm.fuel_contract_period || null,
+      };
+      const res = await api.patch<MunicipalitySettings>("/municipalities/settings/", payload);
+      setSettingsForm({
+        fuel_contract_limit: res.data.fuel_contract_limit ? String(res.data.fuel_contract_limit) : "",
+        fuel_contract_period: res.data.fuel_contract_period || "",
+      });
+    } finally {
+      setSavingSettings(false);
+    }
+  };
+
   return (
     <div className="reports-page">
       <div className="reports-header card">
@@ -340,6 +475,18 @@ export const ReportsPage = () => {
           value={fuelSummary?.total_liters ?? 0}
           hint={`${fuelSummary?.total_logs ?? 0} abastecimentos registrados`}
           icon={<Fuel size={20} />}
+        />
+        <InsightCard
+          title="Gasto com Combustível"
+          value={formatCurrency(Number(fuelSummary?.total_cost ?? 0))}
+          hint={fuelSummary?.avg_price_per_liter ? `Preço médio ${formatCurrency(Number(fuelSummary.avg_price_per_liter))}/L` : "Preço médio indisponível"}
+          icon={<DollarSign size={20} />}
+        />
+        <InsightCard
+          title="Custo por KM (TCO)"
+          value={tco?.summary.cost_per_km ? formatCurrency(Number(tco.summary.cost_per_km)) : "—"}
+          hint={tco?.summary.total_km ? `${formatNumber(Number(tco.summary.total_km))} km no período` : "Sem dados de km"}
+          icon={<Gauge size={20} />}
         />
         <InsightCard
           title="Ocorrências"
@@ -421,6 +568,102 @@ export const ReportsPage = () => {
         </div>
       </div>
 
+      <div className="analytics-grid">
+        <div className="card chart-card">
+          <div className="card-head">
+            <h4>Gasto com combustível</h4>
+            <p className="muted">Total por mês (R$)</p>
+          </div>
+          <div className="chart-wrapper">
+            <AreaTrendChart
+              data={fuelCostByMonth.map(d => ({ name: new Date(d.label).toLocaleDateString("pt-BR", { month: "short", year: "2-digit" }), value: d.value }))}
+              title=""
+              height={260}
+            />
+          </div>
+        </div>
+        <div className="card chart-card">
+          <div className="card-head">
+            <h4>Custo por KM</h4>
+            <p className="muted">Comparativo entre veículos</p>
+          </div>
+          <SimpleBarChart
+            data={topCostPerKm.map(d => ({ name: d.label.slice(0, 7), value: d.value }))}
+            title=""
+            height={260}
+          />
+        </div>
+      </div>
+
+      <div className="analytics-grid three-cols">
+        <div className="card chart-card">
+          <div className="card-head">
+            <h4>Gasto anual por veículo</h4>
+            <p className="muted">Combustível no último ano</p>
+          </div>
+          <SimpleBarChart
+            data={topAnnualFuelCost.map(d => ({ name: d.label.slice(0, 7), value: d.value }))}
+            title=""
+            height={220}
+          />
+        </div>
+        <div className="card chart-card">
+          <div className="card-head">
+            <h4>TCO por veículo</h4>
+            <p className="muted">Total acumulado no período</p>
+          </div>
+          <SimpleBarChart
+            data={topTcoCost.map(d => ({ name: d.label.slice(0, 7), value: d.value }))}
+            title=""
+            height={220}
+          />
+        </div>
+        <div className="card chart-card budget-card">
+          <div className="card-head">
+            <h4>Cota do contrato global</h4>
+            <p className="muted">Monitoramento por período</p>
+          </div>
+          {fuelSummary?.budget ? (
+            <div className={`budget-status ${fuelSummary.budget.over_limit ? "danger" : ""}`}>
+              <div className="budget-value">
+                {formatCurrency(Number(fuelSummary.budget.spent))} de {formatCurrency(Number(fuelSummary.budget.limit))}
+              </div>
+              <div className="budget-meta">
+                Período: {formatDate(fuelSummary.budget.period_start)} a {formatDate(fuelSummary.budget.period_end)}
+              </div>
+              <div className="budget-meta">
+                {Number(fuelSummary.budget.percent || 0).toFixed(1)}% utilizado
+              </div>
+            </div>
+          ) : (
+            <p className="muted">Nenhuma cota definida para o contrato global.</p>
+          )}
+          {canEditBudget && (
+            <div className="budget-form">
+              <input
+                type="number"
+                step="0.01"
+                placeholder="Valor da cota (R$)"
+                value={settingsForm.fuel_contract_limit}
+                onChange={(e) => setSettingsForm((prev) => ({ ...prev, fuel_contract_limit: e.target.value }))}
+              />
+              <select
+                value={settingsForm.fuel_contract_period}
+                onChange={(e) => setSettingsForm((prev) => ({ ...prev, fuel_contract_period: e.target.value }))}
+              >
+                <option value="">Período</option>
+                <option value="WEEKLY">Semanal</option>
+                <option value="MONTHLY">Mensal</option>
+                <option value="QUARTERLY">Trimestral</option>
+              </select>
+              <Button variant="primary" onClick={handleSaveBudget} disabled={savingSettings}>
+                {savingSettings ? "Salvando..." : "Salvar cota"}
+              </Button>
+            </div>
+          )}
+        </div>
+      </div>
+
       <div className="data-tables-section">
         <div className="card">
           <div className="card-head">
@@ -469,6 +712,8 @@ export const ReportsPage = () => {
                   { key: "filled_at", label: "Data", render: (row) => formatDate(row.filled_at) },
                   { key: "fuel_station", label: "Posto" },
                   { key: "liters", label: "Litros", render: (row) => `${row.liters} L` },
+                  { key: "price_per_liter", label: "Preço/L", render: (row) => (row.price_per_liter ? formatCurrency(Number(row.price_per_liter)) : "—") },
+                  { key: "total_cost", label: "Total", render: (row) => (row.total_cost ? formatCurrency(Number(row.total_cost)) : "—") },
                   { key: "vehicle__license_plate", label: "Veículo" },
                   { key: "driver__name", label: "Motorista" },
                 ]}
@@ -502,12 +747,12 @@ export const ReportsPage = () => {
   );
 };
 
-const InsightCard = ({ title, value, hint, tone = "default", icon }: { title: string; value: number; hint?: string; tone?: "default" | "danger"; icon?: React.ReactNode }) => (
+const InsightCard = ({ title, value, hint, tone = "default", icon }: { title: string; value: number | string; hint?: string; tone?: "default" | "danger"; icon?: React.ReactNode }) => (
   <div className={`insight-card ${tone}`}>
     <div className="insight-icon">{icon}</div>
     <div className="insight-content">
       <p className="muted">{title}</p>
-      <strong>{formatNumber(value)}</strong>
+      <strong>{typeof value === "number" ? formatNumber(value) : value}</strong>
       {hint && <span className="hint">{hint}</span>}
     </div>
   </div>

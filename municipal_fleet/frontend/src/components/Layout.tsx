@@ -24,9 +24,11 @@ import {
   Shuffle,
   CalendarClock,
   Send,
+  Bell,
   LogOut,
   ChevronLeft,
   ChevronRight,
+  HelpCircle,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import "./Layout.css";
@@ -66,6 +68,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
     { to: "/scheduling", label: "Agenda de motoristas", icon: CalendarClock },
     { to: "/transport-planning", label: "Planejamento logístico", icon: RouteIcon },
     { to: "/transport-planning/eligibility", label: "Elegibilidade", icon: ShieldCheck },
+    { to: "/notifications", label: "Alertas", icon: Bell },
     ...(isAdmin
       ? [
         { to: "/form-templates", label: "Formulários", icon: ClipboardList },
@@ -75,6 +78,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
       : []),
     ...(canValidateCard ? [{ to: "/card-validator", label: "Validar carteirinha", icon: BadgeCheck }] : []),
     { to: "/reports", label: "Relatórios", icon: BarChart3 },
+    { to: "/help", label: "Ajuda", icon: HelpCircle },
   ];
   const adminItems = [];
   if (user?.role === "SUPERADMIN") {

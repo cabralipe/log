@@ -72,7 +72,12 @@ const shortLabel = (name: string, plate: string) => {
 const popupHtml = (meta: DriverMeta) => {
   const statusLabel = meta.statusLabel || statusLabelMap[meta.status] || meta.status;
   const speed = meta.speed !== undefined && meta.speed !== null ? `${meta.speed.toFixed(1)} km/h` : "—";
-  const accuracy = meta.accuracy !== undefined && meta.accuracy !== null ? `${Math.round(meta.accuracy)} m` : "—";
+  const accuracy =
+    meta.accuracy !== undefined && meta.accuracy !== null
+      ? meta.accuracy > 1000
+        ? "Sinal fraco"
+        : `${Math.round(meta.accuracy)} m`
+      : "—";
   const lastUpdate = meta.recordedAt ? new Date(meta.recordedAt).toLocaleString("pt-BR") : "—";
   return `
     <div class="gps-popup">

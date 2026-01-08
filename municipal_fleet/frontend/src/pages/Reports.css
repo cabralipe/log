@@ -211,6 +211,51 @@
   min-height: 0;
 }
 
+.budget-card {
+  justify-content: space-between;
+}
+
+.budget-status {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.75rem;
+  border-radius: 10px;
+  background: rgba(34, 197, 94, 0.08);
+  border: 1px solid rgba(34, 197, 94, 0.25);
+}
+
+.budget-status.danger {
+  background: rgba(239, 68, 68, 0.08);
+  border-color: rgba(239, 68, 68, 0.35);
+}
+
+.budget-value {
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.budget-meta {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.budget-form {
+  display: grid;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.budget-form input,
+.budget-form select {
+  padding: 0.55rem 0.75rem;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: rgba(15, 23, 36, 0.7);
+  color: var(--text);
+  font-size: 0.9rem;
+}
+
 /* Data Tables Section */
 .data-tables-section {
   margin-top: 0.5rem;

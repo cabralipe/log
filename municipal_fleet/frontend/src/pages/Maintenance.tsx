@@ -55,6 +55,19 @@ type Tire = {
   max_km_life: number;
 };
 
+type InspectionRow = {
+  id: number;
+  vehicle: number;
+  vehicle_plate?: string;
+  driver_name?: string;
+  inspection_date: string;
+  condition_status: "OK" | "ATTENTION";
+  odometer?: number | null;
+  notes?: string;
+  signature_image?: string;
+  damage_photos?: Array<{ id: number; image: string }>;
+};
+
 type MaintenanceSummary = {
   status_counts: Array<{ status: ServiceOrderStatus; total: number }>;
   total_cost: number;
@@ -82,15 +95,22 @@ const PRIORITY_LABEL: Record<ServiceOrderPriority, string> = {
   CRITICAL: "Crítica",
 };
 
+const CONDITION_LABEL: Record<InspectionRow["condition_status"], string> = {
+  OK: "Aprovado",
+  ATTENTION: "Atenção",
+};
+
 const currency = (value: string | number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(value || 0));
+const formatDate = (value?: string | null) => (value ? new Date(value).toLocaleDateString("pt-BR") : "—");
 
 export const MaintenancePage = () => {
-  const [tab, setTab] = useState<"orders" | "inventory" | "plans" | "tires">("orders");
+  const [tab, setTab] = useState<"orders" | "inventory" | "plans" | "tires" | "inspections">("orders");
   const [orders, setOrders] = useState<ServiceOrder[]>([]);
   const [parts, setParts] = useState<InventoryPart[]>([]);
   const [plans, setPlans] = useState<MaintenancePlan[]>([]);
   const [tires, setTires] = useState<Tire[]>([]);
+  const [inspections, setInspections] = useState<InspectionRow[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [summary, setSummary] = useState<MaintenanceSummary | null>(null);
   const [inventoryLow, setInventoryLow] = useState<InventoryPart[]>([]);
@@ -148,6 +168,7 @@ export const MaintenancePage = () => {
       api.get<Paginated<InventoryPart>>("/inventory/parts/", { params: { page_size: 200 } }),
       api.get<Paginated<MaintenancePlan>>("/maintenance-plans/", { params: { page_size: 200 } }),
       api.get<Paginated<Tire>>("/tires/", { params: { page_size: 200 } }),
+      api.get<Paginated<InspectionRow>>("/vehicles/inspections/", { params: { page_size: 200 } }),
       api.get<Paginated<Vehicle>>("/vehicles/", { params: { page_size: 500 } }),
       api.get<MaintenanceSummary>("/reports/maintenance/summary/"),
       api.get("/reports/inventory/"),
@@ -157,7 +178,17 @@ export const MaintenancePage = () => {
     const errors: string[] = [];
     const getError = (reason: any) => reason?.response?.data?.detail || reason?.message || "Erro ao carregar dados.";
 
-    const [ordersRes, partsRes, plansRes, tiresRes, vehiclesRes, summaryRes, inventoryReportRes, tireReportRes] = results;
+    const [
+      ordersRes,
+      partsRes,
+      plansRes,
+      tiresRes,
+      inspectionsRes,
+      vehiclesRes,
+      summaryRes,
+      inventoryReportRes,
+      tireReportRes,
+    ] = results;
 
     if (ordersRes.status === "fulfilled") setOrders(normalize<ServiceOrder>(ordersRes.value));
     else errors.push(getError(ordersRes.reason));
@@ -170,6 +201,9 @@ export const MaintenancePage = () => {
 
     if (tiresRes.status === "fulfilled") setTires(normalize<Tire>(tiresRes.value));
     else errors.push(getError(tiresRes.reason));
+
+    if (inspectionsRes.status === "fulfilled") setInspections(normalize<InspectionRow>(inspectionsRes.value));
+    else errors.push(getError(inspectionsRes.reason));
 
     if (vehiclesRes.status === "fulfilled") setVehicles(normalize<Vehicle>(vehiclesRes.value));
     else errors.push(getError(vehiclesRes.reason));
@@ -320,6 +354,9 @@ export const MaintenancePage = () => {
         </button>
         <button className={tab === "tires" ? "active" : ""} onClick={() => setTab("tires")}>
           <CircleDot size={16} /> Pneus
+        </button>
+        <button className={tab === "inspections" ? "active" : ""} onClick={() => setTab("inspections")}>
+          <CheckSquare size={16} /> Inspeções
         </button>
       </div>
 
@@ -776,6 +813,52 @@ export const MaintenancePage = () => {
                 <strong>Alertas:</strong> {tireAlerts.length} pneus próximos do fim da vida útil.
               </div>
             )}
+          </div>
+        </section>
+      )}
+
+      {tab === "inspections" && (
+        <section className="panel">
+          <div className="panel-header">
+            <div>
+              <h2>Inspeções diárias</h2>
+              <p className="muted">Checklist diário, avarias registradas e assinatura do motorista.</p>
+            </div>
+          </div>
+          <div className="table-wrapper">
+            <table className="maintenance-table">
+              <thead>
+                <tr>
+                  <th>Data</th>
+                  <th>Veículo</th>
+                  <th>Motorista</th>
+                  <th>Status</th>
+                  <th>Odômetro</th>
+                  <th>Avarias</th>
+                  <th>Assinatura</th>
+                </tr>
+              </thead>
+              <tbody>
+                {inspections.map((inspection) => (
+                  <tr key={inspection.id}>
+                    <td>{formatDate(inspection.inspection_date)}</td>
+                    <td>{inspection.vehicle_plate || inspection.vehicle}</td>
+                    <td>{inspection.driver_name || "—"}</td>
+                    <td>{CONDITION_LABEL[inspection.condition_status]}</td>
+                    <td>{inspection.odometer ? `${inspection.odometer} km` : "—"}</td>
+                    <td>{inspection.damage_photos?.length ? `${inspection.damage_photos.length} foto(s)` : "—"}</td>
+                    <td>
+                      {inspection.signature_image ? (
+                        <a href={inspection.signature_image} target="_blank" rel="noopener noreferrer">
+                          Ver
+                        </a>
+                      ) : "—"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {!inspections.length && <div className="empty">Nenhuma inspeção registrada.</div>}
           </div>
         </section>
       )}

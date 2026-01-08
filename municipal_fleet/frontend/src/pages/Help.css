@@ -1,0 +1,462 @@
+/* ==========================================
+   Help Page - Premium Documentation Layout
+   ========================================== */
+
+.help-page {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    padding: 0.5rem 0 3rem;
+    max-width: 900px;
+    margin: 0 auto;
+}
+
+/* Header Section */
+.help-header {
+    background: linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 41, 59, 0.9) 100%);
+    border: 1px solid rgba(148, 163, 184, 0.12);
+    border-radius: 20px;
+    padding: 1.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+
+.help-header-content {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.help-icon-wrapper {
+    width: 56px;
+    height: 56px;
+    border-radius: 14px;
+    background: linear-gradient(135deg, rgba(74, 222, 128, 0.2), rgba(34, 197, 94, 0.15));
+    border: 1px solid rgba(74, 222, 128, 0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--accent);
+    flex-shrink: 0;
+}
+
+.help-header-content h1 {
+    margin: 0;
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--text);
+}
+
+.help-header-content p {
+    margin: 0.25rem 0 0;
+    color: var(--muted);
+    font-size: 0.95rem;
+}
+
+/* Search */
+.help-search {
+    position: relative;
+}
+
+.help-search-icon {
+    position: absolute;
+    left: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--muted);
+    pointer-events: none;
+}
+
+.help-search input {
+    width: 100%;
+    padding: 0.85rem 1rem 0.85rem 2.75rem;
+    background: rgba(15, 23, 42, 0.6);
+    border: 1px solid rgba(148, 163, 184, 0.15);
+    border-radius: 12px;
+    color: var(--text);
+    font-size: 0.95rem;
+    transition: all 0.2s ease;
+}
+
+.help-search input:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(74, 222, 128, 0.12);
+}
+
+.help-search input::placeholder {
+    color: rgba(148, 163, 184, 0.5);
+}
+
+/* Actions */
+.help-actions {
+    display: flex;
+    gap: 0.75rem;
+}
+
+.help-action-btn {
+    padding: 0.5rem 1rem;
+    background: transparent;
+    border: 1px solid rgba(148, 163, 184, 0.2);
+    border-radius: 10px;
+    color: var(--muted);
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.help-action-btn:hover {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: var(--accent);
+    color: var(--text);
+}
+
+/* Content */
+.help-content {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+/* Empty State */
+.help-empty {
+    text-align: center;
+    padding: 3rem 2rem;
+    color: var(--muted);
+    background: rgba(15, 23, 42, 0.5);
+    border: 1px solid rgba(148, 163, 184, 0.1);
+    border-radius: 16px;
+}
+
+/* Section Cards */
+.help-section {
+    background: linear-gradient(135deg, rgba(15, 23, 42, 0.9) 0%, rgba(30, 41, 59, 0.85) 100%);
+    border: 1px solid rgba(148, 163, 184, 0.1);
+    border-radius: 16px;
+    overflow: hidden;
+    transition: all 0.3s ease;
+}
+
+.help-section:hover {
+    border-color: rgba(148, 163, 184, 0.2);
+}
+
+.help-section.expanded {
+    border-color: rgba(74, 222, 128, 0.25);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+}
+
+.help-section-header {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1.25rem;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    text-align: left;
+    color: var(--text);
+    transition: background 0.2s ease;
+}
+
+.help-section-header:hover {
+    background: rgba(255, 255, 255, 0.03);
+}
+
+.help-section-icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    background: rgba(74, 222, 128, 0.1);
+    border: 1px solid rgba(74, 222, 128, 0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--accent);
+    flex-shrink: 0;
+    transition: all 0.2s ease;
+}
+
+.help-section.expanded .help-section-icon {
+    background: rgba(74, 222, 128, 0.2);
+    border-color: rgba(74, 222, 128, 0.4);
+}
+
+.help-section-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.help-section-info h2 {
+    margin: 0;
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: var(--text);
+}
+
+.help-section-info p {
+    margin: 0.2rem 0 0;
+    font-size: 0.85rem;
+    color: var(--muted);
+}
+
+.help-section-toggle {
+    color: var(--muted);
+    transition: transform 0.2s ease;
+}
+
+.help-section.expanded .help-section-toggle {
+    color: var(--accent);
+}
+
+/* Section Content */
+.help-section-content {
+    padding: 0 1.25rem 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    animation: fadeIn 0.3s ease-out;
+}
+
+/* Steps */
+.help-step {
+    display: flex;
+    gap: 1rem;
+    padding: 1rem;
+    background: rgba(15, 23, 42, 0.5);
+    border: 1px solid rgba(148, 163, 184, 0.08);
+    border-radius: 14px;
+    transition: all 0.2s ease;
+}
+
+.help-step:hover {
+    background: rgba(15, 23, 42, 0.7);
+    border-color: rgba(148, 163, 184, 0.15);
+}
+
+.help-step-number {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent), #22c55e);
+    color: #0f172a;
+    font-weight: 700;
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.help-step-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.help-step-content h3 {
+    margin: 0 0 0.5rem;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text);
+}
+
+.help-step-content p {
+    margin: 0;
+    font-size: 0.9rem;
+    color: var(--muted);
+    line-height: 1.6;
+}
+
+/* Tips */
+.help-tips {
+    margin-top: 0.75rem;
+    padding: 0.75rem 1rem;
+    background: rgba(74, 222, 128, 0.08);
+    border: 1px solid rgba(74, 222, 128, 0.15);
+    border-radius: 10px;
+}
+
+.help-tips-label {
+    display: block;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--accent);
+    margin-bottom: 0.5rem;
+}
+
+.help-tips ul {
+    margin: 0;
+    padding-left: 1.25rem;
+}
+
+.help-tips li {
+    font-size: 0.85rem;
+    color: rgba(148, 163, 184, 0.9);
+    line-height: 1.5;
+    margin-bottom: 0.25rem;
+}
+
+.help-tips li:last-child {
+    margin-bottom: 0;
+}
+
+/* Footer */
+.help-footer {
+    text-align: center;
+    padding: 1.5rem;
+    color: var(--muted);
+    font-size: 0.9rem;
+    border-top: 1px solid rgba(148, 163, 184, 0.1);
+    margin-top: 1rem;
+}
+
+/* ==========================================
+   Responsive
+   ========================================== */
+
+@media (min-width: 768px) {
+    .help-header {
+        flex-direction: row;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    .help-header-content {
+        flex: 1;
+    }
+
+    .help-search {
+        flex: 0 0 280px;
+    }
+
+    .help-actions {
+        flex: 0 0 auto;
+    }
+}
+
+@media (max-width: 767px) {
+    .help-page {
+        padding: 0 0.5rem 2rem;
+    }
+
+    .help-header {
+        padding: 1.25rem;
+        border-radius: 16px;
+    }
+
+    .help-icon-wrapper {
+        width: 48px;
+        height: 48px;
+    }
+
+    .help-header-content h1 {
+        font-size: 1.25rem;
+    }
+
+    .help-section-header {
+        padding: 1rem;
+    }
+
+    .help-section-icon {
+        width: 40px;
+        height: 40px;
+    }
+
+    .help-step {
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    .help-step-number {
+        width: 28px;
+        height: 28px;
+        font-size: 0.85rem;
+    }
+
+    .help-action-btn {
+        padding: 0.45rem 0.75rem;
+        font-size: 0.8rem;
+    }
+}
+
+/* ==========================================
+   Animation
+   ========================================== */
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-8px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.help-section {
+    animation: fadeIn 0.3s ease-out;
+    animation-fill-mode: both;
+}
+
+.help-section:nth-child(1) {
+    animation-delay: 0.05s;
+}
+
+.help-section:nth-child(2) {
+    animation-delay: 0.1s;
+}
+
+.help-section:nth-child(3) {
+    animation-delay: 0.15s;
+}
+
+.help-section:nth-child(4) {
+    animation-delay: 0.2s;
+}
+
+.help-section:nth-child(5) {
+    animation-delay: 0.25s;
+}
+
+.help-section:nth-child(6) {
+    animation-delay: 0.3s;
+}
+
+.help-section:nth-child(7) {
+    animation-delay: 0.35s;
+}
+
+.help-section:nth-child(8) {
+    animation-delay: 0.4s;
+}
+
+.help-section:nth-child(9) {
+    animation-delay: 0.45s;
+}
+
+.help-section:nth-child(10) {
+    animation-delay: 0.5s;
+}
+
+.help-section:nth-child(11) {
+    animation-delay: 0.55s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+    .help-section,
+    .help-section-content {
+        animation: none;
+    }
+
+    .help-section,
+    .help-step,
+    .help-action-btn {
+        transition: none;
+    }
+}

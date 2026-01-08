@@ -1,0 +1,98 @@
+.notifications-page .table {
+  overflow-x: auto;
+}
+
+.notifications-kpi {
+  display: inline-flex;
+  gap: 0.5rem;
+  align-items: center;
+  padding: 0.5rem 0.75rem;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: rgba(15, 23, 36, 0.5);
+  font-size: 0.85rem;
+  color: var(--text);
+}
+
+.notifications-toolbar {
+  display: grid;
+  gap: 0.75rem;
+  padding: 1rem;
+}
+
+.notifications-toolbar .toolbar-title {
+  display: inline-flex;
+  gap: 0.5rem;
+  align-items: center;
+  font-weight: 600;
+}
+
+.notifications-toolbar .toolbar-fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.notifications-toolbar select {
+  padding: 0.5rem 0.75rem;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: rgba(15, 23, 36, 0.7);
+  color: var(--text);
+}
+
+.notifications-toolbar .toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+.notifications-empty {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  padding: 1rem;
+  border: 1px dashed var(--border);
+}
+
+.notifications-empty strong {
+  display: block;
+}
+
+.status-pill {
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+}
+
+.status-pill.unread {
+  background: rgba(59, 130, 246, 0.15);
+  color: #60a5fa;
+}
+
+.status-pill.read {
+  background: rgba(148, 163, 184, 0.15);
+  color: #94a3b8;
+}
+
+.message {
+  display: inline-block;
+  max-width: 420px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (max-width: 768px) {
+  .notifications-toolbar .toolbar-fields {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .message {
+    max-width: 240px;
+  }
+}
