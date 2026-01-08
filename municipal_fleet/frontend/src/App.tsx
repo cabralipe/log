@@ -18,6 +18,7 @@ import { PublicFormPage } from "./pages/PublicForm";
 import { FormSubmissionsPage } from "./pages/FormSubmissions";
 import { StudentCardsPage } from "./pages/StudentCards";
 import { FormTemplatesPage } from "./pages/FormTemplates";
+import { LiveTrackingPage } from "./pages/LiveTracking";
 import { Layout } from "./components/Layout";
 import { CardValidatorPage } from "./pages/CardValidator";
 import { TransportPlanningPage } from "./pages/TransportPlanning";
@@ -54,6 +55,7 @@ const AppRoutes = () => (
       <Route path="/rental-periods" element={<RentalPeriodsPage />} />
       <Route path="/fuel-stations" element={<FuelStationsPage />} />
       <Route path="/trips" element={<TripsPage />} />
+      <Route path="/live-tracking" element={<LiveTrackingPage />} />
       <Route path="/free-trips" element={<FreeTripsPage />} />
       <Route path="/scheduling" element={<SchedulingPage />} />
       <Route path="/reports" element={<ReportsPage />} />

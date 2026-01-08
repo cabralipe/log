@@ -2,7 +2,7 @@ from datetime import datetime
 from django.db import transaction
 from django.utils import timezone
 from rest_framework import serializers
-from trips.models import Trip, TripIncident, MonthlyOdometer, FreeTrip, FreeTripIncident
+from trips.models import Trip, TripIncident, MonthlyOdometer, FreeTrip, FreeTripIncident, TripGpsPing
 from contracts.models import Contract
 from fleet.models import Vehicle
 from drivers.models import Driver
@@ -229,6 +229,13 @@ class TripIncidentSerializer(serializers.ModelSerializer):
         model = TripIncident
         fields = ["id", "trip", "driver", "municipality", "description", "created_at"]
         read_only_fields = ["id", "driver", "municipality", "created_at"]
+
+
+class TripGpsPingSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TripGpsPing
+        fields = ["id", "trip", "driver", "lat", "lng", "accuracy", "speed", "recorded_at", "created_at"]
+        read_only_fields = ["id", "driver", "created_at"]
 
 
 class FreeTripSerializer(serializers.ModelSerializer):

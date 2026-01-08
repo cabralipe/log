@@ -26,6 +26,7 @@ INSTALLED_APPS = [
     "rest_framework_simplejwt.token_blacklist",
     "corsheaders",
     "drf_spectacular",
+    "channels",
     # Register project-level management commands (e.g., seed_demo_users).
     "municipal_fleet",
     "accounts.apps.AccountsConfig",
@@ -150,6 +151,22 @@ CORS_ALLOW_HEADERS = list(default_headers) + [
     "X-Driver-Token",
     "x-driver-token",
 ]
+
+if env_bool("USE_IN_MEMORY_CHANNELS"):
+    CHANNEL_LAYERS = {
+        "default": {
+            "BACKEND": "channels.layers.InMemoryChannelLayer",
+        }
+    }
+else:
+    CHANNEL_LAYERS = {
+        "default": {
+            "BACKEND": "channels_redis.core.RedisChannelLayer",
+            "CONFIG": {
+                "hosts": [os.environ.get("REDIS_URL", "redis://127.0.0.1:6379/0")],
+            },
+        }
+    }
 
 SPECTACULAR_SETTINGS = {
     "TITLE": "Municipal Fleet API",

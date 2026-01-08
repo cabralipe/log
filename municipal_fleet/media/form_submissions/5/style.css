@@ -1,0 +1,589 @@
+/*
+ * MATERIAL DESIGN GUIDE THEME
+ * Reformulated for a clean, modern, and teacher-focused experience.
+ */
+
+ :root {
+    /* Color Palette (Light Theme) */
+    --color-primary: #388e3c; /* Green 700 */
+    --color-primary-dark: #2e7d32; /* Green 800 */
+    --color-secondary: #ffab40; /* Amber A400 */
+    --color-surface: #ffffff;
+    --color-background: #f5f5f5;
+    --color-on-primary: #ffffff;
+    --color-on-surface: #212121;
+    --color-on-surface-light: #616161;
+    --color-border: #e0e0e0;
+
+    /* Typography */
+    --font-family: 'Roboto', sans-serif;
+    
+    /* Elevation (Shadows) */
+    --shadow-1dp: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
+    --shadow-2dp: 0 3px 6px rgba(0,0,0,0.16), 0 3px 6px rgba(0,0,0,0.23);
+    --shadow-4dp: 0 10px 20px rgba(0,0,0,0.19), 0 6px 6px rgba(0,0,0,0.23);
+
+    /* Transitions */
+    --transition-speed: 0.3s;
+}
+
+/* Dark Mode Palette */
+body.dark-mode {
+    --color-primary: #66bb6a; /* Green 400 */
+    --color-primary-dark: #4caf50; /* Green 500 */
+    --color-secondary: #ffc107; /* Amber 500 */
+    --color-surface: #1e1e1e;
+    --color-background: #121212;
+    --color-on-primary: #000000;
+    --color-on-surface: #e0e0e0;
+    --color-on-surface-light: #bdbdbd;
+    --color-border: #424242;
+}
+
+/* --- BASE & LAYOUT --- */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+html {
+    scroll-behavior: smooth;
+}
+
+body {
+    font-family: var(--font-family);
+    background-color: var(--color-background);
+    color: var(--color-on-surface);
+    line-height: 1.6;
+    transition: background-color var(--transition-speed), color var(--transition-speed);
+}
+
+.container {
+    width: 90%;
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 2rem 0;
+}
+
+.content-section {
+    padding-top: 60px; /* Offset for nav */
+    margin-top: -60px;
+}
+
+.section-main-title {
+    font-size: 2rem;
+    font-weight: 500;
+    color: var(--color-primary);
+    margin-bottom: 1.5rem;
+    text-align: center;
+}
+
+/* --- HEADER & NAVIGATION --- */
+.top-app-bar {
+    background: var(--color-primary);
+    color: var(--color-on-primary);
+    padding: 1.5rem 1rem;
+    text-align: center;
+    box-shadow: var(--shadow-2dp);
+}
+.header-icon { font-size: 2.5rem; }
+.header-title { font-size: 2rem; font-weight: 500; }
+.header-subtitle { font-size: 1rem; font-weight: 300; opacity: 0.9; }
+
+.main-nav {
+    background-color: var(--color-surface);
+    box-shadow: var(--shadow-1dp);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+.main-nav ul {
+    display: flex;
+    justify-content: center;
+    list-style: none;
+    flex-wrap: wrap;
+}
+.main-nav a {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 1rem 1.5rem;
+    text-decoration: none;
+    color: var(--color-on-surface-light);
+    font-weight: 500;
+    text-transform: uppercase;
+    font-size: 0.9rem;
+    transition: color var(--transition-speed), border-bottom-color var(--transition-speed);
+    border-bottom: 3px solid transparent;
+}
+.main-nav a:hover {
+    color: var(--color-primary);
+    border-bottom-color: var(--color-primary);
+}
+
+/* --- CARD COMPONENT --- */
+.card {
+    background-color: var(--color-surface);
+    border-radius: 8px;
+    box-shadow: var(--shadow-1dp);
+    padding: 2rem;
+    margin-bottom: 2rem;
+    transition: box-shadow var(--transition-speed);
+}
+.card:hover {
+    box-shadow: var(--shadow-2dp);
+}
+.card-title {
+    font-size: 1.5rem;
+    font-weight: 500;
+    color: var(--color-primary-dark);
+    margin-bottom: 1rem;
+}
+.subsection-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin-top: 1.5rem;
+    margin-bottom: 1rem;
+    color: var(--color-on-surface);
+}
+
+/* --- INTERACTIVE COMPONENTS --- */
+.md-button {
+    background-color: var(--color-primary);
+    color: var(--color-on-primary);
+    border: none;
+    border-radius: 4px;
+    padding: 0.75rem 1.5rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    cursor: pointer;
+    box-shadow: var(--shadow-1dp);
+    transition: background-color var(--transition-speed), box-shadow var(--transition-speed);
+}
+.md-button:hover {
+    background-color: var(--color-primary-dark);
+    box-shadow: var(--shadow-2dp);
+}
+
+.fab {
+    position: fixed;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background-color: var(--color-secondary);
+    color: #000;
+    border: none;
+    box-shadow: var(--shadow-2dp);
+    cursor: pointer;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    transition: transform var(--transition-speed), box-shadow var(--transition-speed);
+}
+.fab:hover {
+    transform: scale(1.05);
+    box-shadow: var(--shadow-4dp);
+}
+#back-to-top {
+    bottom: 2rem;
+    right: 2rem;
+}
+#theme-switcher {
+    display: flex;
+    top: 90px;
+    right: 2rem;
+    background-color: var(--color-primary);
+    color: var(--color-on-primary);
+}
+
+/* Expansion Panel (Accordion) */
+.expansion-panel {
+    border-top: 1px solid var(--color-border);
+}
+.expansion-header {
+    width: 100%;
+    padding: 1rem 0;
+    background: none;
+    border: none;
+    text-align: left;
+    font-size: 1.1rem;
+    font-weight: 500;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: var(--color-on-surface);
+}
+.expansion-header .material-icons {
+    transition: transform var(--transition-speed);
+}
+.expansion-panel.active .expansion-header .material-icons {
+    transform: rotate(180deg);
+}
+.expansion-content {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.4s ease-out, padding var(--transition-speed);
+    color: var(--color-on-surface-light);
+}
+.expansion-content ul, .expansion-content ol {
+    padding-left: 20px;
+}
+.expansion-content h4 {
+    color: var(--color-primary-dark);
+    margin-top: 0.5rem;
+    margin-bottom: 0.5rem;
+}
+
+/* --- SPECIFIC SECTION STYLES --- */
+/* Stats */
+.stats-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1.5rem;
+}
+.stat-card {
+    background: var(--color-surface);
+    padding: 1.5rem;
+    text-align: center;
+    border-radius: 8px;
+    box-shadow: var(--shadow-1dp);
+}
+.stat-number {
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: var(--color-primary);
+    display: block;
+}
+.stat-label {
+    font-size: 1rem;
+    color: var(--color-on-surface-light);
+}
+
+/* Student Action Groups */
+.action-group {
+    background-color: var(--color-background);
+    border-left: 4px solid var(--color-primary);
+    padding: 1rem;
+    margin-bottom: 1rem;
+    border-radius: 0 4px 4px 0;
+}
+.action-group strong {
+    color: var(--color-primary-dark);
+}
+
+/* Gallery */
+.image-gallery {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-top: 1rem;
+}
+.image-gallery img {
+    width: 100%;
+    height: 150px;
+    object-fit: cover;
+    border-radius: 8px;
+    cursor: pointer;
+    box-shadow: var(--shadow-1dp);
+    transition: transform var(--transition-speed), box-shadow var(--transition-speed);
+}
+.image-gallery img:hover {
+    transform: scale(1.05);
+    box-shadow: var(--shadow-2dp);
+}
+
+/* Modal */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1001;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    align-items: center;
+    justify-content: center;
+}
+.modal.show { display: flex; }
+.modal-content {
+    max-width: 90%;
+    max-height: 90%;
+    border-radius: 8px;
+}
+.modal-close {
+    position: absolute;
+    top: 1rem;
+    right: 2rem;
+    color: white;
+    font-size: 2.5rem;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+/* Table Styles */
+.table-container {
+    overflow-x: auto;
+    margin-top: 1rem;
+}
+table {
+    width: 100%;
+    border-collapse: collapse;
+    background-color: var(--color-background);
+}
+th, td {
+    padding: 0.75rem 1rem;
+    text-align: left;
+    border-bottom: 1px solid var(--color-border);
+}
+th {
+    background-color: var(--color-primary);
+    color: var(--color-on-primary);
+    font-weight: 500;
+}
+
+/* Forms */
+.form-group { margin-bottom: 1rem; }
+.form-group input, .form-group textarea, .form-group select {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid var(--color-border);
+    border-radius: 4px;
+    background-color: var(--color-background);
+    color: var(--color-on-surface);
+    font-family: var(--font-family);
+}
+#form-status { margin-top: 1rem; font-weight: 500; }
+.credits { margin-top: 2rem; font-size: 0.8rem; color: var(--color-on-surface-light); border-top: 1px solid var(--color-border); padding-top: 1rem;}
+
+/* Footer */
+.main-footer {
+    background: var(--color-primary-dark);
+    color: var(--color-on-primary);
+    text-align: center;
+    padding: 2rem 1rem;
+    margin-top: 2rem;
+}
+
+/* Highlight Box */
+.highlight-box {
+    background: var(--color-background);
+    border-left: 4px solid var(--color-secondary);
+    padding: 1rem;
+    margin: 1rem 0;
+    border-radius: 0 4px 4px 0;
+}
+
+/* --- RESPONSIVENESS --- */
+@media (max-width: 768px) {
+    .main-nav ul { justify-content: space-around; }
+    .main-nav a { padding: 1rem; }
+    #theme-switcher { top: 1rem; right: 1rem; }
+    #back-to-top { bottom: 1rem; right: 1rem; }
+}
+
+/* --- ANIMATIONS --- */
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* --- ESTILOS DO JOGO MESTRE DA COMPOSTAGEM --- */
+#compost-game-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2rem;
+    margin-top: 1.5rem;
+    padding: 1rem;
+    background-color: var(--color-background);
+    border-radius: 8px;
+}
+
+#game-items-area {
+    flex: 1;
+    min-width: 200px;
+    text-align: center;
+}
+
+#item-container {
+    padding: 2rem 1rem;
+    min-height: 100px;
+}
+
+.game-item {
+    background-color: var(--color-surface);
+    color: var(--color-on-surface);
+    padding: 1rem 1.5rem;
+    border-radius: 8px;
+    box-shadow: var(--shadow-1dp);
+    cursor: grab;
+    user-select: none;
+    font-weight: 500;
+    transition: background-color 0.2s;
+    display: inline-block;
+}
+
+.game-item.dragging {
+    opacity: 0.5;
+    cursor: grabbing;
+}
+
+#bins-area {
+    flex: 2;
+    display: flex;
+    gap: 1rem;
+}
+
+.bin {
+    flex: 1;
+    padding: 2rem 1rem;
+    border: 3px dashed var(--color-border);
+    border-radius: 8px;
+    text-align: center;
+    transition: background-color 0.3s, border-color 0.3s;
+}
+
+.bin .material-icons {
+    font-size: 3rem;
+    margin-bottom: 0.5rem;
+}
+
+#compost-bin {
+    color: #43a047; /* Verde */
+}
+
+#trash-bin {
+    color: #757575; /* Cinza */
+}
+
+/* Efeitos de arrastar sobre a caixa */
+.bin.drag-over {
+    border-color: var(--color-secondary);
+    background-color: rgba(255, 171, 64, 0.2);
+}
+
+#game-feedback-area {
+    margin-top: 1.5rem;
+    text-align: center;
+}
+
+#game-status {
+    font-weight: bold;
+    min-height: 24px;
+    margin-bottom: 0.5rem;
+}
+
+#game-status.correct {
+    color: #2e7d32;
+}
+
+#game-status.incorrect {
+    color: #c62828;
+}
+
+#game-score {
+    font-size: 1.1rem;
+    margin-bottom: 1rem;
+}
+
+/* --- ESTILOS DO JOGO GUARDIÕES DA HORTA --- */
+#garden-game-board {
+    position: relative;
+    width: 100%;
+    height: 400px;
+    background-color: #dcedc8; /* Verde claro de fundo, simulando a horta */
+    border: 2px solid var(--color-primary-dark);
+    border-radius: 8px;
+    margin-top: 1.5rem;
+    overflow: hidden; /* Garante que os insetos não saiam do tabuleiro */
+}
+
+/* Interface sobreposta ao tabuleiro */
+#garden-game-ui {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    padding: 10px;
+    background: rgba(0, 0, 0, 0.2);
+    color: white;
+    display: flex;
+    justify-content: space-between;
+    font-weight: 500;
+    z-index: 10;
+}
+
+/* Estilo base para os "insetos" */
+.bug {
+    position: absolute;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: transform 0.2s ease;
+    animation: pop-up 0.5s ease;
+}
+
+.bug:hover {
+    transform: scale(1.1);
+}
+
+/* Estilo para as PRAGAS (para clicar) */
+.pest {
+    background-color: #5d4037; /* Marrom escuro para pulgões */
+    border: 2px solid #3e2723;
+}
+
+/* Estilo para os AMIGOS (para não clicar) */
+.friend {
+    background-color: #d32f2f; /* Vermelho para joaninhas */
+    border: 2px solid #b71c1c;
+}
+
+/* Animação de aparecer */
+@keyframes pop-up {
+    from { transform: scale(0); }
+    to { transform: scale(1); }
+}
+
+/* Botão de iniciar centralizado */
+#start-garden-game {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 20;
+}
+
+/* Mensagem de fim de jogo */
+#garden-game-over-message {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: rgba(0, 0, 0, 0.7);
+    color: white;
+    padding: 2rem;
+    border-radius: 8px;
+    font-size: 1.5rem;
+    font-weight: bold;
+    text-align: center;
+    z-index: 20;
+}
+
+/* Estilo para vídeos na galeria */
+.image-gallery video {
+    width: 100%;
+    height: auto; /* Mantém a proporção correta do vídeo */
+    border-radius: 8px;
+    box-shadow: var(--shadow-1dp);
+    background-color: #000; /* Fundo preto para o player */
+}

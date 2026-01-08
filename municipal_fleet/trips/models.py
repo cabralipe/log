@@ -50,6 +50,27 @@ class Trip(models.Model):
         return f"{self.origin} -> {self.destination} ({self.departure_datetime.date()})"
 
 
+class TripGpsPing(models.Model):
+    trip = models.ForeignKey(Trip, on_delete=models.CASCADE, related_name="gps_pings")
+    driver = models.ForeignKey("drivers.Driver", on_delete=models.CASCADE, related_name="gps_pings")
+    lat = models.DecimalField(max_digits=9, decimal_places=6)
+    lng = models.DecimalField(max_digits=9, decimal_places=6)
+    accuracy = models.FloatField(null=True, blank=True)
+    speed = models.FloatField(null=True, blank=True)
+    recorded_at = models.DateTimeField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-recorded_at", "-id"]
+        indexes = [
+            models.Index(fields=["trip", "recorded_at"]),
+            models.Index(fields=["driver", "recorded_at"]),
+        ]
+
+    def __str__(self):
+        return f"GPS {self.driver_id} @ {self.recorded_at:%Y-%m-%d %H:%M:%S}"
+
+
 class TripIncident(models.Model):
     municipality = models.ForeignKey("tenants.Municipality", on_delete=models.CASCADE, related_name="trip_incidents")
     trip = models.ForeignKey(Trip, on_delete=models.CASCADE, related_name="incidents")

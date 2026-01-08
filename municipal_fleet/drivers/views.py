@@ -2,6 +2,8 @@ from datetime import timedelta
 from rest_framework import viewsets, permissions, filters, views, response, exceptions, parsers, status
 from rest_framework.exceptions import ValidationError
 from django.utils import timezone
+from asgiref.sync import async_to_sync
+from channels.layers import get_channel_layer
 from drivers.models import Driver
 from drivers.serializers import DriverSerializer
 from tenants.mixins import MunicipalityQuerysetMixin
@@ -10,7 +12,8 @@ from drivers.portal import generate_portal_token, resolve_portal_token
 from fleet.models import FuelLog, FuelStation, Vehicle
 from fleet.serializers import FuelLogSerializer
 from trips.models import Trip, TripIncident, FreeTrip, FreeTripIncident
-from trips.serializers import TripSerializer, TripIncidentSerializer, FreeTripSerializer, FreeTripIncidentSerializer
+from trips.serializers import TripSerializer, TripIncidentSerializer, FreeTripSerializer, FreeTripIncidentSerializer, TripGpsPingSerializer
+from trips.gps import resolve_status, STATUS_LABELS
 from transport_planning.models import Assignment
 from scheduling.models import DriverAvailabilityBlock
 
@@ -196,6 +199,57 @@ class DriverPortalTripCompleteView(DriverPortalAuthMixin, views.APIView):
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return response.Response(serializer.data)
+
+
+class DriverPortalGpsPingView(DriverPortalAuthMixin, views.APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        driver = self.get_portal_driver(request)
+        trip_id = request.data.get("trip_id")
+        trips_qs = driver.trips.filter(status=Trip.Status.IN_PROGRESS).select_related("vehicle")
+        if trip_id:
+            trips_qs = trips_qs.filter(id=trip_id)
+        trip = trips_qs.first()
+        if not trip:
+            return response.Response({"detail": "Viagem ativa não encontrada."}, status=status.HTTP_404_NOT_FOUND)
+        payload = {
+            "trip": trip.id,
+            "lat": request.data.get("lat"),
+            "lng": request.data.get("lng"),
+            "accuracy": request.data.get("accuracy"),
+            "speed": request.data.get("speed"),
+            "recorded_at": request.data.get("recorded_at") or timezone.now(),
+        }
+        serializer = TripGpsPingSerializer(data=payload)
+        serializer.is_valid(raise_exception=True)
+        ping = serializer.save(driver=driver)
+
+        channel_layer = get_channel_layer()
+        if channel_layer:
+            status_code = resolve_status(ping, now=timezone.now())
+            async_to_sync(channel_layer.group_send)(
+                "operations_map",
+                {
+                    "type": "gps.ping",
+                    "data": {
+                        "trip_id": trip.id,
+                        "driver_id": driver.id,
+                        "driver_name": driver.name,
+                        "vehicle_id": trip.vehicle_id,
+                        "vehicle_plate": trip.vehicle.license_plate,
+                        "status": status_code,
+                        "status_label": STATUS_LABELS.get(status_code, status_code),
+                        "lat": float(ping.lat),
+                        "lng": float(ping.lng),
+                        "accuracy": ping.accuracy,
+                        "speed": ping.speed,
+                        "recorded_at": ping.recorded_at.isoformat(),
+                    },
+                },
+            )
+
+        return response.Response(TripGpsPingSerializer(ping).data, status=status.HTTP_201_CREATED)
 
 
 class DriverPortalTripIncidentView(DriverPortalAuthMixin, views.APIView):

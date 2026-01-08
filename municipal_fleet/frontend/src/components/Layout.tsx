@@ -1,4 +1,4 @@
-import { Link, NavLink, useNavigate } from "react-router-dom";
+import { Link, NavLink, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import { useSidebar } from "../stores/sidebar";
 import {
@@ -9,6 +9,7 @@ import {
   Wrench,
   Users,
   MapPin,
+  Map,
   BarChart3,
   Building2,
   UserCircle,
@@ -23,14 +24,19 @@ import {
   Shuffle,
   CalendarClock,
   Send,
+  LogOut,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import "./Layout.css";
 
 export const Layout = ({ children }: { children: React.ReactNode }) => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const { collapsed, toggle, setCollapsed } = useSidebar();
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   const handleLogout = async () => {
     await logout();
@@ -39,14 +45,10 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
 
   const isAdmin = user?.role === "SUPERADMIN" || user?.role === "ADMIN_MUNICIPALITY";
 
-  // Auto-collapse on small screens
+  // Close mobile sidebar on route change
   useEffect(() => {
-    const media = window.matchMedia("(max-width: 768px)");
-    const handler = () => setCollapsed(media.matches);
-    media.addEventListener("change", handler);
-    handler();
-    return () => media.removeEventListener("change", handler);
-  }, [setCollapsed]);
+    setMobileOpen(false);
+  }, [location.pathname]);
 
   const canValidateCard = user && user.role !== "VIEWER";
 
@@ -59,16 +61,17 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
     { to: "/rental-periods", label: "Locações", icon: Clock3 },
     ...(isAdmin ? [{ to: "/fuel-stations", label: "Postos", icon: Fuel }] : []),
     { to: "/trips", label: "Viagens", icon: MapPin },
+    { to: "/live-tracking", label: "Rastreamento", icon: Map },
     { to: "/free-trips", label: "Viagens livres", icon: Shuffle },
     { to: "/scheduling", label: "Agenda de motoristas", icon: CalendarClock },
     { to: "/transport-planning", label: "Planejamento logístico", icon: RouteIcon },
     { to: "/transport-planning/eligibility", label: "Elegibilidade", icon: ShieldCheck },
     ...(isAdmin
       ? [
-          { to: "/form-templates", label: "Formulários", icon: ClipboardList },
-          { to: "/form-submissions", label: "Submissões", icon: Inbox },
-          { to: "/transport-requests", label: "Solicitação de transporte", icon: Send },
-        ]
+        { to: "/form-templates", label: "Formulários", icon: ClipboardList },
+        { to: "/form-submissions", label: "Submissões", icon: Inbox },
+        { to: "/transport-requests", label: "Solicitação de transporte", icon: Send },
+      ]
       : []),
     ...(canValidateCard ? [{ to: "/card-validator", label: "Validar carteirinha", icon: BadgeCheck }] : []),
     { to: "/reports", label: "Relatórios", icon: BarChart3 },
@@ -83,17 +86,35 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
 
   return (
     <div className="layout">
-      <aside className={collapsed ? "collapsed" : ""}>
+      {/* Mobile Overlay */}
+      <div
+        className={`sidebar-overlay ${mobileOpen ? "visible" : ""}`}
+        onClick={() => setMobileOpen(false)}
+        aria-hidden="true"
+      />
+
+      {/* Mobile Header */}
+      <div className="mobile-header">
+        <button
+          className="menu-btn"
+          onClick={() => setMobileOpen(!mobileOpen)}
+          aria-label="Menu"
+        >
+          {mobileOpen ? <X size={24} /> : <Menu size={24} />}
+        </button>
+      </div>
+
+      <aside className={`${collapsed ? "collapsed" : ""} ${mobileOpen ? "mobile-open" : ""}`}>
+
+        {/* Desktop Toggle */}
         <button
           className="toggle"
           onClick={toggle}
           aria-label={collapsed ? "Expandir menu" : "Recolher menu"}
-          aria-expanded={!collapsed}
-          aria-controls="sidebar-nav"
         >
-          {collapsed ? <Menu size={24} /> : <X size={24} />}
+          {collapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
         </button>
-        <div className="logo">Frotas</div>
+
         <nav id="sidebar-nav">
           {navItems.map((item) => (
             <NavLink
@@ -101,10 +122,10 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
               to={item.to}
               className={({ isActive }) => (isActive ? "active" : "")}
               aria-label={item.label}
-              title={item.label}
+              title={collapsed ? item.label : ""}
             >
-              <item.icon size={24} />
-              <span className="label" aria-hidden={collapsed}>{item.label}</span>
+              <item.icon size={22} />
+              <span className="label">{item.label}</span>
             </NavLink>
           ))}
           {adminItems.length > 0 && <div className="divider" />}
@@ -114,16 +135,19 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
               to={item.to}
               className={({ isActive }) => (isActive ? "active" : "")}
               aria-label={item.label}
-              title={item.label}
+              title={collapsed ? item.label : ""}
             >
-              <item.icon size={24} />
-              <span className="label" aria-hidden={collapsed}>{item.label}</span>
+              <item.icon size={22} />
+              <span className="label">{item.label}</span>
             </NavLink>
           ))}
         </nav>
         <div className="user">
           <span>{user?.email}</span>
-          <button onClick={handleLogout}>Sair</button>
+          <button onClick={handleLogout} title="Sair">
+            <LogOut size={18} />
+            <span className="label">Sair</span>
+          </button>
         </div>
       </aside>
       <main>
@@ -133,7 +157,9 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
           </Link>
           <div className="badge">{user?.role}</div>
         </header>
-        {children}
+        <div className="animate-fade-in">
+          {children}
+        </div>
       </main>
     </div>
   );

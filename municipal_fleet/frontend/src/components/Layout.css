@@ -1,6 +1,7 @@
 :root {
-  --sidebar-width: 240px;
-  --sidebar-collapsed-width: 72px;
+  --sidebar-width: 260px;
+  --sidebar-collapsed-width: 80px;
+  --header-height: 70px;
   --transition-duration: 300ms;
   --border: #2a3342;
   --muted: #94a3b8;
@@ -10,255 +11,322 @@
 }
 
 .layout {
-  display: grid;
-  grid-template-columns: var(--sidebar-width) 1fr;
+  display: flex;
   min-height: 100vh;
-  will-change: grid-template-columns;
-  transition: grid-template-columns var(--transition-duration) ease;
+  background-color: var(--bg);
+}
+
+/* Hide mobile header by default (shown on small screens via media query) */
+.mobile-header {
+  display: none;
+}
+
+/* Overlay for mobile */
+.sidebar-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  z-index: 40;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--transition-duration) ease;
+}
+
+.sidebar-overlay.visible {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 aside {
   background: linear-gradient(180deg, #0f1724 0%, #0b111a 100%);
   border-right: 1px solid var(--border);
-  padding: 1.5rem;
+  padding: 1rem 1rem 1.5rem;
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 1rem;
   width: var(--sidebar-width);
-  will-change: width;
-  transition: width var(--transition-duration) ease;
-  position: relative;
-  overflow: hidden;
+  height: 100vh;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  transition: width var(--transition-duration) cubic-bezier(0.4, 0, 0.2, 1);
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* Custom scrollbar for sidebar */
+aside::-webkit-scrollbar {
+  width: 4px;
+}
+
+aside::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
 }
 
 aside.collapsed {
   width: var(--sidebar-collapsed-width);
-  padding: 1rem;
+  padding: 1.5rem 1rem;
 }
 
 .toggle {
   display: none;
+  /* Hidden on desktop by default, shown via media query */
   position: absolute;
-  top: 1rem;
+  top: 1.25rem;
   right: 1rem;
   background: transparent;
-  border: none;
+  border: 1px solid rgba(255, 255, 255, 0.1);
   color: var(--muted);
   cursor: pointer;
-  padding: 0.25rem;
-  border-radius: 6px;
-  transition: color 0.2s ease, background 0.2s ease;
+  padding: 0.4rem;
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  z-index: 60;
 }
 
 .toggle:hover {
   color: var(--text);
   background: rgba(255, 255, 255, 0.05);
-}
-
-.logo {
-  font-weight: 700;
-  font-size: 1.2rem;
-  letter-spacing: 0.03em;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  will-change: opacity;
-  transition: opacity var(--transition-duration) ease;
-}
-
-aside.collapsed .logo {
-  opacity: 0;
-  pointer-events: none;
+  border-color: rgba(255, 255, 255, 0.2);
 }
 
 nav {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 0.5rem;
+  flex: 1;
 }
 
 nav a {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  padding: 0.75rem 1rem;
-  border-radius: 10px;
+  gap: 1rem;
+  padding: 0.85rem 1rem;
+  border-radius: 12px;
   color: var(--muted);
   border: 1px solid transparent;
-  transition: all 0.2s ease;
-  will-change: transform, background, color;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  white-space: nowrap;
+  overflow: hidden;
+  position: relative;
+}
+
+nav a svg {
+  flex-shrink: 0;
+  color: currentColor;
+  transition: color 0.2s ease;
+}
+
+nav a:hover {
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--text);
+  transform: translateX(4px);
+}
+
+nav a.active {
+  background: linear-gradient(90deg, rgba(74, 222, 128, 0.1), rgba(74, 222, 128, 0.05));
+  color: var(--accent);
+  border-color: rgba(74, 222, 128, 0.2);
+  box-shadow: 0 4px 12px rgba(74, 222, 128, 0.1);
+}
+
+nav a.active svg {
+  color: var(--accent);
+  filter: drop-shadow(0 0 8px rgba(74, 222, 128, 0.4));
+}
+
+nav a .label {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
+  flex: 1;
+  transition: all 0.3s ease;
+}
+
+/* Marquee effect on hover for items */
+nav a:hover .label {
+  text-overflow: clip;
+  position: relative;
+  overflow: visible;
+  /* Simple slide for now as infinite marquee requires complex HTML structure duplication */
+  transform: translateX(-5px);
+}
+
+/* Divider */
+.divider {
+  height: 1px;
+  background: var(--border);
+  margin: 0.5rem 0;
+  opacity: 0.5;
+}
+
+.user {
+  margin-top: auto;
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.user span {
+  font-size: 0.85rem;
+  color: var(--muted);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-/* Ensure icons remain visible and don't shrink */
-nav a svg {
-  flex-shrink: 0;
-  color: currentColor;
-}
-
-nav a.active svg {
-  color: var(--text);
-}
-
-nav a:hover {
-  background: #111a26;
-  color: var(--text);
-  transform: translateX(2px);
-}
-
-nav a.active {
-  background: #132033;
-  color: var(--text);
-  border-color: var(--border);
-}
-
-nav a .label {
-  will-change: opacity, max-width;
-  transition: opacity var(--transition-duration) ease, max-width var(--transition-duration) ease;
-  max-width: 200px;
-  opacity: 1;
-  display: inline-block;
-}
-
-aside.collapsed nav a .label {
-  opacity: 0;
-  max-width: 0;
-  width: 0;
-  pointer-events: none;
-  display: none; /* remove o item do fluxo flex para centralização perfeita do ícone */
-}
-
-aside.collapsed nav a {
-  justify-content: center;
-  gap: 0; /* remove espaço entre ícone e label oculto para centralizar ícone */
-}
-
-aside.collapsed nav a svg {
-  margin: 0 auto;
-}
-
-.divider {
-  height: 1px;
-  background: var(--border);
-  margin: 0.25rem 0;
-  will-change: opacity;
-  transition: opacity var(--transition-duration) ease;
-}
-
-aside.collapsed .divider {
-  opacity: 0;
-  pointer-events: none;
-}
-
-.user {
-  margin-top: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  font-size: 0.9rem;
-  color: var(--muted);
-  will-change: opacity;
-  transition: opacity var(--transition-duration) ease;
-}
-
-aside.collapsed .user {
-  opacity: 0;
-  pointer-events: none;
-}
-
 .user button {
-  background: var(--accent-strong);
-  color: #031308;
+  background: transparent;
   border: none;
-  border-radius: 10px;
-  padding: 0.65rem 0.9rem;
-  font-weight: 600;
+  color: var(--muted);
   cursor: pointer;
-  will-change: transform;
-  transition: transform 0.2s ease, background 0.2s ease;
+  padding: 0.4rem;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 .user button:hover {
-  transform: scale(1.03);
-  background: #16a34a;
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.1);
 }
 
+aside.collapsed .label,
+aside.collapsed .user span,
+aside.collapsed .divider {
+  display: none;
+}
+
+aside.collapsed .user {
+  padding: 0.5rem;
+  justify-content: center;
+  background: transparent;
+  border: none;
+}
+
+/* Main Content Area */
 main {
-  padding: 1.5rem 2rem;
+  flex: 1;
+  padding: 2rem;
   min-width: 0;
+  max-width: 100%;
+  transition: padding 0.3s ease;
 }
 
 header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 1.25rem;
+  margin-bottom: 2rem;
+  height: 40px;
+}
+
+header h1 {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 0;
+  background: linear-gradient(to right, #fff, #94a3b8);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 
 .badge {
   background: rgba(74, 222, 128, 0.1);
   color: var(--accent);
-  border: 1px solid rgba(74, 222, 128, 0.3);
-  padding: 0.45rem 0.7rem;
-  border-radius: 10px;
-  font-size: 0.85rem;
+  border: 1px solid rgba(74, 222, 128, 0.2);
+  padding: 0.4rem 0.8rem;
+  border-radius: 99px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
 }
 
-/* Mobile: show toggle and auto-collapse */
+/* Mobile Responsive Styles */
 @media (max-width: 768px) {
-  .toggle {
+  .layout {
     display: block;
+    /* Stack for mobile */
   }
 
-  .layout {
-    grid-template-columns: var(--sidebar-collapsed-width) 1fr;
+  /* Mobile Header */
+  .mobile-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem;
+    background: rgba(15, 23, 36, 0.95);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    z-index: 40;
+  }
+
+  .mobile-header h1 {
+    font-size: 1.1rem;
+    margin: 0;
+    font-weight: 700;
+  }
+
+  .menu-btn {
+    background: transparent;
+    border: none;
+    color: var(--text);
+    padding: 0.5rem;
+    cursor: pointer;
   }
 
   aside {
-    width: var(--sidebar-collapsed-width);
-    padding: 1rem;
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100vh;
+    transform: translateX(-100%);
+    transition: transform var(--transition-duration) cubic-bezier(0.4, 0, 0.2, 1);
+    width: 280px;
+    /* Slightly wider on mobile */
+    z-index: 50;
+    border-right: 1px solid var(--border);
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+  }
+
+  aside.mobile-open {
+    transform: translateX(0);
   }
 
   aside.collapsed {
-    width: var(--sidebar-collapsed-width);
-  }
-
-  aside:not(.collapsed) {
-    width: var(--sidebar-width);
+    width: 280px;
+    /* Don't collapse on mobile, just hide/show */
     padding: 1.5rem;
   }
 
-  nav a {
-    justify-content: center;
+  aside.collapsed .label,
+  aside.collapsed .user span,
+  aside.collapsed .divider {
+    display: block;
+    /* Show labels on mobile sidebar */
   }
 
-  nav a .label {
-    opacity: 0;
-    max-width: 0;
-    pointer-events: none;
+  /* Hide desktop toggle on mobile */
+  .toggle {
+    display: none;
   }
 
-  aside:not(.collapsed) nav a .label {
-    opacity: 1;
-    max-width: 200px;
+  main {
+    padding: 1rem;
   }
 
-  aside:not(.collapsed) nav a {
-    justify-content: flex-start;
-  }
-
-  .logo,
-  .user,
-  .divider {
-    opacity: 0;
-    pointer-events: none;
-  }
-
-  aside:not(.collapsed) .logo,
-  aside:not(.collapsed) .user,
-  aside:not(.collapsed) .divider {
-    opacity: 1;
+  header {
+    display: none;
+    /* Hide desktop header */
   }
 }

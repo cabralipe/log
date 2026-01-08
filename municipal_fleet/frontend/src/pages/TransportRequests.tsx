@@ -4,6 +4,7 @@ import { api, API_ROOT } from "../lib/api";
 import { Button } from "../components/Button";
 import { Table } from "../components/Table";
 import "../styles/DataPage.css";
+import "./TransportRequests.css";
 
 type Template = {
   id: number;
@@ -116,7 +117,7 @@ export const TransportRequestsPage = () => {
     });
     api.get<{ results: { id: number; license_plate: string; model: string }[] }>("/vehicles/", { params: { page_size: 200 } }).then((res) => {
       const arr = Array.isArray(res.data) ? res.data : (res.data as any).results ?? [];
-      setVehicleOptions(arr.map((v) => ({ id: v.id, label: `${v.license_plate} — ${v.model}` })));
+      setVehicleOptions(arr.map((v: any) => ({ id: v.id, label: `${v.license_plate} — ${v.model}` })));
     });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -209,7 +210,7 @@ export const TransportRequestsPage = () => {
         <div>
           <p className="eyebrow">Solicitações externas</p>
           <h2 className="data-title">Formulário de Transporte</h2>
-          <p className="data-subtitle">Gere o link público, acompanhe protocolos e aprove para virar viagem.</p>
+          <p className="data-subtitle">Gerencie formulários públicos e processe solicitações de cidadãos.</p>
         </div>
         <div className="inline-row">
           <Button variant="ghost" onClick={loadTemplates}>
@@ -225,234 +226,192 @@ export const TransportRequestsPage = () => {
 
       {error && <div className="data-error">{error}</div>}
 
-      <div className="grid" style={{ gridTemplateColumns: "1.2fr 1.8fr", gap: "1rem" }}>
-        <div className="card">
-          <p className="eyebrow">Formulário público</p>
-          <h3>Configuração</h3>
-          <p className="muted">Campos fixos: CPF, contatos, origem/destino, datas/horários, passageiros (quantidade e lista opcional), motorista e veículo (seleção), observações.</p>
-          <label>
-            Nome
-            <input
-              value={newTemplate.name}
-              onChange={(e) => setNewTemplate((t) => ({ ...t, name: e.target.value }))}
-              placeholder="Ex.: Solicitação de transporte escolar"
-            />
-          </label>
-          <label>
-            Descrição
-            <textarea
-              value={newTemplate.description}
-              onChange={(e) => setNewTemplate((t) => ({ ...t, description: e.target.value }))}
-              placeholder="Texto que o solicitante vê no topo do formulário."
-            />
-          </label>
-          <label className="inline-checkbox">
-            <input
-              type="checkbox"
-              checked={newTemplate.is_active}
-              onChange={(e) => setNewTemplate((t) => ({ ...t, is_active: e.target.checked }))}
-            />
-            Formulário ativo
-          </label>
-          <Button onClick={createTemplate} disabled={!newTemplate.name}>
-            Gerar formulário
-          </Button>
-          <hr />
-          <h4>Formulários existentes</h4>
-          <Table
-            columns={[
-              { key: "name", label: "Nome" },
-              { key: "slug", label: "Slug" },
-              { key: "status", label: "Ativo", render: (row) => (row.is_active ? "Sim" : "Não") },
-              {
-                key: "actions",
-                label: "Ações",
-                render: (row) => (
-                  <div className="inline-row">
-                    <Button variant={selectedTemplate?.id === row.id ? "primary" : "ghost"} onClick={() => setSelectedTemplate(row)}>
-                      Usar
-                    </Button>
-                    <a className="link" href={`${publicBase}/forms/${row.slug}`} target="_blank" rel="noreferrer">
+      <div className="requests-layout">
+        <div className="requests-sidebar">
+          <div className="card">
+            <div className="card-head">
+              <div>
+                <p className="eyebrow">Configuração</p>
+                <h3>Formulário Público</h3>
+              </div>
+            </div>
+
+            <div className="form-group">
+              <label>Nome do formulário</label>
+              <input
+                value={newTemplate.name}
+                onChange={(e) => setNewTemplate((t) => ({ ...t, name: e.target.value }))}
+                placeholder="Ex.: Transporte Escolar 2024"
+              />
+            </div>
+
+            <div className="form-group">
+              <label>Descrição pública</label>
+              <textarea
+                value={newTemplate.description}
+                onChange={(e) => setNewTemplate((t) => ({ ...t, description: e.target.value }))}
+                placeholder="Instruções para o cidadão..."
+                rows={3}
+              />
+            </div>
+
+            <label className="inline-checkbox">
+              <input
+                type="checkbox"
+                checked={newTemplate.is_active}
+                onChange={(e) => setNewTemplate((t) => ({ ...t, is_active: e.target.checked }))}
+              />
+              Aceitando respostas
+            </label>
+
+            <Button onClick={createTemplate} disabled={!newTemplate.name} fullWidth>
+              Criar Novo Formulário
+            </Button>
+
+            <div className="divider" />
+
+            <p className="muted-label">Seus formulários</p>
+            <div className="template-list">
+              {templates.map(tmpl => (
+                <div
+                  key={tmpl.id}
+                  className={`template-item ${selectedTemplate?.id === tmpl.id ? 'active' : ''}`}
+                  onClick={() => setSelectedTemplate(tmpl)}
+                >
+                  <div className="template-info">
+                    <strong>{tmpl.name}</strong>
+                    <span className={`status-dot ${tmpl.is_active ? 'active' : 'inactive'}`}>
+                      {tmpl.is_active ? 'Ativo' : 'Inativo'}
+                    </span>
+                  </div>
+                  <div className="template-actions">
+                    <a href={`${publicBase}/forms/${tmpl.slug}`} target="_blank" rel="noreferrer" title="Ver link">
                       Link
                     </a>
-                    <button className="link danger" onClick={() => deleteTemplate(row.id)}>
+                    <button className="text-danger" onClick={(e) => { e.stopPropagation(); deleteTemplate(tmpl.id); }}>
                       Excluir
                     </button>
                   </div>
-                ),
-              },
-            ]}
-            data={templates}
-          />
-          {selectedTemplate && (
-            <div className="card" style={{ marginTop: "0.75rem" }}>
-              <p className="eyebrow">Link público</p>
-              <code style={{ display: "block", overflowWrap: "anywhere" }}>{publicLink}</code>
-              <p className="muted">Compartilhe para que cidadãos façam pedidos de transporte.</p>
+                </div>
+              ))}
             </div>
-          )}
+          </div>
         </div>
 
-        <div className="card">
-          <p className="eyebrow">Solicitações recebidas</p>
-          <h3>Protocolos</h3>
-          {loading ? (
-            <p>Carregando...</p>
-          ) : (
-            <Table
-              columns={[
-                { key: "protocol_number", label: "Protocolo" },
-                { key: "status", label: "Status" },
-                { key: "created_at", label: "Criado em", render: (row) => new Date(row.created_at).toLocaleString("pt-BR") },
-                {
-                  key: "trip",
-                  label: "Viagem",
-                  render: (row) => (row.linked_trip ? `#${row.linked_trip}` : "—"),
-                },
-                {
-                  key: "actions",
-                  label: "Ações",
-                  render: (row) => (
-                    <Button variant="ghost" onClick={() => selectSubmission(row)}>
-                      Revisar
-                    </Button>
-                  ),
-                },
-              ]}
-              data={submissions}
-            />
-          )}
-          {selectedSubmission && (
-            <div className="card" style={{ marginTop: "0.75rem" }}>
-              <h4>Revisar protocolo {selectedSubmission.protocol_number}</h4>
-              <div className="grid" style={{ gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: "0.5rem" }}>
-                <label>
-                  Status
-                  <select value={reviewStatus} onChange={(e) => setReviewStatus(e.target.value)}>
-                    <option value="APPROVED">Aprovar (gera viagem)</option>
-                    <option value="REJECTED">Rejeitar</option>
-                    <option value="NEEDS_CORRECTION">Correção necessária</option>
-                  </select>
-                </label>
-                <label>
-                  Motorista
-                  <select
-                    value={reviewUpdates["driver_id"] || ""}
-                    onChange={(e) => setReviewUpdates((u) => ({ ...u, driver_id: e.target.value }))}
-                  >
-                    <option value="">Selecione</option>
-                    {driverOptions.map((d) => (
-                      <option key={d.id} value={d.id}>
-                        {d.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label>
-                  Veículo
-                  <select
-                    value={reviewUpdates["vehicle_id"] || ""}
-                    onChange={(e) => setReviewUpdates((u) => ({ ...u, vehicle_id: e.target.value }))}
-                  >
-                    <option value="">Selecione</option>
-                    {vehicleOptions.map((v) => (
-                      <option key={v.id} value={v.id}>
-                        {v.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label>
-                  Origem
-                  <input
-                    value={reviewUpdates["origin"] || ""}
-                    onChange={(e) => setReviewUpdates((u) => ({ ...u, origin: e.target.value }))}
-                  />
-                </label>
-                <label>
-                  Destino
-                  <input
-                    value={reviewUpdates["destination"] || ""}
-                    onChange={(e) => setReviewUpdates((u) => ({ ...u, destination: e.target.value }))}
-                  />
-                </label>
-                <label>
-                  Data de saída
-                  <input
-                    type="date"
-                    value={reviewUpdates["departure_date"] || ""}
-                    onChange={(e) => setReviewUpdates((u) => ({ ...u, departure_date: e.target.value }))}
-                  />
-                </label>
-                <label>
-                  Horário de saída
-                  <input
-                    type="time"
-                    value={reviewUpdates["departure_time"] || ""}
-                    onChange={(e) => setReviewUpdates((u) => ({ ...u, departure_time: e.target.value }))}
-                  />
-                </label>
-                <label>
-                  Data de retorno
-                  <input
-                    type="date"
-                    value={reviewUpdates["return_date"] || ""}
-                    onChange={(e) => setReviewUpdates((u) => ({ ...u, return_date: e.target.value }))}
-                  />
-                </label>
-                <label>
-                  Horário de retorno
-                  <input
-                    type="time"
-                    value={reviewUpdates["return_time"] || ""}
-                    onChange={(e) => setReviewUpdates((u) => ({ ...u, return_time: e.target.value }))}
-                  />
-                </label>
-                <label>
-                  Passageiros (quantidade)
-                  <input
-                    type="number"
-                    value={reviewUpdates["passengers_count"] || ""}
-                    onChange={(e) => setReviewUpdates((u) => ({ ...u, passengers_count: e.target.value }))}
-                  />
-                </label>
-                <label className="full-width">
-                  Observações
-                  <textarea
-                    value={reviewNotes}
-                    onChange={(e) => setReviewNotes(e.target.value)}
-                    placeholder="Opcional — será salvo junto ao protocolo."
-                  />
-                </label>
-                <label className="full-width">
-                  Passageiros (lista/nomes, opcional)
-                  <textarea
-                    value={reviewUpdates["passengers_details"] || ""}
-                    onChange={(e) => setReviewUpdates((u) => ({ ...u, passengers_details: e.target.value }))}
-                    placeholder="Informe nomes e contatos, se quiser."
-                  />
-                </label>
+        <div className="requests-main">
+          <div className="card">
+            <div className="card-head">
+              <div>
+                <p className="eyebrow">Entrada</p>
+                <h3>Solicitações Recebidas</h3>
               </div>
-              <Button onClick={reviewSubmission}>Aplicar decisão</Button>
-              <div style={{ marginTop: "0.75rem" }}>
-                <p className="eyebrow">Respostas</p>
-                {selectedSubmission.answers?.length ? (
-                  <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "grid", gap: "0.35rem" }}>
-                    {selectedSubmission.answers.map((a) => (
-                      <li key={a.id} style={{ border: "1px solid var(--border)", borderRadius: 8, padding: "0.5rem" }}>
-                        <strong>{a.question_label}</strong>
-                        <div style={{ color: "var(--muted)" }}>{a.value_text || JSON.stringify(a.value_json) || "—"}</div>
-                        {a.modified_by_staff && (
-                          <div style={{ color: "#f59e0b", fontSize: "0.9rem" }}>
-                            Ajustado pela secretaria: {a.staff_value_text || JSON.stringify(a.staff_value_json)}
-                          </div>
-                        )}
-                      </li>
+              <span className="pill ghost">{submissions.length} protocolos</span>
+            </div>
+
+            {loading ? (
+              <div className="skeleton-loader">Carregando solicitações...</div>
+            ) : (
+              <Table
+                columns={[
+                  { key: "protocol_number", label: "Protocolo" },
+                  { key: "status", label: "Status", render: (row) => <StatusBadge status={row.status} /> },
+                  { key: "created_at", label: "Data", render: (row) => new Date(row.created_at).toLocaleDateString("pt-BR") },
+                  { key: "trip", label: "Viagem", render: (row) => row.linked_trip ? <span className="pill">#{row.linked_trip}</span> : "—" },
+                  {
+                    key: "actions",
+                    label: "",
+                    render: (row) => (
+                      <Button size="sm" variant={selectedSubmission?.id === row.id ? "primary" : "ghost"} onClick={() => selectSubmission(row)}>
+                        Revisar
+                      </Button>
+                    ),
+                  },
+                ]}
+                data={submissions}
+              />
+            )}
+          </div>
+
+          {selectedSubmission && (
+            <div className="card review-card animate-slide-up">
+              <div className="review-header">
+                <div>
+                  <p className="eyebrow">Revisão</p>
+                  <h3>Protocolo {selectedSubmission.protocol_number}</h3>
+                </div>
+                <Button variant="ghost" onClick={() => setSelectedSubmission(null)}>Fechar</Button>
+              </div>
+
+              <div className="review-grid">
+                <div className="review-form">
+                  <h4>Decisão</h4>
+                  <div className="decision-box">
+                    <label>
+                      Ação
+                      <select value={reviewStatus} onChange={(e) => setReviewStatus(e.target.value)}>
+                        <option value="APPROVED">✅ Aprovar e Gerar Viagem</option>
+                        <option value="REJECTED">❌ Rejeitar Solicitação</option>
+                        <option value="NEEDS_CORRECTION">⚠️ Solicitar Correção</option>
+                      </select>
+                    </label>
+                    <label className="full-width">
+                      Observações internas
+                      <textarea
+                        value={reviewNotes}
+                        onChange={(e) => setReviewNotes(e.target.value)}
+                        placeholder="Justificativa ou notas para a equipe..."
+                        rows={2}
+                      />
+                    </label>
+                  </div>
+
+                  <h4>Dados da Viagem</h4>
+                  <div className="trip-form-grid">
+                    <label>
+                      Motorista
+                      <select
+                        value={reviewUpdates["driver_id"] || ""}
+                        onChange={(e) => setReviewUpdates((u) => ({ ...u, driver_id: e.target.value }))}
+                      >
+                        <option value="">Selecione...</option>
+                        {driverOptions.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+                      </select>
+                    </label>
+                    <label>
+                      Veículo
+                      <select
+                        value={reviewUpdates["vehicle_id"] || ""}
+                        onChange={(e) => setReviewUpdates((u) => ({ ...u, vehicle_id: e.target.value }))}
+                      >
+                        <option value="">Selecione...</option>
+                        {vehicleOptions.map((v) => <option key={v.id} value={v.id}>{v.label}</option>)}
+                      </select>
+                    </label>
+                    <label>Origem <input value={reviewUpdates["origin"] || ""} onChange={(e) => setReviewUpdates((u) => ({ ...u, origin: e.target.value }))} /></label>
+                    <label>Destino <input value={reviewUpdates["destination"] || ""} onChange={(e) => setReviewUpdates((u) => ({ ...u, destination: e.target.value }))} /></label>
+                    <label>Saída <input type="datetime-local" value={reviewUpdates["departure_date"] ? `${reviewUpdates["departure_date"]}T${reviewUpdates["departure_time"] || "00:00"}` : ""} onChange={(e) => {
+                      const [d, t] = e.target.value.split("T");
+                      setReviewUpdates((u) => ({ ...u, departure_date: d, departure_time: t }));
+                    }} /></label>
+                    <label>Passageiros <input type="number" value={reviewUpdates["passengers_count"] || ""} onChange={(e) => setReviewUpdates((u) => ({ ...u, passengers_count: e.target.value }))} /></label>
+                  </div>
+
+                  <div className="review-actions">
+                    <Button onClick={reviewSubmission} variant="primary">Confirmar Decisão</Button>
+                  </div>
+                </div>
+
+                <div className="review-answers">
+                  <h4>Respostas do Cidadão</h4>
+                  <div className="answers-list">
+                    {selectedSubmission.answers?.map((a) => (
+                      <div key={a.id} className="answer-item">
+                        <span className="question">{a.question_label}</span>
+                        <span className="answer">{a.value_text || JSON.stringify(a.value_json) || "—"}</span>
+                      </div>
                     ))}
-                  </ul>
-                ) : (
-                  <p className="muted">Respostas não carregadas.</p>
-                )}
+                  </div>
+                </div>
               </div>
             </div>
           )}
@@ -460,4 +419,15 @@ export const TransportRequestsPage = () => {
       </div>
     </div>
   );
+};
+
+const StatusBadge = ({ status }: { status: string }) => {
+  const map: Record<string, { label: string; className: string }> = {
+    PENDING: { label: "Pendente", className: "warning" },
+    APPROVED: { label: "Aprovado", className: "success" },
+    REJECTED: { label: "Rejeitado", className: "danger" },
+    NEEDS_CORRECTION: { label: "Correção", className: "warning" },
+  };
+  const info = map[status] || { label: status, className: "default" };
+  return <span className={`status-badge ${info.className}`}>{info.label}</span>;
 };

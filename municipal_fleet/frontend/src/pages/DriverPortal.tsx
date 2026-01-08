@@ -1,32 +1,20 @@
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import { api, driverPortalApi } from "../lib/api";
 import { Table } from "../components/Table";
 import { Button } from "../components/Button";
+import { useMediaQuery } from "../hooks/useMediaQuery";
 import "../styles/login.css";
+import "./DriverPortal.css";
 
-const modalOverlayStyle: CSSProperties = {
-  position: "fixed",
-  inset: 0,
-  background: "rgba(12,17,24,0.78)",
-  backdropFilter: "blur(4px)",
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  padding: "1.5rem",
-  zIndex: 50,
-};
-
-const modalContentStyle: CSSProperties = {
-  background: "var(--card)",
-  border: "1px solid var(--border)",
-  borderRadius: "16px",
-  maxWidth: "820px",
-  width: "100%",
-  maxHeight: "80vh",
-  overflow: "auto",
-  boxShadow: "0 24px 48px rgba(0,0,0,0.35)",
-  padding: "1rem",
-};
+// Navigation items for sidebar
+const NAV_ITEMS = [
+  { id: "rastreamento", label: "Rastreamento", icon: "📍" },
+  { id: "agenda", label: "Agenda", icon: "📅" },
+  { id: "viagem-livre", label: "Viagem Livre", icon: "🚗" },
+  { id: "escala", label: "Escala", icon: "📋" },
+  { id: "viagens", label: "Minhas Viagens", icon: "🛣️" },
+  { id: "abastecimento", label: "Abastecimento", icon: "⛽" },
+];
 
 type TripPortal = {
   id: number;
@@ -118,6 +106,10 @@ type AvailabilityBlockPortal = {
 };
 
 export const DriverPortalPage = () => {
+  const { isMobile } = useMediaQuery();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [activeSection, setActiveSection] = useState("agenda");
+  const mainRef = useRef<HTMLDivElement>(null);
   const [code, setCode] = useState("");
   const [token, setToken] = useState<string | null>(localStorage.getItem("driver_portal_token"));
   const [driverName, setDriverName] = useState<string>("");
@@ -155,46 +147,41 @@ export const DriverPortalPage = () => {
   });
   const [availabilityBlocks, setAvailabilityBlocks] = useState<AvailabilityBlockPortal[]>([]);
   const [availabilityError, setAvailabilityError] = useState<string | null>(null);
+  const [trackingEnabled, setTrackingEnabled] = useState<boolean>(
+    localStorage.getItem("driver_tracking_enabled") === "true"
+  );
+  const [trackingError, setTrackingError] = useState<string | null>(null);
+  const [trackingInfo, setTrackingInfo] = useState<string | null>(null);
+  const [trackingLastPing, setTrackingLastPing] = useState<string | null>(null);
+  const trackingWatchId = useRef<number | null>(null);
+  const trackingLastSentAt = useRef<number>(0);
+
   const specialNeedLabel = (value?: string) => {
     switch (value) {
-      case "TEA":
-        return "TEA";
-      case "ELDERLY":
-        return "Idoso";
-      case "PCD":
-        return "Pessoa com deficiência";
-      case "OTHER":
-        return "Outra";
-      default:
-        return "Nenhuma";
+      case "TEA": return "TEA";
+      case "ELDERLY": return "Idoso";
+      case "PCD": return "Pessoa com deficiência";
+      case "OTHER": return "Outra";
+      default: return "Nenhuma";
     }
   };
 
   const statusLabel = (value: string) => {
     switch (value) {
-      case "PLANNED":
-        return "Planejada";
-      case "IN_PROGRESS":
-        return "Em andamento";
-      case "COMPLETED":
-        return "Concluída";
-      case "CANCELLED":
-        return "Cancelada";
-      default:
-        return value;
+      case "PLANNED": return "Planejada";
+      case "IN_PROGRESS": return "Em andamento";
+      case "COMPLETED": return "Concluída";
+      case "CANCELLED": return "Cancelada";
+      default: return value;
     }
   };
 
   const assignmentStatusLabel = (value: AssignmentPortal["status"]) => {
     switch (value) {
-      case "DRAFT":
-        return "Rascunho";
-      case "CONFIRMED":
-        return "Confirmado";
-      case "CANCELLED":
-        return "Cancelado";
-      default:
-        return value;
+      case "DRAFT": return "Rascunho";
+      case "CONFIRMED": return "Confirmado";
+      case "CANCELLED": return "Cancelado";
+      default: return value;
     }
   };
 
@@ -224,13 +211,16 @@ export const DriverPortalPage = () => {
       const endLabel = end.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
       return `${startLabel} - ${endLabel}`;
     }
-    if (start) {
-      return start.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
-    }
+    if (start) return start.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
     if (assignment.route.time_window_start || assignment.route.time_window_end) {
       return `${trimTime(assignment.route.time_window_start)} - ${trimTime(assignment.route.time_window_end)}`;
     }
     return "Horário a definir";
+  };
+
+  const formatDateTime = (value: string) => {
+    const date = new Date(value);
+    return date.toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
   };
 
   const availableVehicles = useMemo(() => {
@@ -239,6 +229,8 @@ export const DriverPortalPage = () => {
     assignments.forEach((a) => uniques.set(a.vehicle.id, a.vehicle.license_plate));
     return Array.from(uniques.entries()).map(([id, plate]) => ({ id, plate }));
   }, [assignments, trips]);
+
+  const activeTrip = useMemo(() => trips.find((trip) => trip.status === "IN_PROGRESS") || null, [trips]);
 
   const sortedTrips = useMemo(() => {
     return [...trips].sort((a, b) => {
@@ -411,6 +403,71 @@ export const DriverPortalPage = () => {
     }
   }, [token]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  useEffect(() => {
+    localStorage.setItem("driver_tracking_enabled", trackingEnabled ? "true" : "false");
+  }, [trackingEnabled]);
+
+  useEffect(() => {
+    if (!trackingEnabled) {
+      if (trackingWatchId.current !== null) {
+        navigator.geolocation.clearWatch(trackingWatchId.current);
+        trackingWatchId.current = null;
+      }
+      setTrackingInfo(null);
+      setTrackingError(null);
+      return;
+    }
+    if (!token) return;
+    if (!navigator.geolocation) {
+      setTrackingError("Geolocalização não disponível neste aparelho.");
+      setTrackingEnabled(false);
+      return;
+    }
+    const onSuccess = async (position: GeolocationPosition) => {
+      const now = Date.now();
+      if (now - trackingLastSentAt.current < 12000) return;
+      if (!activeTrip) {
+        setTrackingError("Nenhuma viagem em andamento para rastrear.");
+        return;
+      }
+      trackingLastSentAt.current = now;
+      const payload = {
+        trip_id: activeTrip.id,
+        lat: position.coords.latitude,
+        lng: position.coords.longitude,
+        accuracy: position.coords.accuracy,
+        speed: position.coords.speed,
+        recorded_at: new Date(position.timestamp).toISOString(),
+      };
+      try {
+        await driverPortalApi.post("/drivers/portal/gps/ping/", payload);
+        setTrackingError(null);
+        setTrackingInfo("Rastreio ativo: posição enviada.");
+        setTrackingLastPing(new Date(position.timestamp).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }));
+      } catch (err: any) {
+        setTrackingError(err.response?.data?.detail || "Erro ao enviar posição.");
+      }
+    };
+    const onError = (err: GeolocationPositionError) => {
+      const message = err.code === err.PERMISSION_DENIED
+        ? "Permissão de localização negada."
+        : "Não foi possível obter localização.";
+      setTrackingError(message);
+      setTrackingEnabled(false);
+    };
+    trackingWatchId.current = navigator.geolocation.watchPosition(onSuccess, onError, {
+      enableHighAccuracy: true,
+      maximumAge: 5000,
+      timeout: 15000,
+    });
+    return () => {
+      if (trackingWatchId.current !== null) {
+        navigator.geolocation.clearWatch(trackingWatchId.current);
+        trackingWatchId.current = null;
+      }
+    };
+  }, [trackingEnabled, token, activeTrip]);
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -537,6 +594,20 @@ export const DriverPortalPage = () => {
 
   const hasPassengers = passengerTrips.length > 0;
 
+  // Navigation function for scrolling to sections
+  const scrollToSection = (sectionId: string) => {
+    setActiveSection(sectionId);
+    const element = document.getElementById(sectionId);
+    if (element) {
+      element.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+    if (isMobile) {
+      setSidebarOpen(false);
+    }
+  };
+
+  // =========== RENDER ===========
+
   if (!token) {
     return (
       <div className="login" style={{ minHeight: "100vh" }}>
@@ -545,7 +616,7 @@ export const DriverPortalPage = () => {
           <p>Informe o código fornecido pela prefeitura para ver suas viagens e prestar contas de abastecimentos.</p>
           <form onSubmit={handleLogin} className="grid form-grid">
             <input value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} placeholder="Código do motorista" required />
-            <Button type="submit">Entrar</Button>
+            <Button type="submit" fullWidth>Entrar</Button>
             {error && <div className="error">{error}</div>}
           </form>
         </div>
@@ -553,455 +624,583 @@ export const DriverPortalPage = () => {
     );
   }
 
-  return (
-    <div className="card" style={{ margin: "1rem auto", maxWidth: 1200 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem" }}>
-        <div>
-          <h2>Portal do motorista</h2>
-          <p style={{ color: "var(--muted)" }}>Bem-vindo, {driverName || "motorista"}</p>
-        </div>
-        <Button variant="ghost" onClick={logout}>
-          Sair
-        </Button>
-      </div>
-      {error && <div className="card" style={{ color: "#f87171" }}>{error}</div>}
-      {info && <div className="card" style={{ color: "#22c55e" }}>{info}</div>}
-      {availabilityError && <div className="card" style={{ color: "#f87171" }}>{availabilityError}</div>}
-      <div className="card" style={{ background: "#0f1724", border: "1px solid var(--border)", marginBottom: "1rem" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "0.75rem", marginBottom: "0.5rem" }}>
-          <div>
-            <p className="eyebrow">Agenda</p>
-            <h3 style={{ margin: 0 }}>Bloqueios e folgas cadastrados</h3>
-            <p style={{ color: "var(--muted)", margin: 0 }}>
-              Se houver uma folga, férias ou afastamento ativo, novas viagens serão bloqueadas automaticamente.
-            </p>
+  // Render Trip Cards for Mobile
+  const renderTripCards = () => (
+    <div className="driver-portal__trips-grid">
+      {sortedTrips.map((trip) => (
+        <div key={trip.id} className="driver-portal__trip-card">
+          <div className="driver-portal__trip-route">
+            <span>{trip.origin}</span>
+            <span className="driver-portal__trip-route-arrow">→</span>
+            <span>{trip.destination}</span>
           </div>
-          <Button variant="ghost" onClick={loadAvailabilityBlocks}>
-            Atualizar
+          <div className="driver-portal__trip-meta">
+            <div className="driver-portal__trip-meta-item">
+              <span className="driver-portal__trip-meta-label">Status</span>
+              <span className="driver-portal__trip-meta-value">{statusLabel(trip.status)}</span>
+            </div>
+            <div className="driver-portal__trip-meta-item">
+              <span className="driver-portal__trip-meta-label">Saída</span>
+              <span className="driver-portal__trip-meta-value">{formatDateTime(trip.departure_datetime)}</span>
+            </div>
+            <div className="driver-portal__trip-meta-item">
+              <span className="driver-portal__trip-meta-label">Passageiros</span>
+              <span className="driver-portal__trip-meta-value">{trip.passengers_count}</span>
+            </div>
+            <div className="driver-portal__trip-meta-item">
+              <span className="driver-portal__trip-meta-label">Veículo</span>
+              <span className="driver-portal__trip-meta-value">{trip.vehicle__license_plate}</span>
+            </div>
+          </div>
+          <div className="driver-portal__trip-actions">
+            {trip.status !== "COMPLETED" && (
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={() => handleCompleteTrip(trip.id)}
+                disabled={completingTripIds.includes(trip.id)}
+              >
+                {completingTripIds.includes(trip.id) ? "Enviando..." : "✓ Concluir"}
+              </Button>
+            )}
+            <Button variant="ghost" size="sm" onClick={() => openIncidentModal(trip)}>
+              Relatar ocorrido
+            </Button>
+          </div>
+        </div>
+      ))}
+      {sortedTrips.length === 0 && (
+        <div className="driver-portal__empty">Nenhuma viagem encontrada.</div>
+      )}
+    </div>
+  );
+
+  // Render Fuel Cards for Mobile
+  const renderFuelCards = () => (
+    <div className="driver-portal__fuel-cards">
+      {fuelLogs.map((log) => (
+        <div key={log.id} className="driver-portal__fuel-card">
+          <div className="driver-portal__fuel-card-info">
+            <div className="driver-portal__fuel-card-station">{log.fuel_station}</div>
+            <div className="driver-portal__fuel-card-details">
+              {log.filled_at} · {log.vehicle__license_plate}
+              {log.receipt_image && (
+                <> · <a href={log.receipt_image} target="_blank" rel="noopener noreferrer">Ver nota</a></>
+              )}
+            </div>
+          </div>
+          <div className="driver-portal__fuel-card-liters">{log.liters} L</div>
+        </div>
+      ))}
+      {fuelLogs.length === 0 && (
+        <div className="driver-portal__empty">Nenhum abastecimento registrado.</div>
+      )}
+    </div>
+  );
+
+  return (
+    <div className="driver-portal">
+      {/* Mobile Menu Toggle */}
+      <button
+        className="driver-portal__menu-toggle"
+        onClick={() => setSidebarOpen(!sidebarOpen)}
+        aria-label="Abrir menu"
+      >
+        {sidebarOpen ? "✕" : "☰"}
+      </button>
+
+      {/* Sidebar Overlay (mobile) */}
+      <div
+        className={`driver-portal__sidebar-overlay ${sidebarOpen ? "driver-portal__sidebar-overlay--visible" : ""}`}
+        onClick={() => setSidebarOpen(false)}
+      />
+
+      {/* Sidebar Navigation */}
+      <aside className={`driver-portal__sidebar ${sidebarOpen ? "driver-portal__sidebar--open" : ""}`}>
+        <div className="driver-portal__sidebar-header">
+          <h2>🚐 Portal</h2>
+          <p>Olá, {driverName || "motorista"}</p>
+        </div>
+        <nav className="driver-portal__sidebar-nav">
+          {NAV_ITEMS.map((item) => (
+            <button
+              key={item.id}
+              className={`driver-portal__nav-item ${activeSection === item.id ? "driver-portal__nav-item--active" : ""}`}
+              onClick={() => scrollToSection(item.id)}
+            >
+              <span className="driver-portal__nav-icon">{item.icon}</span>
+              {item.label}
+            </button>
+          ))}
+        </nav>
+        <div className="driver-portal__sidebar-footer">
+          <Button variant="ghost" onClick={logout} fullWidth>
+            Sair
           </Button>
         </div>
-        {sortedBlocks.length ? (
-          <div className="grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: "0.75rem" }}>
-            {sortedBlocks.map((block) => {
-              const isCurrent = block.is_current;
-              return (
+      </aside>
+
+      {/* Main Content */}
+      <main className="driver-portal__main" ref={mainRef}>
+        {/* Alerts */}
+        <div className="driver-portal__alerts">
+          {error && <div className="driver-portal__alert driver-portal__alert--error">{error}</div>}
+          {info && <div className="driver-portal__alert driver-portal__alert--success">{info}</div>}
+          {availabilityError && <div className="driver-portal__alert driver-portal__alert--error">{availabilityError}</div>}
+        </div>
+
+        {/* Tracking Section */}
+        <section id="rastreamento" className="driver-portal__section">
+          <div className="driver-portal__section-header">
+            <div>
+              <span className="eyebrow">Rastreamento</span>
+              <h3>Compartilhar localização em tempo real</h3>
+              <p>Ative para enviar sua posição automaticamente durante a viagem em andamento.</p>
+            </div>
+            <Button
+              variant={trackingEnabled ? "primary" : "ghost"}
+              size="sm"
+              onClick={() => setTrackingEnabled((prev) => !prev)}
+            >
+              {trackingEnabled ? "Desativar" : "Ativar"}
+            </Button>
+          </div>
+          <div className="driver-portal__tracking-card">
+            <div className="driver-portal__tracking-status">
+              <span className={`driver-portal__tracking-pill ${trackingEnabled ? "active" : "inactive"}`}>
+                {trackingEnabled ? "Ativo" : "Desativado"}
+              </span>
+              {activeTrip ? (
+                <span className="driver-portal__tracking-trip">
+                  Viagem em andamento: {activeTrip.origin} → {activeTrip.destination}
+                </span>
+              ) : (
+                <span className="driver-portal__tracking-trip">Nenhuma viagem em andamento.</span>
+              )}
+            </div>
+            <div className="driver-portal__tracking-meta">
+              <div>
+                <span className="label">Último envio</span>
+                <strong>{trackingLastPing || "—"}</strong>
+              </div>
+              <div>
+                <span className="label">Status</span>
+                <strong>{trackingError || trackingInfo || (trackingEnabled ? "Aguardando localização..." : "—")}</strong>
+              </div>
+            </div>
+          </div>
+          {trackingError && <div className="driver-portal__alert driver-portal__alert--error">{trackingError}</div>}
+        </section>
+
+        {/* Availability Blocks Section */}
+        <section id="agenda" className="driver-portal__section">
+          <div className="driver-portal__section-header">
+            <div>
+              <span className="eyebrow">Agenda</span>
+              <h3>Bloqueios e folgas</h3>
+              <p>Se houver uma folga, férias ou afastamento ativo, novas viagens serão bloqueadas automaticamente.</p>
+            </div>
+            <Button variant="ghost" size="sm" onClick={loadAvailabilityBlocks}>Atualizar</Button>
+          </div>
+          {sortedBlocks.length > 0 ? (
+            <div className="driver-portal__blocks-grid">
+              {sortedBlocks.map((block) => (
                 <div
                   key={block.id}
-                  style={{
-                    border: "1px solid var(--border)",
-                    borderRadius: "12px",
-                    padding: "0.75rem",
-                    background: isCurrent ? "rgba(239, 68, 68, 0.08)" : "#0b1422",
-                  }}
+                  className={`driver-portal__block-card ${block.is_current ? "driver-portal__block-card--active" : ""}`}
                 >
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.25rem" }}>
+                  <div className="driver-portal__block-header">
                     <strong>{block.type_label}</strong>
-                    <span
-                      style={{
-                        padding: "0.2rem 0.6rem",
-                        borderRadius: "999px",
-                        background: isCurrent ? "#7f1d1d" : "#1f2937",
-                        color: isCurrent ? "#fecaca" : "var(--muted)",
-                        fontSize: "0.9rem",
-                      }}
-                    >
-                      {isCurrent ? "Em vigor" : "Agendado"}
+                    <span className={`driver-portal__block-badge ${block.is_current ? "driver-portal__block-badge--active" : "driver-portal__block-badge--scheduled"}`}>
+                      {block.is_current ? "Em vigor" : "Agendado"}
                     </span>
                   </div>
                   <div style={{ color: "var(--muted)" }}>{formatBlockPeriod(block.start_datetime, block.end_datetime)}</div>
-                  {block.reason && <p style={{ color: "var(--muted)", marginTop: "0.35rem" }}>{block.reason}</p>}
+                  {block.reason && <p style={{ color: "var(--muted)", marginTop: "0.35rem", marginBottom: 0 }}>{block.reason}</p>}
                 </div>
-              );
-            })}
-          </div>
-        ) : (
-          <p style={{ color: "var(--muted)", margin: 0 }}>Nenhum bloqueio ativo ou agendado.</p>
-        )}
-      </div>
-      <div className="card" style={{ background: "#0f1724", border: "1px solid var(--border)", marginBottom: "1rem" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "0.75rem", marginBottom: "0.5rem" }}>
-          <div>
-            <h3 style={{ margin: 0 }}>Viagem livre (uso avulso do veículo)</h3>
-            <p style={{ color: "var(--muted)", margin: 0 }}>
-              Registre qual veículo está usando, quilometragem inicial/final e trocas durante o dia.
-            </p>
-          </div>
-          <Button variant="ghost" onClick={() => { loadFreeTrips(); loadPortalVehicles(); }}>
-            Atualizar
-          </Button>
-        </div>
-        {freeTripError && <div className="card" style={{ color: "#f87171" }}>{freeTripError}</div>}
-        {!freeTrips?.open_trip ? (
-          <div className="grid form-grid responsive">
-            <select
-              value={freeTripStart.vehicle_id}
-              onChange={(e) => {
-                const value = e.target.value;
-                const vehicleId = value ? Number(value) : "";
-                const selectedVehicle =
-                  typeof vehicleId === "number" ? freeTripVehicles.find((v) => v.id === vehicleId) : undefined;
-                const initialOdometer = selectedVehicle
-                  ? selectedVehicle.odometer_current ?? selectedVehicle.odometer_initial ?? ""
-                  : "";
-                setFreeTripStart((f) => ({
-                  ...f,
-                  vehicle_id: vehicleId,
-                  odometer_start: initialOdometer === "" ? "" : String(initialOdometer),
-                }));
-              }}
-            >
-              <option value="">Selecione o veículo</option>
-              {freeTripVehicles.map((v) => (
-                <option key={v.id} value={v.id}>
-                  {v.license_plate} {v.brand || v.model ? `— ${v.brand || ""} ${v.model || ""}` : ""}
-                </option>
               ))}
-            </select>
-            <div>
-              <div style={{ color: "var(--muted)" }}>Odômetro inicial (pré-preenchido)</div>
-              <input type="number" placeholder="Odômetro inicial" value={freeTripStart.odometer_start} readOnly />
             </div>
-            <label>
-              Foto do painel (opcional)
-              <input type="file" accept="image/*" onChange={(e) => setFreeTripStart((f) => ({ ...f, photo: e.target.files?.[0] || null }))} />
-            </label>
-            <Button onClick={startFreeTrip} disabled={!freeTripStart.vehicle_id || freeTripStart.odometer_start === ""}>
-              Iniciar viagem livre
-            </Button>
+          ) : (
+            <div className="driver-portal__empty">Nenhum bloqueio ativo ou agendado.</div>
+          )}
+        </section>
+
+        {/* Free Trip Section */}
+        <section id="viagem-livre" className="driver-portal__section">
+          <div className="driver-portal__section-header">
+            <div>
+              <h3>Viagem livre</h3>
+              <p>Registre qual veículo está usando, quilometragem inicial/final e trocas durante o dia.</p>
+            </div>
+            <Button variant="ghost" size="sm" onClick={() => { loadFreeTrips(); loadPortalVehicles(); }}>Atualizar</Button>
           </div>
-        ) : (
-          <div className="grid form-grid responsive">
-            <div>
-              <div style={{ color: "var(--muted)" }}>Veículo em uso</div>
-              <strong>{freeTrips.open_trip.vehicle_plate}</strong>
-            </div>
-            <div>
-              <div style={{ color: "var(--muted)" }}>Início</div>
-              <strong>{new Date(freeTrips.open_trip.started_at).toLocaleString("pt-BR")}</strong>
-            </div>
-            <div>
-              <div style={{ color: "var(--muted)" }}>KM inicial</div>
-              <strong>{freeTrips.open_trip.odometer_start}</strong>
-            </div>
-            <input
-              type="number"
-              placeholder="Odômetro final"
-              value={freeTripClose.odometer_end}
-              onChange={(e) => setFreeTripClose((f) => ({ ...f, odometer_end: e.target.value }))}
-            />
-            <label>
-              Foto do painel (opcional)
-              <input type="file" accept="image/*" onChange={(e) => setFreeTripClose((f) => ({ ...f, photo: e.target.files?.[0] || null }))} />
-            </label>
-            <textarea
-              rows={3}
-              placeholder="Relatar ocorrência (opcional)"
-              value={freeTripClose.incident}
-              onChange={(e) => setFreeTripClose((f) => ({ ...f, incident: e.target.value }))}
-            />
-            <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
-              <Button onClick={closeFreeTrip} disabled={!freeTripClose.odometer_end}>
-                Encerrar viagem livre
+
+          {freeTripError && <div className="driver-portal__alert driver-portal__alert--error">{freeTripError}</div>}
+
+          {!freeTrips?.open_trip ? (
+            <div className="driver-portal__free-trip-form">
+              <select
+                value={freeTripStart.vehicle_id}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  const vehicleId = value ? Number(value) : "";
+                  const selectedVehicle = typeof vehicleId === "number" ? freeTripVehicles.find((v) => v.id === vehicleId) : undefined;
+                  const initialOdometer = selectedVehicle
+                    ? selectedVehicle.odometer_current ?? selectedVehicle.odometer_initial ?? ""
+                    : "";
+                  setFreeTripStart((f) => ({
+                    ...f,
+                    vehicle_id: vehicleId,
+                    odometer_start: initialOdometer === "" ? "" : String(initialOdometer),
+                  }));
+                }}
+              >
+                <option value="">Selecione o veículo</option>
+                {freeTripVehicles.map((v) => (
+                  <option key={v.id} value={v.id}>
+                    {v.license_plate} {v.brand || v.model ? `— ${v.brand || ""} ${v.model || ""}` : ""}
+                  </option>
+                ))}
+              </select>
+              <label>
+                Odômetro inicial
+                <input type="number" placeholder="Km" value={freeTripStart.odometer_start} readOnly />
+              </label>
+              <label>
+                Foto do painel (opcional)
+                <input type="file" accept="image/*" onChange={(e) => setFreeTripStart((f) => ({ ...f, photo: e.target.files?.[0] || null }))} />
+              </label>
+              <Button onClick={startFreeTrip} disabled={!freeTripStart.vehicle_id || freeTripStart.odometer_start === ""} fullWidth>
+                Iniciar viagem livre
               </Button>
-              <Button variant="ghost" onClick={reportFreeTripIncident} disabled={!freeTripClose.incident.trim()}>
-                Registrar ocorrência
-              </Button>
             </div>
-          </div>
-        )}
-        {freeTrips?.recent_closed?.length ? (
-          <div style={{ marginTop: "0.75rem" }}>
-            <p className="eyebrow">Últimas encerradas</p>
-            <Table
-              columns={[
-                { key: "vehicle_plate", label: "Veículo" },
-                { key: "odometer_start", label: "KM inicial" },
-                { key: "odometer_end", label: "KM final" },
-                { key: "distance", label: "Rodado", render: (row) => row.distance ?? "—" },
-                { key: "ended_at", label: "Fim", render: (row) => new Date(row.ended_at || "").toLocaleString("pt-BR") },
-              ]}
-              data={freeTrips.recent_closed}
-            />
-          </div>
-        ) : null}
-      </div>
-      <div className="card" style={{ background: "#0f1724", border: "1px solid var(--border)", marginBottom: "1rem" }}>
-        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "1rem", marginBottom: "0.75rem" }}>
-          <div>
-            <h3 style={{ margin: 0 }}>Escala do planejamento</h3>
-            <p style={{ color: "var(--muted)", margin: "0.25rem 0 0" }}>
-              Integração com o planejador de viagens para que você veja a rotina da semana e do mês.
-            </p>
-          </div>
-        </div>
-        <div className="grid" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: "0.75rem" }}>
-          <div style={{ border: "1px solid var(--border)", borderRadius: "12px", padding: "0.75rem", background: "#0b1422" }}>
-            <h4 style={{ margin: "0 0 0.5rem 0" }}>Semana atual</h4>
-            {thisWeekAssignments.length === 0 ? (
-              <p style={{ color: "var(--muted)", margin: 0 }}>Nenhuma escala cadastrada para esta semana.</p>
-            ) : (
-              <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "grid", gap: "0.55rem" }}>
-                {thisWeekAssignments.map((assignment) => (
-                  <li
-                    key={assignment.id}
-                    style={{
-                      border: "1px solid var(--border)",
-                      borderRadius: "10px",
-                      padding: "0.65rem",
-                      background: "#0f1a2b",
-                    }}
-                  >
-                    <div style={{ display: "flex", justifyContent: "space-between", gap: "0.75rem" }}>
-                      <div>
-                        <div style={{ fontWeight: 700 }}>{formatDateLabel(assignment.date)}</div>
-                        <div style={{ color: "var(--muted)", fontSize: "0.95rem" }}>
-                          {assignment.route.code} · {assignment.route.name}
+          ) : (
+            <>
+              <div className="driver-portal__free-trip-status">
+                <div className="stat-item">
+                  <span className="stat-label">Veículo</span>
+                  <span className="stat-value">{freeTrips.open_trip.vehicle_plate}</span>
+                </div>
+                <div className="stat-item">
+                  <span className="stat-label">Início</span>
+                  <span className="stat-value">{new Date(freeTrips.open_trip.started_at).toLocaleString("pt-BR")}</span>
+                </div>
+                <div className="stat-item">
+                  <span className="stat-label">KM inicial</span>
+                  <span className="stat-value">{freeTrips.open_trip.odometer_start}</span>
+                </div>
+              </div>
+              <div className="driver-portal__free-trip-form">
+                <label>
+                  Odômetro final
+                  <input
+                    type="number"
+                    placeholder="Km final"
+                    value={freeTripClose.odometer_end}
+                    onChange={(e) => setFreeTripClose((f) => ({ ...f, odometer_end: e.target.value }))}
+                  />
+                </label>
+                <label>
+                  Foto do painel (opcional)
+                  <input type="file" accept="image/*" onChange={(e) => setFreeTripClose((f) => ({ ...f, photo: e.target.files?.[0] || null }))} />
+                </label>
+                <label className="full-width">
+                  Relatar ocorrência (opcional)
+                  <textarea
+                    rows={2}
+                    placeholder="Descreva o ocorrido..."
+                    value={freeTripClose.incident}
+                    onChange={(e) => setFreeTripClose((f) => ({ ...f, incident: e.target.value }))}
+                  />
+                </label>
+                <div className="driver-portal__free-trip-actions full-width">
+                  <Button onClick={closeFreeTrip} disabled={!freeTripClose.odometer_end}>
+                    Encerrar viagem
+                  </Button>
+                  <Button variant="ghost" onClick={reportFreeTripIncident} disabled={!freeTripClose.incident.trim()}>
+                    Registrar ocorrência
+                  </Button>
+                </div>
+              </div>
+            </>
+          )}
+
+          {freeTrips?.recent_closed?.length ? (
+            <div style={{ marginTop: "1rem" }}>
+              <h4 style={{ margin: "0 0 0.5rem", color: "var(--muted)", fontSize: "0.9rem" }}>Últimas encerradas</h4>
+              {isMobile ? (
+                <div className="driver-portal__fuel-cards">
+                  {freeTrips.recent_closed.map((ft) => (
+                    <div key={ft.id} className="driver-portal__fuel-card">
+                      <div className="driver-portal__fuel-card-info">
+                        <div className="driver-portal__fuel-card-station">{ft.vehicle_plate}</div>
+                        <div className="driver-portal__fuel-card-details">
+                          {ft.odometer_start} → {ft.odometer_end ?? "—"} km
                         </div>
-                        <div style={{ color: "var(--muted)", fontSize: "0.9rem" }}>
-                          Veículo {assignment.vehicle.license_plate}
-                        </div>
-                        {assignment.route.service_name && (
-                          <div style={{ color: "var(--muted)", fontSize: "0.9rem" }}>{assignment.route.service_name}</div>
-                        )}
                       </div>
-                      <div style={{ textAlign: "right" }}>
-                        <div style={{ color: "var(--accent)", fontWeight: 700 }}>{formatPeriod(assignment)}</div>
-                        <div
-                          style={{
-                            display: "inline-block",
-                            marginTop: "0.35rem",
-                            padding: "0.15rem 0.55rem",
-                            borderRadius: "999px",
-                            border: "1px solid var(--border)",
-                            background: assignment.status === "CONFIRMED" ? "#0f5132" : "#2a2438",
-                            color: assignment.status === "CONFIRMED" ? "#c6f6d5" : "var(--muted)",
-                            fontSize: "0.9rem",
-                          }}
-                        >
-                          {assignmentStatusLabel(assignment.status)}
+                      <div className="driver-portal__fuel-card-liters">{ft.distance ?? "—"} km</div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <Table
+                  columns={[
+                    { key: "vehicle_plate", label: "Veículo" },
+                    { key: "odometer_start", label: "KM inicial" },
+                    { key: "odometer_end", label: "KM final" },
+                    { key: "distance", label: "Rodado", render: (row) => row.distance ?? "—" },
+                    { key: "ended_at", label: "Fim", render: (row) => new Date(row.ended_at || "").toLocaleString("pt-BR") },
+                  ]}
+                  data={freeTrips.recent_closed}
+                />
+              )}
+            </div>
+          ) : null}
+        </section>
+
+        {/* Schedule Section */}
+        <section id="escala" className="driver-portal__section">
+          <div className="driver-portal__section-header">
+            <div>
+              <h3>Escala do planejamento</h3>
+              <p>Integração com o planejador de viagens para que você veja a rotina da semana e do mês.</p>
+            </div>
+          </div>
+          <div className="driver-portal__schedule-grid">
+            <div className="driver-portal__week-panel">
+              <h4>Semana atual</h4>
+              {thisWeekAssignments.length === 0 ? (
+                <div className="driver-portal__empty">Nenhuma escala cadastrada para esta semana.</div>
+              ) : (
+                <div className="driver-portal__assignments-list">
+                  {thisWeekAssignments.map((assignment) => (
+                    <div key={assignment.id} className="driver-portal__assignment-card">
+                      <div className="driver-portal__assignment-card-header">
+                        <div>
+                          <div className="driver-portal__assignment-date">{formatDateLabel(assignment.date)}</div>
+                          <div className="driver-portal__assignment-route">
+                            {assignment.route.code} · {assignment.route.name}
+                          </div>
+                          <div className="driver-portal__assignment-vehicle">
+                            Veículo {assignment.vehicle.license_plate}
+                          </div>
+                          {assignment.route.service_name && (
+                            <div className="driver-portal__assignment-vehicle">{assignment.route.service_name}</div>
+                          )}
+                        </div>
+                        <div style={{ textAlign: isMobile ? "left" : "right" }}>
+                          <div className="driver-portal__assignment-time">{formatPeriod(assignment)}</div>
+                          <span className={`driver-portal__assignment-status ${assignment.status === "CONFIRMED" ? "driver-portal__assignment-status--confirmed" : "driver-portal__assignment-status--draft"}`}>
+                            {assignmentStatusLabel(assignment.status)}
+                          </span>
                         </div>
                       </div>
                     </div>
-                  </li>
-                ))}
-              </ul>
-            )}
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="driver-portal__month-panel">
+              <h4>Agenda do mês</h4>
+              {isMobile ? (
+                <div className="driver-portal__assignments-list">
+                  {thisMonthAssignments.slice(0, 10).map((assignment) => (
+                    <div key={assignment.id} className="driver-portal__assignment-card">
+                      <div className="driver-portal__assignment-date">{formatDateLabel(assignment.date)}</div>
+                      <div className="driver-portal__assignment-route">
+                        {assignment.route.code} — {assignment.route.name}
+                      </div>
+                      <div className="driver-portal__assignment-time">{formatPeriod(assignment)}</div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <Table
+                  columns={[
+                    { key: "date", label: "Data", render: (row) => formatDateLabel(row.date) },
+                    { key: "period_start", label: "Horário", render: (row) => formatPeriod(row) },
+                    { key: "route", label: "Rota", render: (row) => `${row.route.code} — ${row.route.name}` },
+                    { key: "service", label: "Serviço", render: (row) => row.route.service_name || "—" },
+                    { key: "vehicle", label: "Veículo", render: (row) => row.vehicle.license_plate },
+                    { key: "status", label: "Status", render: (row) => assignmentStatusLabel(row.status) },
+                  ]}
+                  data={thisMonthAssignments}
+                />
+              )}
+            </div>
           </div>
-          <div>
-            <h4 style={{ margin: "0 0 0.35rem 0" }}>Agenda do mês</h4>
-            <Table
-              columns={[
-                { key: "date", label: "Data", render: (row) => formatDateLabel(row.date) },
-                { key: "period_start", label: "Horário", render: (row) => formatPeriod(row) },
-                { key: "route", label: "Rota", render: (row) => `${row.route.code} — ${row.route.name}` },
-                {
-                  key: "service",
-                  label: "Serviço",
-                  render: (row) => row.route.service_name || "—",
-                },
-                { key: "vehicle", label: "Veículo", render: (row) => row.vehicle.license_plate },
-                { key: "status", label: "Status", render: (row) => assignmentStatusLabel(row.status) },
-              ]}
-              data={thisMonthAssignments}
-            />
-          </div>
-        </div>
-      </div>
-      <div className="grid" style={{ gridTemplateColumns: "1fr", gap: "1rem" }}>
-        <div className="card" style={{ background: "#0f1724", border: "1px solid var(--border)" }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.75rem", marginBottom: "0.5rem" }}>
-            <h3 style={{ margin: 0 }}>Minhas viagens</h3>
-            <Button variant="ghost" onClick={() => setShowPassengersModal(true)} disabled={!hasPassengers} title={hasPassengers ? undefined : "Nenhum passageiro cadastrado"}>
+        </section>
+
+        {/* Trips Section */}
+        <section id="viagens" className="driver-portal__section">
+          <div className="driver-portal__section-header">
+            <h3>Minhas viagens</h3>
+            <Button variant="ghost" size="sm" onClick={() => setShowPassengersModal(true)} disabled={!hasPassengers}>
               Ver passageiros
             </Button>
           </div>
-          <Table
-            columns={[
-              { key: "origin", label: "Origem" },
-              { key: "destination", label: "Destino" },
-              { key: "category", label: "Categoria" },
-              { key: "status", label: "Status", render: (row) => statusLabel(row.status) },
-              { key: "departure_datetime", label: "Saída" },
-              { key: "passengers_count", label: "Passageiros" },
-              { key: "vehicle__license_plate", label: "Veículo" },
-              {
-                key: "actions",
-                label: "Ações",
-                render: (row) => (
-                  <div style={{ display: "flex", gap: "0.35rem", flexWrap: "wrap" }}>
-                    {row.status !== "COMPLETED" && (
-                      <Button
-                        variant="ghost"
-                        onClick={() => handleCompleteTrip(row.id)}
-                        disabled={completingTripIds.includes(row.id)}
-                        title={completingTripIds.includes(row.id) ? "Enviando..." : "Marcar como concluída"}
-                        style={{ padding: "0.4rem 0.6rem" }}
-                      >
-                        {completingTripIds.includes(row.id) ? "Enviando..." : "Concluir"}
+          {isMobile ? (
+            renderTripCards()
+          ) : (
+            <Table
+              columns={[
+                { key: "origin", label: "Origem" },
+                { key: "destination", label: "Destino" },
+                { key: "category", label: "Categoria" },
+                { key: "status", label: "Status", render: (row) => statusLabel(row.status) },
+                { key: "departure_datetime", label: "Saída", render: (row) => formatDateTime(row.departure_datetime) },
+                { key: "passengers_count", label: "Pass." },
+                { key: "vehicle__license_plate", label: "Veículo" },
+                {
+                  key: "actions",
+                  label: "Ações",
+                  render: (row) => (
+                    <div style={{ display: "flex", gap: "0.35rem", flexWrap: "wrap" }}>
+                      {row.status !== "COMPLETED" && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleCompleteTrip(row.id)}
+                          disabled={completingTripIds.includes(row.id)}
+                        >
+                          {completingTripIds.includes(row.id) ? "..." : "Concluir"}
+                        </Button>
+                      )}
+                      <Button variant="ghost" size="sm" onClick={() => openIncidentModal(row)}>
+                        Ocorrência
                       </Button>
-                    )}
-                    <Button
-                      variant="ghost"
-                      onClick={() => openIncidentModal(row)}
-                      style={{ padding: "0.4rem 0.6rem" }}
-                    >
-                      Relatar ocorrido
-                    </Button>
-                  </div>
-                ),
-              },
-            ]}
-            data={sortedTrips}
-          />
-          {!hasPassengers && <p style={{ color: "var(--muted)", marginTop: "0.25rem" }}>Nenhum passageiro cadastrado nas viagens.</p>}
-        </div>
-        <div className="card" style={{ background: "#0f1724", border: "1px solid var(--border)" }}>
-          <h3>Prestação de contas de abastecimento</h3>
-          <form className="grid form-grid responsive" onSubmit={handleFuelSubmit}>
+                    </div>
+                  ),
+                },
+              ]}
+              data={sortedTrips}
+            />
+          )}
+          {!hasPassengers && <p style={{ color: "var(--muted)", marginTop: "0.5rem" }}>Nenhum passageiro cadastrado nas viagens.</p>}
+        </section>
+
+        {/* Fuel Section */}
+        <section id="abastecimento" className="driver-portal__section">
+          <div className="driver-portal__section-header">
+            <h3>Prestação de contas de abastecimento</h3>
+          </div>
+          <form className="driver-portal__fuel-form" onSubmit={handleFuelSubmit}>
             <select value={fuelForm.vehicle} onChange={(e) => setFuelForm((f) => ({ ...f, vehicle: Number(e.target.value) }))} required>
               <option value="">Veículo</option>
               {availableVehicles.map((v) => (
-                <option key={v.id} value={v.id}>
-                  {v.plate}
-                </option>
+                <option key={v.id} value={v.id}>{v.plate}</option>
               ))}
             </select>
-            <select
-              value={fuelForm.fuel_station_id}
-              onChange={(e) => setFuelForm((f) => ({ ...f, fuel_station_id: Number(e.target.value) }))}
-              required
-            >
+            <select value={fuelForm.fuel_station_id} onChange={(e) => setFuelForm((f) => ({ ...f, fuel_station_id: Number(e.target.value) }))} required>
               <option value="">Posto credenciado</option>
               {stations.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
+                <option key={s.id} value={s.id}>{s.name}</option>
               ))}
             </select>
             <label>
               Data do abastecimento
               <input type="date" value={fuelForm.filled_at} onChange={(e) => setFuelForm((f) => ({ ...f, filled_at: e.target.value }))} required />
             </label>
-            <input
-              type="number"
-              step="0.01"
-              placeholder="Litros"
-              value={fuelForm.liters}
-              onChange={(e) => setFuelForm((f) => ({ ...f, liters: e.target.value }))}
-              required
-            />
-            <textarea placeholder="Observações" value={fuelForm.notes} onChange={(e) => setFuelForm((f) => ({ ...f, notes: e.target.value }))} rows={2} />
+            <label>
+              Litros
+              <input type="number" step="0.01" placeholder="0.00" value={fuelForm.liters} onChange={(e) => setFuelForm((f) => ({ ...f, liters: e.target.value }))} required />
+            </label>
+            <label className="full-width">
+              Observações (opcional)
+              <textarea placeholder="Observações" value={fuelForm.notes} onChange={(e) => setFuelForm((f) => ({ ...f, notes: e.target.value }))} rows={2} />
+            </label>
             <label>
               Comprovante (foto)
               <input type="file" accept="image/*" onChange={(e) => setFuelForm((f) => ({ ...f, receipt_image: e.target.files?.[0] || null }))} />
             </label>
-            <Button type="submit">Registrar abastecimento</Button>
+            <Button type="submit" fullWidth>Registrar abastecimento</Button>
           </form>
-          <Table
-            columns={[
-              { key: "filled_at", label: "Data" },
-              { key: "fuel_station", label: "Posto" },
-              { key: "liters", label: "Litros" },
-              { key: "vehicle__license_plate", label: "Veículo" },
-              {
-                key: "receipt_image",
-                label: "Nota",
-                render: (row) => (row.receipt_image ? <a href={row.receipt_image}>Ver imagem</a> : "—"),
-              },
-            ]}
-            data={fuelLogs}
-          />
-        </div>
-      </div>
-      {showPassengersModal && (
-        <div style={modalOverlayStyle}>
-          <div style={modalContentStyle} role="dialog" aria-modal="true">
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "1rem", marginBottom: "0.5rem" }}>
-              <div>
-                <h3 style={{ margin: 0 }}>Passageiros das viagens</h3>
-                <p style={{ margin: 0, color: "var(--muted)" }}>Lista organizada pela data e horário de saída.</p>
+
+          <div className="driver-portal__fuel-history">
+            <h4>Histórico de abastecimentos</h4>
+            {isMobile ? renderFuelCards() : (
+              <Table
+                columns={[
+                  { key: "filled_at", label: "Data" },
+                  { key: "fuel_station", label: "Posto" },
+                  { key: "liters", label: "Litros" },
+                  { key: "vehicle__license_plate", label: "Veículo" },
+                  { key: "receipt_image", label: "Nota", render: (row) => (row.receipt_image ? <a href={row.receipt_image} target="_blank" rel="noopener noreferrer">Ver</a> : "—") },
+                ]}
+                data={fuelLogs}
+              />
+            )}
+          </div>
+        </section>
+
+        {/* Passengers Modal */}
+        {showPassengersModal && (
+          <div className="driver-portal__modal-overlay" onClick={() => setShowPassengersModal(false)}>
+            <div className="driver-portal__modal" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
+              <div className="driver-portal__modal-header">
+                <div>
+                  <h3>Passageiros das viagens</h3>
+                  <p>Lista organizada pela data e horário de saída.</p>
+                </div>
+                <Button variant="ghost" size="sm" onClick={() => setShowPassengersModal(false)}>Fechar</Button>
               </div>
-              <Button variant="ghost" onClick={() => setShowPassengersModal(false)}>
-                Fechar
-              </Button>
-            </div>
-            {passengerTrips.map((t) => (
-              <div
-                key={t.id}
-                style={{
-                  padding: "0.75rem",
-                  border: "1px solid var(--border)",
-                  borderRadius: "12px",
-                  background: "#0b1422",
-                  marginBottom: "0.75rem",
-                }}
-              >
-                <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "0.75rem", marginBottom: "0.5rem" }}>
-                  <div>
-                    <strong>Viagem #{t.id}</strong>
-                    <div style={{ color: "var(--muted)", fontSize: "0.95rem" }}>
-                      {t.origin} → {t.destination}
+              <div className="driver-portal__passengers-list">
+                {passengerTrips.map((t) => (
+                  <div key={t.id} className="driver-portal__passenger-trip-card">
+                    <div className="driver-portal__passenger-trip-header">
+                      <strong>Viagem #{t.id}</strong>
+                      <div style={{ color: "var(--muted)", fontSize: "0.9rem" }}>{t.origin} → {t.destination}</div>
+                      <div style={{ color: "var(--accent)", fontSize: "0.9rem" }}>{formatDateTime(t.departure_datetime)}</div>
+                    </div>
+                    <div className="driver-portal__passenger-list-items">
+                      {t.passengers_details?.map((p, idx) => (
+                        <div key={`${t.id}-${idx}`} className="driver-portal__passenger-item">
+                          <div className="driver-portal__passenger-name">
+                            {p.name}{p.age !== undefined && p.age !== null ? ` — ${p.age} anos` : ""}
+                          </div>
+                          <div className="driver-portal__passenger-details">
+                            Necessidade especial: {p.special_need ? specialNeedLabel(p.special_need) : "Nenhuma"}
+                            {p.special_need === "OTHER" && p.special_need_other ? ` (${p.special_need_other})` : ""}
+                            {p.observation ? ` — Obs: ${p.observation}` : ""}
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   </div>
-                  <div style={{ color: "var(--accent)", fontWeight: 600, fontSize: "0.95rem" }}>
-                    {new Date(t.departure_datetime).toLocaleString("pt-BR")}
-                  </div>
-                </div>
-                <ul style={{ margin: 0, paddingLeft: "1rem", display: "grid", gap: "0.4rem" }}>
-                  {t.passengers_details?.map((p, idx) => (
-                    <li key={`${t.id}-${idx}`} style={{ listStyle: "disc" }}>
-                      <div>
-                        <strong>{p.name}</strong>
-                        {p.age !== undefined && p.age !== null ? ` — ${p.age} anos` : ""}
-                      </div>
-                      <div style={{ color: "var(--muted)", fontSize: "0.9rem" }}>
-                        Necessidade especial: {p.special_need ? specialNeedLabel(p.special_need) : "Nenhuma"}
-                        {p.special_need === "OTHER" && p.special_need_other ? ` (${p.special_need_other})` : ""}
-                        {p.observation ? ` — Obs: ${p.observation}` : ""}
-                      </div>
-                    </li>
-                  ))}
-                </ul>
+                ))}
               </div>
-            ))}
-          </div>
-        </div>
-      )}
-      {incidentTrip && (
-        <div style={modalOverlayStyle}>
-          <div style={{ ...modalContentStyle, maxWidth: "620px" }} role="dialog" aria-modal="true">
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "1rem", marginBottom: "0.5rem" }}>
-              <div>
-                <h3 style={{ margin: 0 }}>Registrar ocorrência</h3>
-                <p style={{ margin: 0, color: "var(--muted)" }}>
-                  Viagem #{incidentTrip.id} — {incidentTrip.origin} → {incidentTrip.destination}
-                </p>
-              </div>
-              <Button variant="ghost" onClick={() => setIncidentTrip(null)}>
-                Fechar
-              </Button>
             </div>
-            <form className="grid form-grid" onSubmit={handleSubmitIncident}>
-              <textarea
-                rows={4}
-                placeholder="Descreva o ocorrido..."
-                value={incidentText}
-                onChange={(e) => {
-                  setIncidentText(e.target.value);
-                  setIncidentError(null);
-                }}
-              />
-              {incidentError && <div className="error">{incidentError}</div>}
-              <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.5rem" }}>
-                <Button variant="ghost" type="button" onClick={() => setIncidentTrip(null)}>
-                  Cancelar
-                </Button>
-                <Button type="submit">Salvar relato</Button>
-              </div>
-            </form>
           </div>
-        </div>
-      )}
+        )}
+
+        {/* Incident Modal */}
+        {incidentTrip && (
+          <div className="driver-portal__modal-overlay" onClick={() => setIncidentTrip(null)}>
+            <div className="driver-portal__modal" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
+              <div className="driver-portal__modal-header">
+                <div>
+                  <h3>Registrar ocorrência</h3>
+                  <p>Viagem #{incidentTrip.id} — {incidentTrip.origin} → {incidentTrip.destination}</p>
+                </div>
+                <Button variant="ghost" size="sm" onClick={() => setIncidentTrip(null)}>Fechar</Button>
+              </div>
+              <form className="grid form-grid" onSubmit={handleSubmitIncident}>
+                <textarea
+                  rows={4}
+                  placeholder="Descreva o ocorrido..."
+                  value={incidentText}
+                  onChange={(e) => { setIncidentText(e.target.value); setIncidentError(null); }}
+                />
+                {incidentError && <div className="error">{incidentError}</div>}
+                <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.5rem", flexWrap: "wrap" }}>
+                  <Button variant="ghost" type="button" onClick={() => setIncidentTrip(null)}>Cancelar</Button>
+                  <Button type="submit">Salvar relato</Button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+      </main>
     </div>
   );
 };

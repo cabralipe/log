@@ -1,24 +1,64 @@
 .btn {
-  border: none;
-  border-radius: 12px;
-  padding: 0.75rem 1rem;
-  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 8px;
+  font-weight: 500;
   cursor: pointer;
-  transition: transform 0.1s ease, box-shadow 0.2s ease;
+  transition: all 0.2s ease;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+.btn.sm {
+  padding: 0.4rem 0.8rem;
+  font-size: 0.85rem;
+}
+
+.btn.md {
+  padding: 0.6rem 1.2rem;
+  font-size: 0.95rem;
+}
+
+.btn.lg {
+  padding: 0.8rem 1.5rem;
+  font-size: 1.1rem;
+}
+
+.btn.full-width {
+  width: 100%;
+  display: flex;
 }
 
 .btn.primary {
-  background: linear-gradient(120deg, var(--accent-strong), #34d399);
-  color: #031308;
-  box-shadow: 0 12px 24px rgba(52, 211, 153, 0.25);
+  background: var(--accent);
+  color: #0f1724;
+  border-color: var(--accent);
+}
+
+.btn.primary:hover:not(:disabled) {
+  background: var(--accent-strong);
+  border-color: var(--accent-strong);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(74, 222, 128, 0.2);
 }
 
 .btn.ghost {
   background: transparent;
-  border: 1px solid var(--border);
-  color: var(--text);
+  color: var(--muted);
+  border-color: var(--border);
 }
 
-.btn:active {
-  transform: translateY(1px);
+.btn.ghost:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none !important;
+  box-shadow: none !important;
 }

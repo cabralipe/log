@@ -1,9 +1,12 @@
 import urllib.parse
-from rest_framework import viewsets, permissions, response, decorators, filters, status
-from trips.models import Trip, FreeTrip, FreeTripIncident
+from datetime import timedelta
+from django.utils import timezone
+from rest_framework import viewsets, permissions, response, decorators, filters, status, views
+from trips.models import Trip, FreeTrip, TripGpsPing
 from trips.serializers import TripSerializer, FreeTripSerializer, FreeTripIncidentSerializer
 from tenants.mixins import MunicipalityQuerysetMixin
 from accounts.permissions import IsMunicipalityAdminOrReadOnly
+from trips.gps import resolve_status, STATUS_LABELS
 
 
 class TripViewSet(MunicipalityQuerysetMixin, viewsets.ModelViewSet):
@@ -51,6 +54,30 @@ class TripViewSet(MunicipalityQuerysetMixin, viewsets.ModelViewSet):
         phone_digits = "".join(filter(str.isdigit, trip.driver.phone))
         wa_link = f"https://wa.me/{phone_digits}?text={urllib.parse.quote(message)}"
         return response.Response({"message": message, "wa_link": wa_link})
+
+    @decorators.action(detail=True, methods=["get"], url_path="gps/history")
+    def gps_history(self, request, pk=None):
+        trip = self.get_object()
+        points_qs = TripGpsPing.objects.filter(trip=trip).order_by("recorded_at", "id")
+        limit = request.query_params.get("limit")
+        if limit:
+            try:
+                limit_value = max(1, min(int(limit), 5000))
+            except (TypeError, ValueError):
+                limit_value = 2000
+            points_qs = points_qs.order_by("-recorded_at", "-id")[:limit_value]
+            points_qs = reversed(list(points_qs))
+        payload = [
+            {
+                "lat": float(item.lat),
+                "lng": float(item.lng),
+                "accuracy": item.accuracy,
+                "speed": item.speed,
+                "recorded_at": item.recorded_at,
+            }
+            for item in points_qs
+        ]
+        return response.Response({"trip_id": trip.id, "points": payload})
 
 
 class FreeTripViewSet(MunicipalityQuerysetMixin, viewsets.ModelViewSet):
@@ -115,3 +142,89 @@ class FreeTripViewSet(MunicipalityQuerysetMixin, viewsets.ModelViewSet):
             free_trip=free_trip, driver=free_trip.driver, municipality=free_trip.municipality
         )
         return response.Response(FreeTripIncidentSerializer(incident).data, status=status.HTTP_201_CREATED)
+
+
+class TripMapStateView(views.APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        if user.role not in ("SUPERADMIN", "ADMIN_MUNICIPALITY", "OPERATOR"):
+            return response.Response({"detail": "Permissão negada."}, status=status.HTTP_403_FORBIDDEN)
+        include_history = request.query_params.get("include_history", "true").lower() != "false"
+        history_limit = request.query_params.get("history_limit")
+        if history_limit:
+            try:
+                history_limit = max(1, min(int(history_limit), 5000))
+            except (TypeError, ValueError):
+                history_limit = 2000
+        else:
+            history_limit = 2000
+
+        trip_qs = Trip.objects.filter(status=Trip.Status.IN_PROGRESS).select_related("driver", "vehicle")
+        if user.role != "SUPERADMIN":
+            trip_qs = trip_qs.filter(municipality=user.municipality)
+        trips = list(trip_qs)
+        if not trips:
+            return response.Response({"drivers": []})
+
+        trip_ids = [trip.id for trip in trips]
+        ping_qs = (
+            TripGpsPing.objects.filter(trip_id__in=trip_ids)
+            .select_related("driver", "trip", "trip__vehicle")
+            .order_by("trip_id", "-recorded_at", "-id")
+        )
+        latest_by_trip = {}
+        for ping in ping_qs:
+            if ping.trip_id not in latest_by_trip:
+                latest_by_trip[ping.trip_id] = ping
+
+        history_by_trip = {}
+        if include_history:
+            history_qs = (
+                TripGpsPing.objects.filter(trip_id__in=trip_ids)
+                .order_by("trip_id", "-recorded_at", "-id")
+            )
+            for ping in history_qs:
+                points = history_by_trip.setdefault(ping.trip_id, [])
+                if len(points) >= history_limit:
+                    continue
+                points.append(
+                    {
+                        "lat": float(ping.lat),
+                        "lng": float(ping.lng),
+                        "accuracy": ping.accuracy,
+                        "speed": ping.speed,
+                        "recorded_at": ping.recorded_at,
+                    }
+                )
+            for trip_id, points in history_by_trip.items():
+                points.reverse()
+
+        now = timezone.now()
+        drivers_payload = []
+        for trip in trips:
+            ping = latest_by_trip.get(trip.id)
+            status_code = resolve_status(ping, now=now, offline_after=timedelta(minutes=2))
+            payload = {
+                "trip_id": trip.id,
+                "driver_id": trip.driver_id,
+                "driver_name": trip.driver.name,
+                "vehicle_id": trip.vehicle_id,
+                "vehicle_plate": trip.vehicle.license_plate,
+                "status": status_code,
+                "status_label": STATUS_LABELS.get(status_code, status_code),
+                "last_point": None,
+                "history": history_by_trip.get(trip.id, []),
+            }
+            if ping:
+                payload["last_point"] = {
+                    "lat": float(ping.lat),
+                    "lng": float(ping.lng),
+                    "accuracy": ping.accuracy,
+                    "speed": ping.speed,
+                    "recorded_at": ping.recorded_at,
+                }
+            drivers_payload.append(payload)
+
+        return response.Response({"drivers": drivers_payload})
