@@ -2,6 +2,7 @@ import os
 from datetime import timedelta
 from pathlib import Path
 from corsheaders.defaults import default_headers
+import dj_database_url
 
 
 def env_bool(key: str, default: bool = False) -> bool:
@@ -47,6 +48,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -85,16 +87,20 @@ if env_bool("USE_SQLITE_FOR_TESTS"):
         }
     }
 else:
-    DATABASES = {
-        "default": {
-            "ENGINE": "django.db.backends.postgresql",
-            "NAME": os.environ.get("POSTGRES_DB", "municipal_fleet"),
-            "USER": os.environ.get("POSTGRES_USER", "postgres"),
-            "PASSWORD": os.environ.get("POSTGRES_PASSWORD", "postgres"),
-            "HOST": os.environ.get("POSTGRES_HOST", "localhost"),
-            "PORT": os.environ.get("POSTGRES_PORT", "5432"),
+    database_url = os.environ.get("DATABASE_URL")
+    if database_url:
+        DATABASES = {"default": dj_database_url.parse(database_url, conn_max_age=600)}
+    else:
+        DATABASES = {
+            "default": {
+                "ENGINE": "django.db.backends.postgresql",
+                "NAME": os.environ.get("POSTGRES_DB", "municipal_fleet"),
+                "USER": os.environ.get("POSTGRES_USER", "postgres"),
+                "PASSWORD": os.environ.get("POSTGRES_PASSWORD", "postgres"),
+                "HOST": os.environ.get("POSTGRES_HOST", "localhost"),
+                "PORT": os.environ.get("POSTGRES_PORT", "5432"),
+            }
         }
-    }
 
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
@@ -110,6 +116,7 @@ USE_TZ = True
 
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
+STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
