@@ -112,8 +112,9 @@ export const FormTemplatesPage = () => {
       .get<FormQuestion[]>("/forms/questions/", { params: { form_template: templateId, ordering: "order" } })
       .then((res) => {
         const data = Array.isArray(res.data) ? res.data : (res.data as any).results ?? [];
-        setQuestions(data);
-        setSelectedQuestion(data[0] ?? null);
+        const filtered = data.filter((q) => q.form_template === templateId);
+        setQuestions(filtered);
+        setSelectedQuestion(filtered[0] ?? null);
       })
       .catch(() => setQuestions([]));
   };

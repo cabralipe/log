@@ -1,4 +1,5 @@
 from datetime import date, datetime, timedelta
+from collections import Counter
 from decimal import Decimal
 from django.contrib.auth import get_user_model
 from django.db.models import Count, Sum, F, ExpressionWrapper, IntegerField, Q, DurationField
@@ -11,7 +12,7 @@ from contracts.models import Contract, RentalPeriod
 from maintenance.models import ServiceOrder, MaintenancePlan, InventoryPart, InventoryMovement, Tire
 from transport_planning.models import TransportService, Route, Assignment, ServiceApplication
 from drivers.models import Driver
-from forms.models import FormTemplate, FormSubmission
+from forms.models import FormTemplate, FormSubmission, FormAnswer
 from students.models import Student, StudentCard
 from scheduling.models import DriverAvailabilityBlock
 
@@ -244,6 +245,42 @@ class DashboardView(views.APIView):
         cards_expiring_soon = qs_cards.filter(
             status=StudentCard.Status.ACTIVE, expiration_date__lte=today + timedelta(days=30)
         ).count()
+        cards_issued_month = qs_cards.filter(
+            issue_date__year=now.year, issue_date__month=now.month
+        ).count()
+
+        approved_card_submissions = qs_submissions.filter(
+            form_template__form_type=FormTemplate.FormType.STUDENT_CARD_APPLICATION,
+            status=FormSubmission.Status.APPROVED,
+        )
+        answers_qs = (
+            FormAnswer.objects.filter(
+                submission__in=approved_card_submissions,
+                question__field_name__in=["shift", "course"],
+            )
+            .select_related("question")
+            .prefetch_related("question__options")
+        )
+        shift_counts = Counter()
+        course_counts = Counter()
+        shift_label_map = {value: label for value, label in Student.Shift.choices}
+
+        for ans in answers_qs:
+            raw_value = ans.value_json if ans.value_json is not None else ans.value_text
+            if raw_value in [None, "", []]:
+                continue
+            values = raw_value if isinstance(raw_value, list) else [raw_value]
+            option_map = {opt.value: opt.label for opt in ans.question.options.all()}
+            if ans.question.field_name == "shift":
+                for value in values:
+                    key = str(value)
+                    label = option_map.get(key) or shift_label_map.get(key) or key
+                    shift_counts[label] += 1
+            if ans.question.field_name == "course":
+                for value in values:
+                    key = str(value)
+                    label = option_map.get(key) or key
+                    course_counts[label] += 1
         cnh_expiring_soon = qs_driver.filter(cnh_expiration_date__lte=today + timedelta(days=30)).values(
             "id", "name", "cnh_expiration_date"
         )[:6]
@@ -331,6 +368,23 @@ class DashboardView(views.APIView):
                 "cards_active": qs_cards.filter(status=StudentCard.Status.ACTIVE).count(),
                 "cards_expiring_soon": cards_expiring_soon,
                 "cards_by_status": list(cards_by_status),
+            },
+            "student_cards": {
+                "cards_total": qs_cards.count(),
+                "cards_active": qs_cards.filter(status=StudentCard.Status.ACTIVE).count(),
+                "cards_blocked": qs_cards.filter(status=StudentCard.Status.BLOCKED).count(),
+                "cards_expired": qs_cards.filter(status=StudentCard.Status.EXPIRED).count(),
+                "cards_replaced": qs_cards.filter(status=StudentCard.Status.REPLACED).count(),
+                "cards_expiring_soon": cards_expiring_soon,
+                "cards_issued_month": cards_issued_month,
+                "approved_submissions": approved_card_submissions.count(),
+                "cards_by_status": list(cards_by_status),
+                "students_by_shift": [
+                    {"name": name, "value": total} for name, total in shift_counts.most_common()
+                ],
+                "students_by_course": [
+                    {"name": name, "value": total} for name, total in course_counts.most_common(8)
+                ],
             },
             "tires": {
                 "status_counts": list(qs_tires.values("status").annotate(total=Count("id"))),

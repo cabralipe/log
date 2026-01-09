@@ -136,6 +136,15 @@ class StudentCardValidateView(APIView):
                     return ans.value_json
                 return ans.value_text
 
+            def resolve_options(ans, values):
+                if not ans or not isinstance(values, list):
+                    return values
+                options = list(ans.question.options.all())
+                if not options:
+                    return values
+                option_map = {opt.value: opt.label for opt in options}
+                return [option_map.get(str(val), str(val)) for val in values]
+
             data = {}
             name_val = answer_value("full_name")
             if name_val:
@@ -148,6 +157,17 @@ class StudentCardValidateView(APIView):
                 if school_id_val:
                     # Se o formulário enviou school_id, usamos o nome real da escola se existir.
                     data["school"] = card.student.school.name if card.student and card.student.school else school_id_val
+            shift_val = answer_value("shift")
+            if shift_val:
+                if isinstance(shift_val, list):
+                    allowed = {choice[0] for choice in Student.Shift.choices}
+                    mapped = [Student.Shift(choice).label if choice in allowed else str(choice) for choice in shift_val]
+                    data["shift"] = resolve_options(answer_map.get("shift"), mapped)
+                else:
+                    data["shift"] = shift_val
+            course_val = answer_value("course")
+            if course_val:
+                data["course"] = resolve_options(answer_map.get("course"), course_val)
             if data:
                 student_payload = data
 

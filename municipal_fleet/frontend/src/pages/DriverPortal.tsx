@@ -1285,7 +1285,7 @@ export const DriverPortalPage = () => {
         </section>
 
         {/* Schedule Section */}
-        <section id="escala" className="driver-portal__section">
+        <section id="escala" className="driver-portal__section driver-portal__section--wide">
           <div className="driver-portal__section-header">
             <div>
               <h3>Escala do planejamento</h3>
@@ -1358,7 +1358,7 @@ export const DriverPortalPage = () => {
         </section>
 
         {/* Trips Section */}
-        <section id="viagens" className="driver-portal__section">
+        <section id="viagens" className="driver-portal__section driver-portal__section--wide">
           <div className="driver-portal__section-header">
             <h3>Minhas viagens</h3>
             <Button variant="ghost" size="sm" onClick={() => setShowPassengersModal(true)} disabled={!hasPassengers}>

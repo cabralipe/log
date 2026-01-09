@@ -1,0 +1,154 @@
+.student-cards-page {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.student-cards-wizard {
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    gap: 2rem;
+    align-items: start;
+}
+
+@media (max-width: 768px) {
+    .student-cards-wizard {
+        grid-template-columns: 1fr;
+    }
+}
+
+.wizard-steps {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.wizard-step {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+    background: var(--card);
+    border: 1px solid transparent;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: left;
+    width: 100%;
+}
+
+.wizard-step:hover {
+    background: var(--bg);
+}
+
+.wizard-step.active {
+    background: var(--accent);
+    color: white;
+    border-color: var(--accent);
+}
+
+.wizard-step__number {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.2);
+    font-weight: 700;
+    font-size: 0.9rem;
+}
+
+.wizard-step.active .wizard-step__number {
+    background: white;
+    color: var(--accent);
+}
+
+.wizard-step__content strong {
+    display: block;
+    font-size: 0.95rem;
+    margin-bottom: 0.1rem;
+}
+
+.wizard-step__content p {
+    font-size: 0.8rem;
+    margin: 0;
+    opacity: 0.8;
+}
+
+.wizard-panel {
+    animation: fadeIn 0.3s ease-out;
+}
+
+.wizard-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1.5rem;
+}
+
+.wizard-header h2 {
+    margin: 0;
+    font-size: 1.5rem;
+}
+
+.validation-box {
+    background: var(--bg);
+    border: 1px dashed var(--border);
+    border-radius: 8px;
+    padding: 2rem;
+    text-align: center;
+    margin-bottom: 1.5rem;
+}
+
+.validation-input-group {
+    display: flex;
+    gap: 0.5rem;
+    max-width: 500px;
+    margin: 1.5rem auto 0;
+}
+
+.validation-result {
+    margin-top: 1.5rem;
+    padding: 1.5rem;
+    border-radius: 8px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    text-align: left;
+}
+
+.validation-result.valid {
+    border-color: var(--success);
+    background: rgba(16, 185, 129, 0.05);
+}
+
+.validation-result.invalid {
+    border-color: var(--danger);
+    background: rgba(239, 68, 68, 0.05);
+}
+
+.validation-details {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-top: 1rem;
+}
+
+.validation-detail-item label {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--muted);
+    display: block;
+    margin-bottom: 0.25rem;
+}
+
+.validation-detail-item strong {
+    font-size: 1rem;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 3rem 1rem;
+    color: var(--muted);
+}

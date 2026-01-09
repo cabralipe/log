@@ -19,6 +19,8 @@ type ValidationResult = {
         full_name?: string;
         school?: string | null;
         school_id?: string | number;
+        shift?: string | string[];
+        course?: string | string[];
     };
 };
 
@@ -192,13 +194,23 @@ export const CardValidatorPage = () => {
                                     <div className="muted">Status: {result.card.status}</div>
                                 </div>
                             )}
-                            {result.student && (result.student.full_name || result.student.school || result.student.school_id) && (
+                            {result.student && (result.student.full_name || result.student.school || result.student.school_id || result.student.shift || result.student.course) && (
                                 <div className="info-block">
                                     <p className="eyebrow">Aluno</p>
                                     {result.student.full_name && <div className="muted">{result.student.full_name}</div>}
-                                    {result.student.school && <div className="muted">Escola: {result.student.school}</div>}
+                                    {result.student.school && <div className="muted">Unidade Acadêmica: {result.student.school}</div>}
                                     {!result.student.school && result.student.school_id && (
-                                        <div className="muted">Escola: {result.student.school_id}</div>
+                                        <div className="muted">Unidade Acadêmica: {result.student.school_id}</div>
+                                    )}
+                                    {result.student.shift && (
+                                        <div className="muted">
+                                            Turno(s): {Array.isArray(result.student.shift) ? result.student.shift.join(", ") : result.student.shift}
+                                        </div>
+                                    )}
+                                    {result.student.course && (
+                                        <div className="muted">
+                                            Curso(s): {Array.isArray(result.student.course) ? result.student.course.join(", ") : result.student.course}
+                                        </div>
                                     )}
                                 </div>
                             )}

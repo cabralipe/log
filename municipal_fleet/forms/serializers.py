@@ -284,10 +284,14 @@ class PublicSubmissionStatusSerializer(serializers.ModelSerializer):
             if school_id:
                 data["school_id"] = school_id
 
-        for field in ["grade", "shift"]:
+        for field in ["grade", "shift", "course"]:
             value = answer_value(field)
             if value not in [None, ""]:
-                data[field] = value
+                if field == "shift" and isinstance(value, list):
+                    allowed = {choice[0] for choice in Student.Shift.choices}
+                    data[field] = [Student.Shift(choice).label if choice in allowed else str(choice) for choice in value]
+                else:
+                    data[field] = value
 
         return data or None
 
@@ -327,7 +331,12 @@ class StudentFromSubmissionMapper:
         for question_field, student_field in self.FIELD_MAP.items():
             value = self.get_value(question_field)
             if value:
-                data[student_field] = value
+                if student_field == "shift" and isinstance(value, list):
+                    data[student_field] = str(value[0]) if value else None
+                elif student_field == "grade" and isinstance(value, list):
+                    data[student_field] = str(value[0]) if value else None
+                else:
+                    data[student_field] = value
         # boolean handling
         has_special_needs = self.get_value("has_special_needs")
         if has_special_needs is not None:

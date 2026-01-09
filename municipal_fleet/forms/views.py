@@ -17,7 +17,7 @@ from forms.serializers import (
 )
 from tenants.mixins import MunicipalityQuerysetMixin
 from accounts.permissions import IsMunicipalityAdminOrReadOnly, IsMunicipalityAdmin
-from students.models import StudentCard
+from students.models import Student, StudentCard
 from trips.serializers import TripSerializer
 from drivers.models import Driver
 from fleet.models import Vehicle
@@ -86,6 +86,48 @@ def create_default_transport_questions(template: FormTemplate):
         order += 1
 
 
+def create_default_student_card_questions(template: FormTemplate):
+    """
+    Seed a student card application form with the required fields used in card display.
+    Only runs when the template has no questions yet to avoid duplicates.
+    """
+    if template.questions.exists():
+        return
+    defaults = [
+        ("CPF", "cpf", FormQuestion.QuestionType.SHORT_TEXT, True, ""),
+        ("Nome completo", "full_name", FormQuestion.QuestionType.SHORT_TEXT, True, ""),
+        ("Unidade Acadêmica", "school_id", FormQuestion.QuestionType.DROPDOWN, True, ""),
+        ("Turno(s)", "shift", FormQuestion.QuestionType.CHECKBOXES, True, ""),
+        ("Curso(s)", "course", FormQuestion.QuestionType.CHECKBOXES, True, ""),
+    ]
+    order = 1
+    for label, field_name, qtype, required, default_value in defaults:
+        question = FormQuestion.objects.create(
+            form_template=template,
+            order=order,
+            label=label,
+            field_name=field_name,
+            type=qtype,
+            required=required,
+            config={"default": default_value} if default_value != "" else {},
+        )
+        if field_name == "shift":
+            FormOption.objects.bulk_create(
+                [
+                    FormOption(question=question, label=shift_label, value=shift_value, order=idx + 1)
+                    for idx, (shift_value, shift_label) in enumerate(Student.Shift.choices)
+                ]
+            )
+        if field_name == "course":
+            FormOption.objects.bulk_create(
+                [
+                    FormOption(question=question, label="Curso 1", value="curso-1", order=1),
+                    FormOption(question=question, label="Curso 2", value="curso-2", order=2),
+                ]
+            )
+        order += 1
+
+
 class FormTemplateViewSet(MunicipalityQuerysetMixin, viewsets.ModelViewSet):
     queryset = FormTemplate.objects.all().prefetch_related("questions")
     serializer_class = FormTemplateSerializer
@@ -102,6 +144,8 @@ class FormTemplateViewSet(MunicipalityQuerysetMixin, viewsets.ModelViewSet):
         user = self.request.user
         municipality = user.municipality if user.role != "SUPERADMIN" else serializer.validated_data.get("municipality")
         template = serializer.save(municipality=municipality)
+        if template.form_type == FormTemplate.FormType.STUDENT_CARD_APPLICATION:
+            create_default_student_card_questions(template)
         if template.form_type == FormTemplate.FormType.TRANSPORT_REQUEST:
             create_default_transport_questions(template)
 
@@ -113,10 +157,20 @@ class FormQuestionViewSet(MunicipalityQuerysetMixin, viewsets.ModelViewSet):
     municipality_field = "form_template__municipality"
     filter_backends = [filters.OrderingFilter]
     ordering_fields = ["order"]
+    student_required_fields = {"cpf", "full_name", "shift", "course"}
+    student_school_fields = {"school", "school_name", "school_id"}
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        template_id = self.request.query_params.get("form_template")
+        if template_id:
+            qs = qs.filter(form_template_id=template_id)
+        return qs
 
     def _ensure_cpf_present(self, template: FormTemplate):
         if template.require_cpf and not template.questions.filter(field_name="cpf", required=True).exists():
             raise exceptions.ValidationError("Formulário de carteirinha precisa ter uma pergunta de CPF obrigatória.")
+
 
     def perform_create(self, serializer):
         template = serializer.validated_data["form_template"]
@@ -125,6 +179,12 @@ class FormQuestionViewSet(MunicipalityQuerysetMixin, viewsets.ModelViewSet):
                 raise exceptions.ValidationError("Crie primeiro a pergunta de CPF obrigatória.")
         if template.require_cpf and serializer.validated_data.get("field_name") == "cpf" and not serializer.validated_data.get("required", False):
             raise exceptions.ValidationError("O campo CPF deve ser obrigatório.")
+        if (
+            template.form_type == FormTemplate.FormType.STUDENT_CARD_APPLICATION
+            and serializer.validated_data.get("field_name") in self.student_required_fields | self.student_school_fields
+            and not serializer.validated_data.get("required", False)
+        ):
+            raise exceptions.ValidationError("Campos obrigatórios da carteirinha não podem ser opcionais.")
         serializer.save()
         self._ensure_cpf_present(template)
 
@@ -134,6 +194,18 @@ class FormQuestionViewSet(MunicipalityQuerysetMixin, viewsets.ModelViewSet):
         new_field_name = serializer.validated_data.get("field_name", instance.field_name)
         if template.require_cpf and instance.field_name == "cpf" and new_field_name != "cpf":
             raise exceptions.ValidationError("Não é permitido remover ou renomear o campo de CPF.")
+        if (
+            template.form_type == FormTemplate.FormType.STUDENT_CARD_APPLICATION
+            and instance.field_name in self.student_required_fields | self.student_school_fields
+            and new_field_name != instance.field_name
+        ):
+            raise exceptions.ValidationError("Campos obrigatórios da carteirinha não podem ser renomeados.")
+        if (
+            template.form_type == FormTemplate.FormType.STUDENT_CARD_APPLICATION
+            and instance.field_name in self.student_required_fields | self.student_school_fields
+            and serializer.validated_data.get("required") is False
+        ):
+            raise exceptions.ValidationError("Campos obrigatórios da carteirinha não podem ser opcionais.")
         updated = serializer.save()
         self._ensure_cpf_present(updated.form_template)
 
@@ -141,6 +213,11 @@ class FormQuestionViewSet(MunicipalityQuerysetMixin, viewsets.ModelViewSet):
         template = instance.form_template
         if template.require_cpf and instance.field_name == "cpf":
             raise exceptions.ValidationError("O campo de CPF não pode ser removido.")
+        if (
+            template.form_type == FormTemplate.FormType.STUDENT_CARD_APPLICATION
+            and instance.field_name in self.student_required_fields | self.student_school_fields
+        ):
+            raise exceptions.ValidationError("Campos obrigatórios da carteirinha não podem ser removidos.")
         super().perform_destroy(instance)
         self._ensure_cpf_present(template)
 
@@ -331,6 +408,8 @@ class PublicFormSubmitView(views.APIView):
             parsed = self._parse_value(raw_value, expect_json=True)
             if not isinstance(parsed, (list, dict)):
                 raise exceptions.ValidationError({question.field_name: "Formato inválido, envie lista ou objeto."})
+            if required and ((isinstance(parsed, list) and len(parsed) == 0) or (isinstance(parsed, dict) and len(parsed) == 0)):
+                raise exceptions.ValidationError({question.field_name: "Campo obrigatório."})
             return {"value_json": parsed}
         if qtype == FormQuestion.QuestionType.LINEAR_SCALE:
             try:

@@ -2,6 +2,7 @@ from rest_framework.routers import DefaultRouter
 from django.urls import path
 from drivers.views import (
     DriverViewSet,
+    DriverGeofenceView,
     DriverPortalLoginView,
     DriverPortalTripsView,
     DriverPortalAssignmentsView,
@@ -26,6 +27,7 @@ router = DefaultRouter()
 router.register(r"", DriverViewSet, basename="driver")
 
 urlpatterns = [
+    path("geofence/<int:driver_id>/", DriverGeofenceView.as_view(), name="driver-geofence"),
     path("portal/login/", DriverPortalLoginView.as_view(), name="driver-portal-login"),
     path("portal/trips/", DriverPortalTripsView.as_view(), name="driver-portal-trips"),
     path("portal/assignments/", DriverPortalAssignmentsView.as_view(), name="driver-portal-assignments"),

@@ -31,3 +31,22 @@ class Driver(models.Model):
 
     def __str__(self):
         return self.name
+
+
+class DriverGeofence(models.Model):
+    driver = models.OneToOneField(Driver, on_delete=models.CASCADE, related_name="geofence")
+    center_lat = models.DecimalField(max_digits=9, decimal_places=6)
+    center_lng = models.DecimalField(max_digits=9, decimal_places=6)
+    radius_m = models.PositiveIntegerField(default=500)
+    is_active = models.BooleanField(default=True)
+    alert_active = models.BooleanField(default=False)
+    last_alerted_at = models.DateTimeField(null=True, blank=True)
+    cleared_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-updated_at", "-id"]
+
+    def __str__(self):
+        return f"Geofence {self.driver_id} ({self.radius_m}m)"

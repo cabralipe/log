@@ -94,6 +94,19 @@ type DashboardData = {
   };
   forms: { templates_active: number; submissions_by_status: CountItem[] };
   students: { total: number; cards_active: number; cards_expiring_soon: number; cards_by_status: CountItem[] };
+  student_cards?: {
+    cards_total: number;
+    cards_active: number;
+    cards_blocked: number;
+    cards_expired: number;
+    cards_replaced: number;
+    cards_expiring_soon: number;
+    cards_issued_month: number;
+    approved_submissions: number;
+    cards_by_status: CountItem[];
+    students_by_shift: { name: string; value: number }[];
+    students_by_course: { name: string; value: number }[];
+  };
   tires: { status_counts: CountItem[]; nearing_end_of_life: TireNear[] };
   users?: { total: number; operators: number; by_role: { role: string; total: number }[] };
   // campos antigos preservados para compatibilidade
@@ -105,7 +118,7 @@ type DashboardData = {
   maintenance_alerts?: MaintenanceAlert[];
 };
 
-type TabKey = "overview" | "fleet" | "operations" | "maintenance" | "contracts" | "planning";
+type TabKey = "overview" | "fleet" | "operations" | "maintenance" | "contracts" | "planning" | "cards";
 
 const formatNumber = (value?: number | string | null) => {
   if (value === null || value === undefined) return "0";
@@ -115,14 +128,7 @@ const formatNumber = (value?: number | string | null) => {
 };
 const formatDate = (value?: string | null) => (value ? new Date(value).toLocaleDateString("pt-BR") : "-");
 
-const MOCK_MAINTENANCE_COSTS = [
-  { name: "Jul", value: 4000 },
-  { name: "Ago", value: 3000 },
-  { name: "Set", value: 2000 },
-  { name: "Out", value: 2780 },
-  { name: "Nov", value: 1890 },
-  { name: "Dez", value: 2390 },
-];
+
 
 
 
@@ -132,12 +138,87 @@ export const DashboardPage = () => {
   const [tab, setTab] = useState<TabKey>("overview");
   const { user } = useAuth();
 
+  const [maintenanceCosts, setMaintenanceCosts] = useState<{ name: string; value: number }[]>([]);
+
   useEffect(() => {
     setLoading(true);
-    api
+
+    // Fetch dashboard data
+    const dashboardPromise = api
       .get<DashboardData>("/reports/dashboard/")
       .then((res) => setData(res.data))
-      .catch(() => setData(null))
+      .catch(() => setData(null));
+
+    // Fetch service orders for maintenance costs chart
+    // We'll fetch the last 6 months of data
+    const sixMonthsAgo = new Date();
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 5);
+    sixMonthsAgo.setDate(1); // Start of the month
+
+    const maintenancePromise = api
+      .get("/service-orders/", {
+        params: {
+          page_size: 1000, // Fetch enough to aggregate
+          created_at_after: sixMonthsAgo.toISOString().split('T')[0]
+        }
+      })
+      .then((res) => {
+        const orders = res.data.results || [];
+        const monthlyCosts = new Map<string, number>();
+
+        // Initialize last 6 months with 0
+        for (let i = 0; i < 6; i++) {
+          const d = new Date();
+          d.setMonth(d.getMonth() - i);
+          const key = d.toLocaleDateString("pt-BR", { month: "short" }); // e.g., "jan"
+          // We want to display in chronological order, so we'll sort later
+          if (!monthlyCosts.has(key)) {
+            monthlyCosts.set(key, 0);
+          }
+        }
+
+        orders.forEach((order: any) => {
+          if (order.total_cost && order.created_at) {
+            const date = new Date(order.created_at);
+            const key = date.toLocaleDateString("pt-BR", { month: "short" });
+            const current = monthlyCosts.get(key) || 0;
+            monthlyCosts.set(key, current + Number(order.total_cost));
+          }
+        });
+
+        // Convert to array and sort chronologically
+        const chartData = Array.from(monthlyCosts.entries())
+          .map(([name, value]) => ({ name, value }))
+          .sort((a, b) => {
+            const months = ["jan", "fev", "mar", "abr", "mai", "jun", "jul", "ago", "set", "out", "nov", "dez"];
+            // This simple sort might fail if spanning years without year context, 
+            // but for a simple "last 6 months" view it's often acceptable or we can improve logic.
+            // Better approach: generate the keys based on the loop above to ensure order.
+            return 0;
+          });
+
+        // Re-generate correct order based on time
+        const orderedData = [];
+        for (let i = 5; i >= 0; i--) {
+          const d = new Date();
+          d.setMonth(d.getMonth() - i);
+          const key = d.toLocaleDateString("pt-BR", { month: "short" });
+          // Capitalize first letter
+          const label = key.charAt(0).toUpperCase() + key.slice(1);
+          orderedData.push({
+            name: label,
+            value: monthlyCosts.get(key) || 0
+          });
+        }
+
+        setMaintenanceCosts(orderedData);
+      })
+      .catch((err) => {
+        console.error("Failed to fetch maintenance costs", err);
+        setMaintenanceCosts([]);
+      });
+
+    Promise.all([dashboardPromise, maintenancePromise])
       .finally(() => setLoading(false));
   }, []);
 
@@ -151,15 +232,39 @@ export const DashboardPage = () => {
   );
 
   const vehicleStatusData = useMemo(() => {
+    const STATUS_TRANSLATIONS: Record<string, string> = {
+      AVAILABLE: "Disponível",
+      ACTIVE: "Ativo",
+      IN_USE: "Em uso",
+      MAINTENANCE: "Manutenção",
+      INACTIVE: "Inativo",
+      PLANNED: "Planejado",
+      IN_PROGRESS: "Em andamento",
+      COMPLETED: "Concluído",
+      CANCELLED: "Cancelado",
+      EXPIRED: "Expirado",
+      OPEN: "Aberto",
+      CLOSED: "Fechado",
+      INVOICED: "Faturado",
+      WAITING_PARTS: "Aguardando peças",
+    };
     return (data?.vehicles?.by_status ?? data?.vehicles_by_status ?? []).map((item) => ({
-      name: item.status,
+      name: STATUS_TRANSLATIONS[item.status] || item.status,
       value: item.total,
     }));
   }, [data]);
 
   const tripsStatusData = useMemo(() => {
+    const STATUS_TRANSLATIONS: Record<string, string> = {
+      SCHEDULED: "Agendada",
+      IN_PROGRESS: "Em andamento",
+      COMPLETED: "Concluída",
+      CANCELLED: "Cancelada",
+      CONFIRMED: "Confirmada",
+      PENDING: "Pendente",
+    };
     return (data?.trips?.by_status ?? data?.trips_by_status ?? []).map((item) => ({
-      name: item.status,
+      name: STATUS_TRANSLATIONS[item.status] || item.status,
       value: item.total,
     }));
   }, [data]);
@@ -176,9 +281,9 @@ export const DashboardPage = () => {
       <div className="dashboard-page">
         <div className="dashboard-hero card">
           <div>
-            <Skeleton width={120} height={20} style={{ marginBottom: "0.5rem" }} />
-            <Skeleton width={250} height={32} style={{ marginBottom: "0.5rem" }} />
-            <Skeleton width="80%" height={20} style={{ marginBottom: "1rem" }} />
+            <div style={{ marginBottom: "0.5rem" }}><Skeleton width={120} height={20} /></div>
+            <div style={{ marginBottom: "0.5rem" }}><Skeleton width={250} height={32} /></div>
+            <div style={{ marginBottom: "1rem" }}><Skeleton width="80%" height={20} /></div>
             <div className="hero-badges">
               <Skeleton width={100} height={24} className="pill" />
               <Skeleton width={100} height={24} className="pill" />
@@ -188,7 +293,7 @@ export const DashboardPage = () => {
           <div className="summary-grid">
             {[1, 2, 3, 4, 5, 6].map((i) => (
               <div key={i} className="card" style={{ height: 120 }}>
-                <Skeleton width="60%" height={20} style={{ marginBottom: "1rem" }} />
+                <div style={{ marginBottom: "1rem" }}><Skeleton width="60%" height={20} /></div>
                 <Skeleton width="40%" height={32} />
               </div>
             ))}
@@ -229,6 +334,14 @@ export const DashboardPage = () => {
     OPERATOR: "Operador",
     VIEWER: "Visualizador",
   };
+  const cardStatusChart = (data.student_cards?.cards_by_status ?? data.students?.cards_by_status ?? []).map((item) => ({
+    name: item.status,
+    value: item.total,
+  }));
+  const shiftChart = data.student_cards?.students_by_shift ?? [];
+  const courseChart = data.student_cards?.students_by_course ?? [];
+  const invalidCards =
+    (data.student_cards?.cards_blocked ?? 0) + (data.student_cards?.cards_expired ?? 0);
 
   return (
     <div className="dashboard-page animate-fade-in">
@@ -240,6 +353,7 @@ export const DashboardPage = () => {
           { key: "maintenance", label: "Manutenção & Estoque" },
           { key: "contracts", label: "Contratos & Custos" },
           { key: "planning", label: "Planejamento & Demandas" },
+          { key: "cards", label: "Carteirinhas" },
         ].map((item) => (
           <button key={item.key} className={tab === item.key ? "active" : ""} onClick={() => setTab(item.key as TabKey)}>
             {item.label}
@@ -485,7 +599,7 @@ export const DashboardPage = () => {
                 ))}
               </div>
               <div className="divider" />
-              <AreaTrendChart data={MOCK_MAINTENANCE_COSTS} title="Custos (6 meses)" height={150} />
+              <AreaTrendChart data={maintenanceCosts} title="Custos (6 meses)" height={150} />
               <div className="divider" />
               <p className="muted">Planos preventivos a vencer</p>
               <Table
@@ -727,6 +841,124 @@ export const DashboardPage = () => {
                     <strong>{formatNumber(item.total)}</strong>
                   </div>
                 ))}
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {showSection("cards") && (
+        <section className="dashboard-section">
+          <div className="section-head">
+            <div>
+              <p className="eyebrow">Carteirinhas</p>
+              <h3>Acompanhamento e adesão</h3>
+            </div>
+            <span className="pill ghost">
+              Válidas {formatNumber(data.student_cards?.cards_active ?? 0)}
+            </span>
+          </div>
+          <div className="dashboard-grid three">
+            <div className="card">
+              <div className="card-head">
+                <div>
+                  <p className="muted">Resumo</p>
+                  <h4>Carteirinhas emitidas</h4>
+                </div>
+              </div>
+              <div className="chip-grid">
+                <div className="chip ghost">
+                  <span>Ativas (válidas)</span>
+                  <strong>{formatNumber(data.student_cards?.cards_active ?? 0)}</strong>
+                </div>
+                <div className="chip ghost">
+                  <span>Emitidas no mês</span>
+                  <strong>{formatNumber(data.student_cards?.cards_issued_month ?? 0)}</strong>
+                </div>
+                <div className="chip ghost">
+                  <span>Expiram em 30 dias</span>
+                  <strong>{formatNumber(data.student_cards?.cards_expiring_soon ?? 0)}</strong>
+                </div>
+                <div className="chip ghost">
+                  <span>Bloqueadas</span>
+                  <strong>{formatNumber(data.student_cards?.cards_blocked ?? 0)}</strong>
+                </div>
+                <div className="chip ghost">
+                  <span>Expiradas</span>
+                  <strong>{formatNumber(data.student_cards?.cards_expired ?? 0)}</strong>
+                </div>
+                <div className="chip ghost">
+                  <span>Substituídas</span>
+                  <strong>{formatNumber(data.student_cards?.cards_replaced ?? 0)}</strong>
+                </div>
+              </div>
+              <div className="divider" />
+              <p className="muted">Inscrições aprovadas</p>
+              <strong>{formatNumber(data.student_cards?.approved_submissions ?? 0)}</strong>
+            </div>
+            <div className="card">
+              {cardStatusChart.length ? (
+                <DonutChart data={cardStatusChart} title="Status das carteirinhas" height={260} />
+              ) : (
+                <p className="muted">Sem dados de status para carteirinhas.</p>
+              )}
+            </div>
+            <div className="card">
+              {shiftChart.length ? (
+                <SimpleBarChart data={shiftChart} title="Alunos por turno" height={260} />
+              ) : (
+                <p className="muted">Sem dados de turnos informados.</p>
+              )}
+            </div>
+          </div>
+          <div className="dashboard-grid two">
+            <div className="card">
+              <div className="card-head">
+                <div>
+                  <p className="muted">Cursos</p>
+                  <h4>Mais citados</h4>
+                </div>
+              </div>
+              {courseChart.length ? (
+                <div className="chip-grid">
+                  {courseChart.map((item) => (
+                    <div className="chip ghost" key={item.name}>
+                      <span>{item.name}</span>
+                      <strong>{formatNumber(item.value)}</strong>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="muted">Sem dados de cursos informados.</p>
+              )}
+            </div>
+            <div className="card">
+              <div className="card-head">
+                <div>
+                  <p className="muted">Base cadastrada</p>
+                  <h4>Estudantes e cartões</h4>
+                </div>
+              </div>
+              <div className="stats-row">
+                <div>
+                  <p className="muted">Estudantes</p>
+                  <strong>{formatNumber(data.students?.total ?? 0)}</strong>
+                </div>
+                <div>
+                  <p className="muted">Carteirinhas</p>
+                  <strong>{formatNumber(data.student_cards?.cards_total ?? 0)}</strong>
+                </div>
+              </div>
+              <div className="divider" />
+              <div className="stats-row">
+                <div>
+                  <p className="muted">Ativas (válidas)</p>
+                  <strong>{formatNumber(data.student_cards?.cards_active ?? 0)}</strong>
+                </div>
+                <div>
+                  <p className="muted">Inválidas</p>
+                  <strong>{formatNumber(invalidCards)}</strong>
+                </div>
               </div>
             </div>
           </div>

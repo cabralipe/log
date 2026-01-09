@@ -171,18 +171,55 @@ def dispatch_trip_reminders():
 
 
 def dispatch_geofence_alert(trip, ping):
+    now = timezone.now()
+    geofence = getattr(trip.driver, "geofence", None)
+    if geofence:
+        if not geofence.is_active:
+            return False
+        distance_km = _distance_km(float(ping.lat), float(ping.lng), float(geofence.center_lat), float(geofence.center_lng))
+        outside = distance_km * 1000 > float(geofence.radius_m)
+        if outside and not geofence.alert_active:
+            geofence.alert_active = True
+            geofence.last_alerted_at = now
+            geofence.save(update_fields=["alert_active", "last_alerted_at", "updated_at"])
+            metadata = {"trip_id": trip.id, "driver_id": trip.driver_id, "geofence_id": geofence.id}
+            title = "Veículo fora do raio"
+            message = f"O veículo {trip.vehicle.license_plate} saiu do raio definido."
+            _notify_admins(
+                municipality=trip.municipality,
+                event_type="GEOFENCE_EXIT",
+                title=title,
+                message=message,
+                metadata=metadata,
+            )
+        if not outside and geofence.alert_active:
+            geofence.alert_active = False
+            geofence.cleared_at = now
+            geofence.save(update_fields=["alert_active", "cleared_at", "updated_at"])
+            metadata = {"trip_id": trip.id, "driver_id": trip.driver_id, "geofence_id": geofence.id}
+            title = "Veículo voltou ao raio"
+            message = f"O veículo {trip.vehicle.license_plate} retornou ao raio definido."
+            _notify_admins(
+                municipality=trip.municipality,
+                event_type="GEOFENCE_RETURN",
+                title=title,
+                message=message,
+                metadata=metadata,
+            )
+        return geofence.alert_active
+
     assignment = trip.assignments.select_related("route").prefetch_related("route__stops").first()
     if not assignment:
-        return
+        return False
     stops = [s for s in assignment.route.stops.all() if s.lat is not None and s.lng is not None]
     if not stops:
-        return
+        return False
     distance = min(_distance_km(float(ping.lat), float(ping.lng), float(s.lat), float(s.lng)) for s in stops)
     if distance <= float(GEOFENCE_RADIUS_KM):
-        return
+        return False
     metadata = {"trip_id": trip.id, "assignment_id": assignment.id}
     if _already_notified("GEOFENCE_EXIT", metadata, timedelta(minutes=GEOFENCE_COOLDOWN_MINUTES)):
-        return
+        return True
     title = "Veículo fora da rota"
     message = f"O veículo {trip.vehicle.license_plate} saiu da rota planejada."
     _notify_admins(
@@ -192,6 +229,7 @@ def dispatch_geofence_alert(trip, ping):
         message=message,
         metadata=metadata,
     )
+    return True
 
 
 def _notify_admins(*, municipality=None, event_type: str, title: str, message: str, metadata: dict):

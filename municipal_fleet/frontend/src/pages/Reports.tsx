@@ -247,10 +247,21 @@ export const ReportsPage = () => {
 
   const totalKm = useMemo(() => odometer.reduce((acc, item) => acc + (item.kilometers || 0), 0), [odometer]);
   const tripsByCategory = useMemo(() => {
+    const CATEGORY_TRANSLATIONS: Record<string, string> = {
+      EDUCATION: "Educação",
+      HEALTH: "Saúde",
+      ADMINISTRATIVE: "Administrativo",
+      SOCIAL_ASSISTANCE: "Assistência Social",
+      INFRASTRUCTURE: "Infraestrutura",
+      CULTURE: "Cultura",
+      SPORTS: "Esporte",
+      OTHER: "Outros",
+    };
     const grouped: Record<string, number> = {};
     trips.forEach((item) => {
       if (!item.category) return;
-      grouped[item.category] = (grouped[item.category] ?? 0) + 1;
+      const label = CATEGORY_TRANSLATIONS[item.category] || item.category;
+      grouped[label] = (grouped[label] ?? 0) + 1;
     });
     return Object.entries(grouped).map<ChartDatum>(([label, value]) => ({ label, value }));
   }, [trips]);
@@ -284,7 +295,20 @@ export const ReportsPage = () => {
       .sort(([a], [b]) => (a > b ? 1 : -1))
       .map<ChartDatum>(([label, value]) => ({ label, value }));
   }, [incidents]);
-  const tripsByStatus = useMemo(() => tripSummary?.by_status ?? [], [tripSummary]);
+  const tripsByStatus = useMemo(() => {
+    const STATUS_TRANSLATIONS: Record<string, string> = {
+      SCHEDULED: "Agendada",
+      IN_PROGRESS: "Em andamento",
+      COMPLETED: "Concluída",
+      CANCELLED: "Cancelada",
+      CONFIRMED: "Confirmada",
+      PENDING: "Pendente",
+    };
+    return (tripSummary?.by_status ?? []).map((item) => ({
+      status: STATUS_TRANSLATIONS[item.status] || item.status,
+      total: item.total,
+    }));
+  }, [tripSummary]);
   const fuelByStation = useMemo(() => {
     const grouped: Record<string, number> = {};
     fuelLogs.forEach((log) => {
@@ -526,7 +550,7 @@ export const ReportsPage = () => {
             </div>
             <div className="chart-wrapper">
               <DonutChart
-                data={tripsByStatus.map(d => ({ label: d.status, value: d.total }))}
+                data={tripsByStatus.map(d => ({ name: d.status, value: d.total }))}
                 title=""
                 height={250}
               />

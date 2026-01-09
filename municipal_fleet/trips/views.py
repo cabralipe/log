@@ -3,6 +3,7 @@ from datetime import timedelta
 from django.utils import timezone
 from rest_framework import viewsets, permissions, response, decorators, filters, status, views
 from trips.models import Trip, FreeTrip, TripGpsPing
+from drivers.models import DriverGeofence
 from trips.serializers import TripSerializer, FreeTripSerializer, FreeTripIncidentSerializer
 from tenants.mixins import MunicipalityQuerysetMixin
 from accounts.permissions import IsMunicipalityAdminOrReadOnly
@@ -202,10 +203,13 @@ class TripMapStateView(views.APIView):
                 points.reverse()
 
         now = timezone.now()
+        geofence_qs = DriverGeofence.objects.filter(driver_id__in=[trip.driver_id for trip in trips])
+        geofence_by_driver = {geofence.driver_id: geofence for geofence in geofence_qs}
         drivers_payload = []
         for trip in trips:
             ping = latest_by_trip.get(trip.id)
             status_code = resolve_status(ping, now=now, offline_after=timedelta(minutes=2))
+            geofence = geofence_by_driver.get(trip.driver_id)
             payload = {
                 "trip_id": trip.id,
                 "driver_id": trip.driver_id,
@@ -214,9 +218,18 @@ class TripMapStateView(views.APIView):
                 "vehicle_plate": trip.vehicle.license_plate,
                 "status": status_code,
                 "status_label": STATUS_LABELS.get(status_code, status_code),
+                "geofence": None,
                 "last_point": None,
                 "history": history_by_trip.get(trip.id, []),
             }
+            if geofence:
+                payload["geofence"] = {
+                    "center_lat": float(geofence.center_lat),
+                    "center_lng": float(geofence.center_lng),
+                    "radius_m": geofence.radius_m,
+                    "is_active": geofence.is_active,
+                    "alert_active": geofence.alert_active,
+                }
             if ping:
                 payload["last_point"] = {
                     "lat": float(ping.lat),

@@ -5,7 +5,7 @@ from django.utils import timezone
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 from drivers.models import Driver
-from drivers.serializers import DriverSerializer
+from drivers.serializers import DriverSerializer, DriverGeofenceSerializer
 from tenants.mixins import MunicipalityQuerysetMixin
 from accounts.permissions import IsMunicipalityAdminOrReadOnly
 from drivers.portal import generate_portal_token, resolve_portal_token
@@ -245,7 +245,17 @@ class DriverPortalGpsPingView(DriverPortalAuthMixin, views.APIView):
         serializer.is_valid(raise_exception=True)
         ping = serializer.save(driver=driver)
 
-        dispatch_geofence_alert(trip, ping)
+        geofence_alert_active = dispatch_geofence_alert(trip, ping)
+        geofence = getattr(driver, "geofence", None)
+        geofence_payload = None
+        if geofence:
+            geofence_payload = {
+                "center_lat": float(geofence.center_lat),
+                "center_lng": float(geofence.center_lng),
+                "radius_m": geofence.radius_m,
+                "is_active": geofence.is_active,
+                "alert_active": geofence.alert_active,
+            }
 
         channel_layer = get_channel_layer()
         if channel_layer:
@@ -262,6 +272,8 @@ class DriverPortalGpsPingView(DriverPortalAuthMixin, views.APIView):
                         "vehicle_plate": trip.vehicle.license_plate,
                         "status": status_code,
                         "status_label": STATUS_LABELS.get(status_code, status_code),
+                        "geofence_alert_active": geofence_alert_active,
+                        "geofence": geofence_payload,
                         "lat": float(ping.lat),
                         "lng": float(ping.lng),
                         "accuracy": ping.accuracy,
@@ -272,6 +284,47 @@ class DriverPortalGpsPingView(DriverPortalAuthMixin, views.APIView):
             )
 
         return response.Response(TripGpsPingSerializer(ping).data, status=status.HTTP_201_CREATED)
+
+
+class DriverGeofenceView(views.APIView):
+    permission_classes = [permissions.IsAuthenticated, IsMunicipalityAdminOrReadOnly]
+
+    def get_driver(self, request, driver_id: int) -> Driver:
+        driver = Driver.objects.select_related("municipality").filter(id=driver_id).first()
+        if not driver:
+            raise exceptions.NotFound("Motorista não encontrado.")
+        if request.user.role != "SUPERADMIN" and driver.municipality_id != request.user.municipality_id:
+            raise exceptions.PermissionDenied("Permissão negada.")
+        return driver
+
+    def get(self, request, driver_id: int):
+        driver = self.get_driver(request, driver_id)
+        geofence = getattr(driver, "geofence", None)
+        if not geofence:
+            return response.Response({"geofence": None})
+        return response.Response({"geofence": DriverGeofenceSerializer(geofence).data})
+
+    def put(self, request, driver_id: int):
+        driver = self.get_driver(request, driver_id)
+        geofence = getattr(driver, "geofence", None)
+        payload = request.data or {}
+        if geofence:
+            serializer = DriverGeofenceSerializer(geofence, data=payload, partial=True)
+        else:
+            serializer = DriverGeofenceSerializer(data=payload)
+        serializer.is_valid(raise_exception=True)
+        changed_fields = set(serializer.validated_data.keys())
+        updated = serializer.save(driver=driver)
+        if {"center_lat", "center_lng", "radius_m"} & changed_fields:
+            updated.alert_active = False
+            updated.last_alerted_at = None
+            updated.cleared_at = timezone.now()
+            updated.save(update_fields=["alert_active", "last_alerted_at", "cleared_at"])
+        if "is_active" in changed_fields and not updated.is_active and updated.alert_active:
+            updated.alert_active = False
+            updated.cleared_at = timezone.now()
+            updated.save(update_fields=["alert_active", "cleared_at"])
+        return response.Response({"geofence": DriverGeofenceSerializer(updated).data})
 
 
 class DriverPortalTripIncidentView(DriverPortalAuthMixin, views.APIView):

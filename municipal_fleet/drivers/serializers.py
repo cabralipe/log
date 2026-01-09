@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from drivers.models import Driver
+from drivers.models import Driver, DriverGeofence
 
 
 class DriverSerializer(serializers.ModelSerializer):
@@ -14,3 +14,21 @@ class DriverSerializer(serializers.ModelSerializer):
         if value < timezone.now().date():
             raise serializers.ValidationError("CNH expirada.")
         return value
+
+
+class DriverGeofenceSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = DriverGeofence
+        fields = [
+            "id",
+            "center_lat",
+            "center_lng",
+            "radius_m",
+            "is_active",
+            "alert_active",
+            "last_alerted_at",
+            "cleared_at",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "alert_active", "last_alerted_at", "cleared_at", "created_at", "updated_at"]

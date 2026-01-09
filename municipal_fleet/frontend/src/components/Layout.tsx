@@ -88,6 +88,14 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
     adminItems.push({ to: "/users", label: "Usuários", icon: UserCircle });
   }
 
+  const ROLE_TRANSLATIONS: Record<string, string> = {
+    SUPERADMIN: "Super Admin",
+    ADMIN_MUNICIPALITY: "Admin Municipal",
+    OPERATOR: "Operador",
+    VIEWER: "Visualizador",
+    DRIVER: "Motorista",
+  };
+
   return (
     <div className="layout">
       {/* Mobile Overlay */}
@@ -159,7 +167,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
           <Link to="/dashboard">
             <h1>Gestão de Frotas</h1>
           </Link>
-          <div className="badge">{user?.role}</div>
+          <div className="badge">{user?.role ? (ROLE_TRANSLATIONS[user.role] || user.role) : ""}</div>
         </header>
         <div className="animate-fade-in">
           {children}
