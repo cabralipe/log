@@ -43,6 +43,14 @@ class VehicleSerializer(serializers.ModelSerializer):
 
         return attrs
 
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        request = self.context.get("request")
+        image = data.get("image")
+        if request and image:
+            data["image"] = request.build_absolute_uri(image)
+        return data
+
 
 class VehicleMaintenanceSerializer(serializers.ModelSerializer):
     class Meta:

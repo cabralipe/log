@@ -24,6 +24,7 @@ class VehicleViewSet(MunicipalityQuerysetMixin, viewsets.ModelViewSet):
     queryset = Vehicle.objects.all()
     serializer_class = VehicleSerializer
     permission_classes = [permissions.IsAuthenticated, IsMunicipalityAdminOrReadOnly]
+    parser_classes = [parsers.MultiPartParser, parsers.FormParser, parsers.JSONParser]
     filter_backends = [filters.SearchFilter]
     search_fields = ["license_plate", "brand", "model"]
 

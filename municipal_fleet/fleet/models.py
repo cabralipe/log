@@ -38,6 +38,7 @@ class Vehicle(models.Model):
         related_name="vehicles_in_use",
     )
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.AVAILABLE)
+    image = models.ImageField(upload_to="vehicle_images/", null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

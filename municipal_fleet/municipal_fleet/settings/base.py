@@ -89,6 +89,9 @@ if env_bool("USE_SQLITE_FOR_TESTS"):
 else:
     database_url = os.environ.get("DATABASE_URL")
     if database_url:
+        if database_url.startswith("postgresql+psycopg2://"):
+            # Normalize SQLAlchemy-style scheme for dj-database-url compatibility.
+            database_url = database_url.replace("postgresql+psycopg2://", "postgresql://", 1)
         DATABASES = {"default": dj_database_url.parse(database_url, conn_max_age=600)}
     else:
         DATABASES = {

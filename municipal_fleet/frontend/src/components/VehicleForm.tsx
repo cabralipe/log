@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Button } from "./Button";
+import "./VehicleForm.css";
 
 type VehicleStatus = "AVAILABLE" | "IN_USE" | "MAINTENANCE" | "INACTIVE";
 
@@ -10,6 +11,9 @@ export interface VehicleFormData {
   year: number;
   max_passengers: number;
   status: VehicleStatus;
+  image?: string | null;
+  imageFile?: File | null;
+  removeImage?: boolean;
 }
 
 interface VehicleFormProps {
@@ -29,7 +33,11 @@ export const VehicleForm = ({ initialData, vehicle, onSubmit, onClose }: Vehicle
     year: new Date().getFullYear(),
     max_passengers: 1,
     status: "AVAILABLE",
+    image: null,
   });
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [removeImage, setRemoveImage] = useState(false);
 
   // prefer `initialData` if provided, otherwise fall back to `vehicle`
   const data = initialData ?? vehicle;
@@ -38,11 +46,36 @@ export const VehicleForm = ({ initialData, vehicle, onSubmit, onClose }: Vehicle
     if (data) {
       setForm(data);
     }
+    setImageFile(null);
+    setRemoveImage(false);
+    setImagePreview(data?.image ?? null);
   }, [data]);
+
+  useEffect(() => {
+    if (!imageFile) return;
+    const objectUrl = URL.createObjectURL(imageFile);
+    setImagePreview(objectUrl);
+    return () => URL.revokeObjectURL(objectUrl);
+  }, [imageFile]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmit(form);
+    onSubmit({ ...form, imageFile, removeImage });
+  };
+
+  const handleImageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0] ?? null;
+    setImageFile(file);
+    setRemoveImage(false);
+    if (!file && data?.image) {
+      setImagePreview(data.image ?? null);
+    }
+  };
+
+  const handleRemoveImage = () => {
+    setImageFile(null);
+    setImagePreview(null);
+    setRemoveImage(true);
   };
 
   return (
@@ -88,6 +121,31 @@ export const VehicleForm = ({ initialData, vehicle, onSubmit, onClose }: Vehicle
         <option value="MAINTENANCE">Manutenção</option>
         <option value="INACTIVE">Inativo</option>
       </select>
+      <div className="vehicle-image-field">
+        <label className="vehicle-image-label" htmlFor="vehicle-image-input">
+          Imagem (opcional)
+        </label>
+        <input
+          id="vehicle-image-input"
+          type="file"
+          accept="image/*"
+          onChange={handleImageChange}
+        />
+        {imagePreview ? (
+          <div className="vehicle-image-preview">
+            <img src={imagePreview} alt="Pré-visualização do veículo" />
+            <div className="vehicle-image-actions">
+              <Button type="button" variant="ghost" onClick={handleRemoveImage}>
+                Remover imagem
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div className="vehicle-image-placeholder">
+            Nenhuma imagem selecionada.
+          </div>
+        )}
+      </div>
       <div className="grid" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "0.5rem" }}>
         <Button type="submit">{data ? "Atualizar" : "Salvar"}</Button>
         {onClose && (

@@ -12,6 +12,7 @@ type Vehicle = {
   max_passengers: number;
   status: string;
   municipality: number;
+  image?: string | null;
 };
 
 export const VehiclesPage = () => {
@@ -47,13 +48,39 @@ export const VehiclesPage = () => {
     load();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handleCreateVehicle = async (vehicleData: Partial<Vehicle>) => {
+  const buildVehicleFormData = (vehicleData: Partial<Vehicle> & { imageFile?: File | null; removeImage?: boolean }) => {
+    const formData = new FormData();
+    const fields = [
+      "license_plate",
+      "brand",
+      "model",
+      "year",
+      "max_passengers",
+      "status",
+      "municipality",
+    ];
+    fields.forEach((field) => {
+      const value = (vehicleData as any)[field];
+      if (value !== undefined && value !== null && value !== "") {
+        formData.append(field, String(value));
+      }
+    });
+    if (vehicleData.imageFile) {
+      formData.append("image", vehicleData.imageFile);
+    } else if (vehicleData.removeImage) {
+      formData.append("image", "");
+    }
+    return formData;
+  };
+
+  const handleCreateVehicle = async (vehicleData: Partial<Vehicle> & { imageFile?: File | null; removeImage?: boolean }) => {
     try {
       const payload = {
         ...vehicleData,
         ...(user?.municipality ? { municipality: user.municipality } : {}),
       };
-      await api.post("/vehicles/", payload);
+      const formData = buildVehicleFormData(payload);
+      await api.post("/vehicles/", formData, { headers: { "Content-Type": "multipart/form-data" } });
       load();
     } catch (err: any) {
       const data = err?.response?.data;
@@ -77,9 +104,10 @@ export const VehiclesPage = () => {
     }
   };
 
-  const handleUpdateVehicle = async (id: number, vehicleData: Partial<Vehicle>) => {
+  const handleUpdateVehicle = async (id: number, vehicleData: Partial<Vehicle> & { imageFile?: File | null; removeImage?: boolean }) => {
     try {
-      await api.patch(`/vehicles/${id}/`, vehicleData);
+      const formData = buildVehicleFormData(vehicleData);
+      await api.patch(`/vehicles/${id}/`, formData, { headers: { "Content-Type": "multipart/form-data" } });
       load();
     } catch (err: any) {
       setError(err.response?.data?.detail || "Erro ao atualizar veículo.");
