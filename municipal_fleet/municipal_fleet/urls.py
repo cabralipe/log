@@ -4,6 +4,7 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.views.generic import RedirectView
 from municipal_fleet.health import health_view
+from trips.views import FreeTripViewSet
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
 urlpatterns = [
@@ -18,12 +19,24 @@ urlpatterns = [
     path("api/vehicles/", include("fleet.urls")),
     path("api/drivers/", include("drivers.urls")),
     path("api/trips/", include("trips.urls")),
+    path(
+        "api/free-trips/",
+        FreeTripViewSet.as_view({"get": "list", "post": "create"}),
+        name="free-trip-list",
+    ),
+    path(
+        "api/free-trips/<int:pk>/",
+        FreeTripViewSet.as_view({"get": "retrieve", "patch": "partial_update", "put": "update", "delete": "destroy"}),
+        name="free-trip-detail",
+    ),
     path("api/", include("contracts.urls")),
     path("api/", include("maintenance.urls")),
     path("api/reports/", include("reports.urls")),
     path("api/notifications/", include("notifications.urls")),
     path("api/forms/", include("forms.urls")),
     path("api/students/", include("students.urls")),
+    path("api/destinations/", include("destinations.urls")),
+    path("api/healthcare/", include("health.urls")),
     path("api/", include("transport_planning.urls")),
     path("api/public/forms/", include("forms.public_urls")),
     path("public/forms/", include("forms.public_urls")),

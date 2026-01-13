@@ -7,6 +7,7 @@ class DriverSerializer(serializers.ModelSerializer):
         model = Driver
         fields = "__all__"
         read_only_fields = ["id", "created_at", "updated_at"]
+        extra_kwargs = {"municipality": {"required": False}}
 
     def validate_cnh_expiration_date(self, value):
         from django.utils import timezone
@@ -14,6 +15,28 @@ class DriverSerializer(serializers.ModelSerializer):
         if value < timezone.now().date():
             raise serializers.ValidationError("CNH expirada.")
         return value
+
+    def validate(self, attrs):
+        request = self.context.get("request")
+        user = getattr(request, "user", None)
+        municipality = attrs.get("municipality", getattr(self.instance, "municipality", None))
+        if user and getattr(user, "role", None) != "SUPERADMIN":
+            if not getattr(user, "municipality", None):
+                raise serializers.ValidationError(
+                    {"municipality": "Usuário precisa estar vinculado a uma prefeitura."}
+                )
+            attrs["municipality"] = user.municipality
+        elif user and getattr(user, "role", None) == "SUPERADMIN" and not municipality:
+            raise serializers.ValidationError({"municipality": "Prefeitura é obrigatória."})
+        return attrs
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        request = self.context.get("request")
+        photo = data.get("photo")
+        if request and photo:
+            data["photo"] = request.build_absolute_uri(photo)
+        return data
 
 
 class DriverGeofenceSerializer(serializers.ModelSerializer):

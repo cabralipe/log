@@ -40,6 +40,8 @@ INSTALLED_APPS = [
     "contracts.apps.ContractsConfig",
     "forms.apps.FormsConfig",
     "students.apps.StudentsConfig",
+    "destinations.apps.DestinationsConfig",
+    "health.apps.HealthConfig",
     "maintenance.apps.MaintenanceConfig",
     "transport_planning.apps.TransportPlanningConfig",
     "notifications.apps.NotificationsConfig",

@@ -7,6 +7,13 @@ import { VehiclesPage } from "./pages/Vehicles";
 import { DriversPage } from "./pages/Drivers";
 import { FuelStationsPage } from "./pages/FuelStations";
 import { TripsPage } from "./pages/Trips";
+import { ServiceOrdersPage } from "./pages/ServiceOrders";
+import { FuelManagementPage } from "./pages/FuelManagement";
+import { DestinationsPage } from "./pages/Destinations";
+import { PatientsPage } from "./pages/Patients";
+import { ClassesPage } from "./pages/Classes";
+import { StudentsPage } from "./pages/Students";
+import { TripManifestPage } from "./pages/TripManifest";
 import { ReportsPage } from "./pages/Reports";
 import { MaintenancePage } from "./pages/Maintenance";
 import { MunicipalitiesPage } from "./pages/Municipalities";
@@ -55,8 +62,15 @@ const AppRoutes = () => (
       <Route path="/drivers" element={<DriversPage />} />
       <Route path="/contracts" element={<ContractsPage />} />
       <Route path="/rental-periods" element={<RentalPeriodsPage />} />
+      <Route path="/service-orders" element={<ServiceOrdersPage />} />
+      <Route path="/fuel-management" element={<FuelManagementPage />} />
       <Route path="/fuel-stations" element={<FuelStationsPage />} />
+      <Route path="/destinations" element={<DestinationsPage />} />
+      <Route path="/health/patients" element={<PatientsPage />} />
+      <Route path="/education/classes" element={<ClassesPage />} />
+      <Route path="/education/students" element={<StudentsPage />} />
       <Route path="/trips" element={<TripsPage />} />
+      <Route path="/trips/manifest/:id" element={<TripManifestPage />} />
       <Route path="/live-tracking" element={<LiveTrackingPage />} />
       <Route path="/free-trips" element={<FreeTripsPage />} />
       <Route path="/scheduling" element={<SchedulingPage />} />

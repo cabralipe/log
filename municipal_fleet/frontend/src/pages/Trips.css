@@ -421,3 +421,23 @@
         display: none;
     }
 }
+.trips-tabs {
+  display: flex;
+  gap: 1rem;
+}
+
+.trips-tabs button {
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  padding: 0.5rem 1rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.trips-tabs button.active {
+  color: var(--primary);
+  border-bottom-color: var(--primary);
+}

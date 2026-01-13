@@ -11,6 +11,7 @@ export interface Driver {
   cnh_category: CNHCategory;
   cnh_expiration_date: string;
   access_code: string;
+  photo?: string | null;
   created_at?: string;
   updated_at?: string;
 }

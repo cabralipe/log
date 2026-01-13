@@ -7,7 +7,7 @@ from django.db.models.functions import TruncMonth, TruncYear
 from django.utils import timezone
 from rest_framework import permissions, response, views, status
 from fleet.models import Vehicle, FuelLog
-from trips.models import Trip, TripIncident, MonthlyOdometer, FreeTrip
+from trips.models import Trip, TripIncident, MonthlyOdometer, FreeTrip, TripExecution, TripManifest
 from contracts.models import Contract, RentalPeriod
 from maintenance.models import ServiceOrder, MaintenancePlan, InventoryPart, InventoryMovement, Tire
 from transport_planning.models import TransportService, Route, Assignment, ServiceApplication
@@ -587,7 +587,9 @@ class FuelCostReportView(views.APIView):
                 normalized.append(
                     {
                         **row,
-                        "period": period.date() if isinstance(period, datetime) else period,
+                        "period": (period.date() if isinstance(period, datetime) else period).isoformat()
+                        if period
+                        else None,
                     }
                 )
             return normalized
@@ -1096,5 +1098,87 @@ class TireReportView(views.APIView):
                 "status_counts": status_counts,
                 "nearing_end_of_life": nearing_end,
                 "cost_per_km": cost_per_km,
+            }
+        )
+
+
+class TripExecutionReportView(views.APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        start_date = _parse_date(request.query_params.get("start_date"))
+        end_date = _parse_date(request.query_params.get("end_date"))
+        module = request.query_params.get("module")
+        destination_id = request.query_params.get("destination_id")
+        vehicle_id = request.query_params.get("vehicle_id")
+        driver_id = request.query_params.get("driver_id")
+
+        qs = TripExecution.objects.select_related("vehicle", "driver")
+        if user.role != "SUPERADMIN":
+            qs = qs.filter(municipality=user.municipality)
+        if start_date:
+            qs = qs.filter(scheduled_departure__date__gte=start_date)
+        if end_date:
+            qs = qs.filter(scheduled_departure__date__lte=end_date)
+        if module:
+            qs = qs.filter(module=module)
+        if destination_id:
+            qs = qs.filter(stops__destination_id=destination_id)
+        if vehicle_id:
+            qs = qs.filter(vehicle_id=vehicle_id)
+        if driver_id:
+            qs = qs.filter(driver_id=driver_id)
+
+        qs = qs.distinct()
+        total_trips = qs.count()
+        total_passengers = (
+            TripManifest.objects.filter(trip_execution__in=qs).aggregate(total=Sum("total_passengers"))["total"] or 0
+        )
+
+        vehicle_stats_raw = (
+            qs.values("vehicle_id", "vehicle__license_plate", "vehicle__max_passengers")
+            .annotate(trips=Count("id"), passengers=Sum("manifest__total_passengers"))
+            .order_by("vehicle__license_plate")
+        )
+        vehicle_stats = []
+        for item in vehicle_stats_raw:
+            capacity = item["vehicle__max_passengers"] or 0
+            trips = item["trips"] or 0
+            passengers = item["passengers"] or 0
+            occupancy = (passengers / (capacity * trips)) if capacity and trips else 0
+            vehicle_stats.append(
+                {
+                    "vehicle_id": item["vehicle_id"],
+                    "license_plate": item["vehicle__license_plate"],
+                    "trips": trips,
+                    "passengers": passengers,
+                    "occupancy_rate": round(occupancy, 3),
+                }
+            )
+
+        trips_payload = list(
+            qs.values(
+                "id",
+                "module",
+                "status",
+                "scheduled_departure",
+                "scheduled_return",
+                "vehicle_id",
+                "vehicle__license_plate",
+                "driver_id",
+                "driver__name",
+            )
+            .order_by("-scheduled_departure")[:500]
+        )
+
+        return response.Response(
+            {
+                "summary": {
+                    "total_trips": total_trips,
+                    "total_passengers": total_passengers,
+                },
+                "vehicles": vehicle_stats,
+                "trips": trips_payload,
             }
         )

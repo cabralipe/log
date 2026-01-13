@@ -2,6 +2,39 @@ from django.db import models
 from django.utils import timezone
 
 
+class ServiceOrder(models.Model):
+    class Status(models.TextChoices):
+        PLANNED = "PLANNED", "Planejada"
+        IN_PROGRESS = "IN_PROGRESS", "Em andamento"
+        COMPLETED = "COMPLETED", "Concluida"
+        CANCELLED = "CANCELLED", "Cancelada"
+
+    municipality = models.ForeignKey(
+        "tenants.Municipality", on_delete=models.CASCADE, related_name="external_service_orders"
+    )
+    external_id = models.CharField(max_length=100)
+    service_type = models.CharField(max_length=255, blank=True)
+    vehicle = models.ForeignKey("fleet.Vehicle", on_delete=models.PROTECT, related_name="external_service_orders")
+    driver = models.ForeignKey("drivers.Driver", on_delete=models.PROTECT, related_name="external_service_orders")
+    planned_start = models.DateTimeField(null=True, blank=True)
+    planned_end = models.DateTimeField(null=True, blank=True)
+    executed_start = models.DateTimeField(null=True, blank=True)
+    executed_end = models.DateTimeField(null=True, blank=True)
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.PLANNED)
+    raw_payload = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        constraints = [
+            models.UniqueConstraint(fields=["municipality", "external_id"], name="unique_service_order_external_id")
+        ]
+
+    def __str__(self) -> str:
+        return f"OS {self.external_id} - {self.vehicle.license_plate}"
+
+
 class Trip(models.Model):
     class Category(models.TextChoices):
         PASSENGER = "PASSENGER", "Passageiro"
@@ -17,6 +50,9 @@ class Trip(models.Model):
     municipality = models.ForeignKey("tenants.Municipality", on_delete=models.CASCADE, related_name="trips")
     vehicle = models.ForeignKey("fleet.Vehicle", on_delete=models.PROTECT, related_name="trips")
     driver = models.ForeignKey("drivers.Driver", on_delete=models.PROTECT, related_name="trips")
+    service_order = models.ForeignKey(
+        "trips.ServiceOrder", on_delete=models.SET_NULL, null=True, blank=True, related_name="trips"
+    )
     contract = models.ForeignKey(
         "contracts.Contract", on_delete=models.SET_NULL, null=True, blank=True, related_name="trips"
     )
@@ -148,3 +184,185 @@ class FreeTripIncident(models.Model):
 
     def __str__(self):
         return f"Ocorrência viagem livre #{self.free_trip_id}"
+
+
+class PlannedTrip(models.Model):
+    class Recurrence(models.TextChoices):
+        NONE = "NONE", "Única"
+        WEEKLY = "WEEKLY", "Semanal"
+        MONTHLY = "MONTHLY", "Mensal"
+        QUARTERLY = "QUARTERLY", "Trimestral"
+        YEARLY = "YEARLY", "Anual"
+
+    class Module(models.TextChoices):
+        EDUCATION = "EDUCATION", "Educação"
+        HEALTH = "HEALTH", "Saúde"
+        OTHER = "OTHER", "Outro"
+
+    municipality = models.ForeignKey("tenants.Municipality", on_delete=models.CASCADE, related_name="planned_trips")
+    title = models.CharField(max_length=255)
+    module = models.CharField(max_length=20, choices=Module.choices, default=Module.OTHER)
+    vehicle = models.ForeignKey("fleet.Vehicle", on_delete=models.PROTECT, null=True, blank=True, related_name="planned_trips")
+    driver = models.ForeignKey("drivers.Driver", on_delete=models.PROTECT, null=True, blank=True, related_name="planned_trips")
+    recurrence = models.CharField(max_length=20, choices=Recurrence.choices, default=Recurrence.NONE)
+    start_date = models.DateField()
+    end_date = models.DateField(null=True, blank=True)
+    departure_time = models.TimeField()
+    return_time_expected = models.TimeField()
+    planned_capacity = models.PositiveIntegerField(default=0)
+    optimize_route = models.BooleanField(default=True)
+    active = models.BooleanField(default=True)
+    notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-start_date", "-created_at"]
+
+    def __str__(self):
+        return self.title
+
+
+class PlannedTripStop(models.Model):
+    planned_trip = models.ForeignKey(PlannedTrip, on_delete=models.CASCADE, related_name="stops")
+    destination = models.ForeignKey("destinations.Destination", on_delete=models.PROTECT, related_name="planned_trip_stops")
+    order = models.PositiveIntegerField(default=0)
+    notes = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ["order", "id"]
+        unique_together = ("planned_trip", "order")
+
+    def __str__(self):
+        return f"{self.planned_trip_id} #{self.order}"
+
+
+class PlannedTripPassenger(models.Model):
+    class PassengerType(models.TextChoices):
+        STUDENT = "STUDENT", "Aluno"
+        PATIENT = "PATIENT", "Paciente"
+        COMPANION = "COMPANION", "Acompanhante"
+
+    planned_trip = models.ForeignKey(PlannedTrip, on_delete=models.CASCADE, related_name="passengers")
+    passenger_type = models.CharField(max_length=20, choices=PassengerType.choices)
+    student = models.ForeignKey(
+        "students.Student", on_delete=models.SET_NULL, null=True, blank=True, related_name="planned_trip_passengers"
+    )
+    patient = models.ForeignKey(
+        "health.Patient", on_delete=models.SET_NULL, null=True, blank=True, related_name="planned_trip_passengers"
+    )
+    companion = models.ForeignKey(
+        "health.Companion",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="planned_trip_passengers",
+    )
+    notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["id"]
+
+    def __str__(self):
+        return f"{self.planned_trip_id} - {self.passenger_type}"
+
+
+class TripExecution(models.Model):
+    class Status(models.TextChoices):
+        PLANNED = "PLANNED", "Planejada"
+        IN_PROGRESS = "IN_PROGRESS", "Em andamento"
+        COMPLETED = "COMPLETED", "Concluída"
+        CANCELLED = "CANCELLED", "Cancelada"
+
+    municipality = models.ForeignKey("tenants.Municipality", on_delete=models.CASCADE, related_name="trip_executions")
+    planned_trip = models.ForeignKey(
+        PlannedTrip, on_delete=models.SET_NULL, null=True, blank=True, related_name="executions"
+    )
+    module = models.CharField(max_length=20, choices=PlannedTrip.Module.choices, default=PlannedTrip.Module.OTHER)
+    vehicle = models.ForeignKey("fleet.Vehicle", on_delete=models.PROTECT, related_name="trip_executions")
+    driver = models.ForeignKey("drivers.Driver", on_delete=models.PROTECT, related_name="trip_executions")
+    status = models.CharField(max_length=20, choices=Status.choices, default=Status.PLANNED)
+    scheduled_departure = models.DateTimeField()
+    scheduled_return = models.DateTimeField()
+    actual_departure = models.DateTimeField(null=True, blank=True)
+    actual_return = models.DateTimeField(null=True, blank=True)
+    planned_capacity = models.PositiveIntegerField(default=0)
+    is_manual_override = models.BooleanField(default=False)
+    route_distance_km = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    route_duration_minutes = models.PositiveIntegerField(null=True, blank=True)
+    route_geometry = models.JSONField(default=list, blank=True)
+    notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-scheduled_departure", "-created_at"]
+
+    def __str__(self):
+        return f"Execução {self.id} ({self.scheduled_departure:%d/%m/%Y})"
+
+
+class TripExecutionStop(models.Model):
+    trip_execution = models.ForeignKey(TripExecution, on_delete=models.CASCADE, related_name="stops")
+    destination = models.ForeignKey(
+        "destinations.Destination", on_delete=models.PROTECT, related_name="trip_execution_stops"
+    )
+    order = models.PositiveIntegerField(default=0)
+    arrival_time = models.DateTimeField(null=True, blank=True)
+    departure_time = models.DateTimeField(null=True, blank=True)
+    notes = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ["order", "id"]
+        unique_together = ("trip_execution", "order")
+
+    def __str__(self):
+        return f"{self.trip_execution_id} #{self.order}"
+
+
+class TripManifest(models.Model):
+    trip_execution = models.OneToOneField(TripExecution, on_delete=models.CASCADE, related_name="manifest")
+    total_passengers = models.PositiveIntegerField(default=0)
+    notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"Manifesto #{self.trip_execution_id}"
+
+
+class TripManifestPassenger(models.Model):
+    class PassengerType(models.TextChoices):
+        STUDENT = "STUDENT", "Aluno"
+        PATIENT = "PATIENT", "Paciente"
+        COMPANION = "COMPANION", "Acompanhante"
+
+    manifest = models.ForeignKey(TripManifest, on_delete=models.CASCADE, related_name="passengers")
+    passenger_type = models.CharField(max_length=20, choices=PassengerType.choices)
+    student = models.ForeignKey(
+        "students.Student", on_delete=models.SET_NULL, null=True, blank=True, related_name="trip_manifest_entries"
+    )
+    patient = models.ForeignKey(
+        "health.Patient", on_delete=models.SET_NULL, null=True, blank=True, related_name="trip_manifest_entries"
+    )
+    companion = models.ForeignKey(
+        "health.Companion",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="trip_manifest_entries",
+    )
+    linked_patient = models.ForeignKey(
+        "health.Patient", on_delete=models.SET_NULL, null=True, blank=True, related_name="companion_manifest_links"
+    )
+    notes = models.TextField(blank=True)
+
+    class Meta:
+        ordering = ["id"]
+
+    def __str__(self):
+        return f"{self.manifest_id} - {self.passenger_type}"

@@ -23,6 +23,7 @@ type Driver = {
   cnh_expiration_date: string;
   access_code: string;
   free_trip_enabled?: boolean;
+  photo?: string | null;
 };
 
 export const DriversPage = () => {
@@ -45,6 +46,9 @@ export const DriversPage = () => {
   const [error, setError] = useState<string | null>(null);
   const { isMobile, isTablet, isDesktop } = useMediaQuery();
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [detailsDriver, setDetailsDriver] = useState<Driver | null>(null);
 
   const load = (nextPage = page, nextSearch = search, nextPageSize = pageSize) => {
     api
@@ -87,6 +91,35 @@ export const DriversPage = () => {
     }
   }, [user]);
 
+  useEffect(() => {
+    if (user?.role === "SUPERADMIN" && !selectedMunicipality && municipalities.length > 0) {
+      setSelectedMunicipality(municipalities[0].id);
+    }
+  }, [user, municipalities, selectedMunicipality]);
+
+  useEffect(() => {
+    if (!photoFile) return;
+    const objectUrl = URL.createObjectURL(photoFile);
+    setPhotoPreview(objectUrl);
+    return () => URL.revokeObjectURL(objectUrl);
+  }, [photoFile]);
+
+  const buildDriverFormData = (data: Partial<Driver>) => {
+    const formData = new FormData();
+    Object.entries(data).forEach(([key, value]) => {
+      if (value === undefined || value === null || value === "") return;
+      if (typeof value === "boolean") {
+        formData.append(key, value ? "true" : "false");
+        return;
+      }
+      formData.append(key, String(value));
+    });
+    if (photoFile) {
+      formData.append("photo", photoFile);
+    }
+    return formData;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const errors: Record<string, string> = {};
@@ -106,12 +139,27 @@ export const DriversPage = () => {
         ...form,
         ...(user?.role === "SUPERADMIN" && selectedMunicipality ? { municipality: selectedMunicipality } : {}),
       };
+      const useMultipart = Boolean(photoFile);
       if (editingId) {
-        await api.patch(`/drivers/${editingId}/`, payload);
+        if (useMultipart) {
+          await api.patch(`/drivers/${editingId}/`, buildDriverFormData(payload), {
+            headers: { "Content-Type": "multipart/form-data" },
+          });
+        } else {
+          await api.patch(`/drivers/${editingId}/`, payload);
+        }
       } else {
-        await api.post("/drivers/", payload);
+        if (useMultipart) {
+          await api.post("/drivers/", buildDriverFormData(payload), {
+            headers: { "Content-Type": "multipart/form-data" },
+          });
+        } else {
+          await api.post("/drivers/", payload);
+        }
       }
       setForm({ status: "ACTIVE", cnh_category: "B" });
+      setPhotoFile(null);
+      setPhotoPreview(null);
       setEditingId(null);
       load();
     } catch (err: any) {
@@ -141,6 +189,8 @@ export const DriversPage = () => {
       cnh_expiration_date: driver.cnh_expiration_date,
       free_trip_enabled: !!driver.free_trip_enabled,
     });
+    setPhotoFile(null);
+    setPhotoPreview(driver.photo ?? null);
   };
 
   const handleDelete = async (id: number) => {
@@ -149,7 +199,7 @@ export const DriversPage = () => {
       await api.delete(`/drivers/${id}/`);
       load();
     } catch (err: any) {
-      setError(err.response?.data?.detail || "Erro ao remover motorista.");
+    setError(err.response?.data?.detail || "Erro ao remover motorista.");
     }
   };
 
@@ -219,6 +269,21 @@ export const DriversPage = () => {
           <option value="INACTIVE">Inativo</option>
         </select>
         {formErrors.status && <span className="error-message">{formErrors.status}</span>}
+        <label className="driver-photo-field">
+          Foto do motorista
+          <input
+            type="file"
+            accept="image/*"
+            onChange={(e) => setPhotoFile(e.target.files?.[0] || null)}
+          />
+          {photoPreview ? (
+            <div className="driver-photo-preview">
+              <img src={photoPreview} alt="Pré-visualização do motorista" />
+            </div>
+          ) : (
+            <div className="driver-photo-placeholder">Nenhuma foto selecionada.</div>
+          )}
+        </label>
         <div className="grid" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "0.5rem" }}>
           <Button type="submit" disabled={submitting}>{editingId ? "Atualizar" : "Salvar"}</Button>
           {editingId && (
@@ -228,6 +293,8 @@ export const DriversPage = () => {
               onClick={() => {
                 setEditingId(null);
                 setForm({ status: "ACTIVE", cnh_category: "B" });
+                setPhotoFile(null);
+                setPhotoPreview(null);
               }}
             >
               Cancelar
@@ -282,6 +349,38 @@ export const DriversPage = () => {
               </select>
             </div>
           </div>
+          <div className="data-card drivers-gallery">
+            <div className="drivers-gallery-header">
+              <div>
+                <h2>Galeria de motoristas</h2>
+                <p>Fotos e acesso rapido aos dados principais.</p>
+              </div>
+              <span className="drivers-gallery-count">{drivers.length} motorista(s)</span>
+            </div>
+            <div className="drivers-gallery-grid">
+              {drivers.map((driver) => (
+                <button
+                  key={driver.id}
+                  type="button"
+                  className="drivers-gallery-card"
+                  onClick={() => setDetailsDriver(driver)}
+                  aria-label={`Abrir detalhes de ${driver.name}`}
+                >
+                  <div className="drivers-gallery-photo">
+                    {driver.photo ? (
+                      <img src={driver.photo} alt={`Foto de ${driver.name}`} />
+                    ) : (
+                      <div className="drivers-gallery-placeholder">Sem foto</div>
+                    )}
+                  </div>
+                  <div className="drivers-gallery-info">
+                    <strong>{driver.name}</strong>
+                    <StatusBadge status={driver.status} />
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
           <Table
             columns={[
               { key: "name", label: "Nome" },
@@ -328,6 +427,32 @@ export const DriversPage = () => {
           </>
         )}
       </div>
+      <Modal
+        open={!!detailsDriver}
+        onClose={() => setDetailsDriver(null)}
+        title={detailsDriver ? `Motorista: ${detailsDriver.name}` : "Motorista"}
+      >
+        {detailsDriver && (
+          <div className="drivers-details">
+            <div className="drivers-details-photo">
+              {detailsDriver.photo ? (
+                <img src={detailsDriver.photo} alt={`Foto de ${detailsDriver.name}`} />
+              ) : (
+                <div className="drivers-gallery-placeholder">Sem foto</div>
+              )}
+            </div>
+            <div className="drivers-details-info">
+              <div><strong>CPF:</strong> {detailsDriver.cpf}</div>
+              <div><strong>Telefone:</strong> {detailsDriver.phone}</div>
+              <div><strong>CNH:</strong> {detailsDriver.cnh_number}</div>
+              <div><strong>Categoria:</strong> {detailsDriver.cnh_category}</div>
+              <div><strong>Validade:</strong> {detailsDriver.cnh_expiration_date}</div>
+              <div><strong>Status:</strong> <StatusBadge status={detailsDriver.status} /></div>
+              <div><strong>Código:</strong> {detailsDriver.access_code}</div>
+            </div>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 };

@@ -81,6 +81,151 @@ class FuelStation(models.Model):
         return f"{self.name} ({self.municipality})"
 
 
+class FuelProduct(models.Model):
+    class Unit(models.TextChoices):
+        LITER = "LITER", "Litro"
+        UNIT = "UNIT", "Unidade"
+
+    municipality = models.ForeignKey("tenants.Municipality", on_delete=models.CASCADE, related_name="fuel_products")
+    name = models.CharField(max_length=100)
+    unit = models.CharField(max_length=10, choices=Unit.choices, default=Unit.LITER)
+    active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ("municipality", "name")
+        ordering = ["name"]
+
+    def __str__(self):
+        return f"{self.name} ({self.municipality})"
+
+
+class FuelStationLimit(models.Model):
+    class Period(models.TextChoices):
+        DAILY = "DAILY", "Diario"
+        WEEKLY = "WEEKLY", "Semanal"
+        MONTHLY = "MONTHLY", "Mensal"
+
+    municipality = models.ForeignKey("tenants.Municipality", on_delete=models.CASCADE, related_name="fuel_station_limits")
+    fuel_station = models.ForeignKey(FuelStation, on_delete=models.CASCADE, related_name="limits")
+    contract = models.ForeignKey(
+        "contracts.Contract", on_delete=models.SET_NULL, null=True, blank=True, related_name="fuel_station_limits"
+    )
+    product = models.ForeignKey(FuelProduct, on_delete=models.PROTECT, related_name="station_limits")
+    period = models.CharField(max_length=10, choices=Period.choices)
+    max_quantity = models.DecimalField(max_digits=12, decimal_places=2)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["fuel_station", "contract", "product", "period"],
+                name="unique_station_limit_per_period",
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.fuel_station} - {self.product} ({self.period})"
+
+
+class FuelRule(models.Model):
+    class Scope(models.TextChoices):
+        MUNICIPALITY = "MUNICIPALITY", "Municipio"
+        VEHICLE = "VEHICLE", "Veiculo"
+        CONTRACT = "CONTRACT", "Contrato"
+
+    municipality = models.ForeignKey("tenants.Municipality", on_delete=models.CASCADE, related_name="fuel_rules")
+    scope = models.CharField(max_length=20, choices=Scope.choices, default=Scope.MUNICIPALITY)
+    vehicle = models.ForeignKey(
+        Vehicle, on_delete=models.CASCADE, null=True, blank=True, related_name="fuel_rules"
+    )
+    contract = models.ForeignKey(
+        "contracts.Contract", on_delete=models.CASCADE, null=True, blank=True, related_name="fuel_rules"
+    )
+    allowed_weekdays = models.JSONField(default=list, blank=True)
+    allowed_start_time = models.TimeField(null=True, blank=True)
+    allowed_end_time = models.TimeField(null=True, blank=True)
+    min_interval_minutes = models.PositiveIntegerField(null=True, blank=True)
+    active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"Regra abastecimento ({self.scope})"
+
+
+class FuelAlert(models.Model):
+    class Severity(models.TextChoices):
+        LOW = "LOW", "Baixa"
+        MEDIUM = "MEDIUM", "Media"
+        HIGH = "HIGH", "Alta"
+        CRITICAL = "CRITICAL", "Critica"
+
+    municipality = models.ForeignKey("tenants.Municipality", on_delete=models.CASCADE, related_name="fuel_alerts")
+    alert_type = models.CharField(max_length=50)
+    severity = models.CharField(max_length=10, choices=Severity.choices, default=Severity.MEDIUM)
+    message = models.TextField()
+    reference_type = models.CharField(max_length=50, blank=True)
+    reference_id = models.PositiveIntegerField(null=True, blank=True)
+    fuel_log = models.ForeignKey(
+        "fleet.FuelLog", on_delete=models.SET_NULL, null=True, blank=True, related_name="alerts"
+    )
+    trip = models.ForeignKey(
+        "trips.Trip", on_delete=models.SET_NULL, null=True, blank=True, related_name="fuel_alerts"
+    )
+    service_order = models.ForeignKey(
+        "trips.ServiceOrder", on_delete=models.SET_NULL, null=True, blank=True, related_name="fuel_alerts"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    resolved_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.alert_type} ({self.severity})"
+
+
+class FuelInvoice(models.Model):
+    municipality = models.ForeignKey("tenants.Municipality", on_delete=models.CASCADE, related_name="fuel_invoices")
+    fuel_station = models.ForeignKey(FuelStation, on_delete=models.PROTECT, related_name="invoices")
+    period_start = models.DateField()
+    period_end = models.DateField()
+    total_value = models.DecimalField(max_digits=14, decimal_places=2, null=True, blank=True)
+    uploaded_file = models.FileField(upload_to="fuel_invoices/", null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-period_start"]
+
+    def __str__(self):
+        return f"Fatura {self.fuel_station} ({self.period_start} - {self.period_end})"
+
+
+class FuelInvoiceItem(models.Model):
+    invoice = models.ForeignKey(FuelInvoice, on_delete=models.CASCADE, related_name="items")
+    ticket_number = models.CharField(max_length=100, blank=True)
+    occurred_at = models.DateTimeField(null=True, blank=True)
+    product = models.ForeignKey(FuelProduct, on_delete=models.PROTECT, related_name="invoice_items")
+    quantity = models.DecimalField(max_digits=12, decimal_places=2)
+    unit_price = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    total_value = models.DecimalField(max_digits=14, decimal_places=2, null=True, blank=True)
+    matched_fuel_log = models.ForeignKey(
+        "fleet.FuelLog", on_delete=models.SET_NULL, null=True, blank=True, related_name="invoice_items"
+    )
+
+    class Meta:
+        ordering = ["-occurred_at", "-id"]
+
+    def __str__(self):
+        return f"Item fatura {self.invoice_id} - {self.ticket_number or self.id}"
+
+
 class FuelLog(models.Model):
     municipality = models.ForeignKey("tenants.Municipality", on_delete=models.CASCADE, related_name="fuel_logs")
     vehicle = models.ForeignKey(Vehicle, on_delete=models.PROTECT, related_name="fuel_logs")
@@ -91,6 +236,17 @@ class FuelLog(models.Model):
     total_cost = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
     fuel_station = models.CharField(max_length=255)
     fuel_station_ref = models.ForeignKey(FuelStation, null=True, blank=True, on_delete=models.PROTECT, related_name="fuel_logs")
+    product = models.ForeignKey(FuelProduct, null=True, blank=True, on_delete=models.PROTECT, related_name="fuel_logs")
+    quantity = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    odometer = models.PositiveIntegerField(null=True, blank=True)
+    ticket_number = models.CharField(max_length=100, blank=True)
+    ticket_value = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
+    service_order = models.ForeignKey(
+        "trips.ServiceOrder", on_delete=models.SET_NULL, null=True, blank=True, related_name="fuel_logs"
+    )
+    trip = models.ForeignKey(
+        "trips.Trip", on_delete=models.SET_NULL, null=True, blank=True, related_name="fuel_logs"
+    )
     receipt_image = models.FileField(upload_to="fuel_receipts/", null=True, blank=True)
     notes = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)

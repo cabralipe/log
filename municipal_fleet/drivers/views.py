@@ -27,6 +27,7 @@ class DriverViewSet(MunicipalityQuerysetMixin, viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated, IsMunicipalityAdminOrReadOnly]
     filter_backends = [filters.SearchFilter]
     search_fields = ["name", "cpf", "phone"]
+    parser_classes = [parsers.MultiPartParser, parsers.FormParser, parsers.JSONParser]
 
     def perform_create(self, serializer):
         user = self.request.user

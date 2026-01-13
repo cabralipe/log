@@ -1,13 +1,22 @@
 import urllib.parse
-from datetime import timedelta
+from datetime import timedelta, datetime
 from django.utils import timezone
 from rest_framework import viewsets, permissions, response, decorators, filters, status, views
-from trips.models import Trip, FreeTrip, TripGpsPing
+from trips.models import Trip, FreeTrip, TripGpsPing, PlannedTrip, TripExecution, TripManifest, TripExecutionStop
 from drivers.models import DriverGeofence
-from trips.serializers import TripSerializer, FreeTripSerializer, FreeTripIncidentSerializer
+from trips.serializers import (
+    TripSerializer,
+    FreeTripSerializer,
+    FreeTripIncidentSerializer,
+    PlannedTripSerializer,
+    TripExecutionSerializer,
+    TripManifestSerializer,
+)
 from tenants.mixins import MunicipalityQuerysetMixin
 from accounts.permissions import IsMunicipalityAdminOrReadOnly
 from trips.gps import resolve_status, STATUS_LABELS
+from trips.services import generate_executions
+from trips.routing import optimize_destinations, build_route_geometry, route_summary
 
 
 class TripViewSet(MunicipalityQuerysetMixin, viewsets.ModelViewSet):
@@ -241,3 +250,171 @@ class TripMapStateView(views.APIView):
             drivers_payload.append(payload)
 
         return response.Response({"drivers": drivers_payload})
+
+
+class PlannedTripViewSet(MunicipalityQuerysetMixin, viewsets.ModelViewSet):
+    queryset = PlannedTrip.objects.select_related("vehicle", "driver", "municipality").prefetch_related(
+        "stops__destination",
+        "passengers",
+    )
+    serializer_class = PlannedTripSerializer
+    permission_classes = [permissions.IsAuthenticated, IsMunicipalityAdminOrReadOnly]
+    filter_backends = [filters.SearchFilter]
+    search_fields = ["title", "vehicle__license_plate", "driver__name"]
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        module = self.request.query_params.get("module")
+        vehicle_id = self.request.query_params.get("vehicle_id")
+        driver_id = self.request.query_params.get("driver_id")
+        active = self.request.query_params.get("active")
+        if module:
+            qs = qs.filter(module=module)
+        if vehicle_id:
+            qs = qs.filter(vehicle_id=vehicle_id)
+        if driver_id:
+            qs = qs.filter(driver_id=driver_id)
+        if active is not None:
+            qs = qs.filter(active=active.lower() == "true")
+        return qs
+
+    def perform_update(self, serializer):
+        apply_to_future = self.request.query_params.get("apply_to_future") == "true"
+        instance = serializer.save()
+        if not apply_to_future:
+            return
+        now = timezone.now()
+        instance.executions.filter(
+            status=TripExecution.Status.PLANNED,
+            scheduled_departure__gte=now,
+            is_manual_override=False,
+        ).update(
+            vehicle=instance.vehicle,
+            driver=instance.driver,
+            planned_capacity=instance.planned_capacity,
+            module=instance.module,
+        )
+
+    @decorators.action(detail=True, methods=["post"], url_path="generate-executions")
+    def generate_executions_action(self, request, pk=None):
+        plan = self.get_object()
+        start = request.data.get("start_date")
+        end = request.data.get("end_date")
+        if not start or not end:
+            return response.Response(
+                {"detail": "Informe start_date e end_date no formato YYYY-MM-DD."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        try:
+            start_date = datetime.strptime(start, "%Y-%m-%d").date()
+            end_date = datetime.strptime(end, "%Y-%m-%d").date()
+        except ValueError:
+            return response.Response(
+                {"detail": "Datas inválidas."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        try:
+            created = generate_executions(plan, start_date, end_date)
+        except ValueError as exc:
+            return response.Response({"detail": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        serializer = TripExecutionSerializer(created, many=True)
+        return response.Response({"created": len(created), "executions": serializer.data})
+
+
+class TripExecutionViewSet(MunicipalityQuerysetMixin, viewsets.ModelViewSet):
+    queryset = TripExecution.objects.select_related("vehicle", "driver", "municipality", "planned_trip").prefetch_related(
+        "stops__destination",
+        "manifest__passengers",
+    )
+    serializer_class = TripExecutionSerializer
+    permission_classes = [permissions.IsAuthenticated, IsMunicipalityAdminOrReadOnly]
+    filter_backends = [filters.SearchFilter]
+    search_fields = ["vehicle__license_plate", "driver__name"]
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        module = self.request.query_params.get("module")
+        vehicle_id = self.request.query_params.get("vehicle_id")
+        driver_id = self.request.query_params.get("driver_id")
+        status_param = self.request.query_params.get("status")
+        start_date = self.request.query_params.get("start_date")
+        end_date = self.request.query_params.get("end_date")
+        if module:
+            qs = qs.filter(module=module)
+        if vehicle_id:
+            qs = qs.filter(vehicle_id=vehicle_id)
+        if driver_id:
+            qs = qs.filter(driver_id=driver_id)
+        if status_param:
+            qs = qs.filter(status=status_param)
+        if start_date:
+            qs = qs.filter(scheduled_departure__date__gte=start_date)
+        if end_date:
+            qs = qs.filter(scheduled_departure__date__lte=end_date)
+        return qs
+
+    def perform_create(self, serializer):
+        execution = serializer.save()
+        self._ensure_route(execution)
+
+    def perform_update(self, serializer):
+        instance = serializer.instance
+        if instance and instance.planned_trip_id:
+            execution = serializer.save(is_manual_override=True)
+        else:
+            execution = serializer.save()
+        self._ensure_route(execution)
+
+    def _ensure_route(self, execution: TripExecution):
+        if execution.route_geometry:
+            return
+        stops = list(execution.stops.select_related("destination").order_by("order"))
+        destinations = [stop.destination for stop in stops]
+        if not destinations:
+            return
+        distance_km, duration_minutes = route_summary(destinations)
+        execution.route_geometry = build_route_geometry(destinations)
+        execution.route_distance_km = round(distance_km, 2)
+        execution.route_duration_minutes = duration_minutes
+        execution.save(update_fields=["route_geometry", "route_distance_km", "route_duration_minutes"])
+
+    @decorators.action(detail=True, methods=["post"], url_path="optimize-route")
+    def optimize_route(self, request, pk=None):
+        execution = self.get_object()
+        stops = list(execution.stops.select_related("destination").order_by("order"))
+        destinations = [stop.destination for stop in stops]
+        if not destinations:
+            return response.Response({"detail": "Sem destinos para otimizar."}, status=status.HTTP_400_BAD_REQUEST)
+        ordered = optimize_destinations(destinations)
+        stop_map = {}
+        for stop in stops:
+            stop_map.setdefault(stop.destination_id, []).append(stop)
+        for idx, destination in enumerate(ordered):
+            candidates = stop_map.get(destination.id, [])
+            if not candidates:
+                continue
+            stop = candidates.pop(0)
+            stop.order = idx + 1
+            stop.save(update_fields=["order"])
+        distance_km, duration_minutes = route_summary(ordered)
+        execution.route_geometry = build_route_geometry(ordered)
+        execution.route_distance_km = round(distance_km, 2)
+        execution.route_duration_minutes = duration_minutes
+        execution.save(update_fields=["route_geometry", "route_distance_km", "route_duration_minutes"])
+        return response.Response({"detail": "Rota otimizada com sucesso."})
+
+
+class TripManifestViewSet(MunicipalityQuerysetMixin, viewsets.ModelViewSet):
+    queryset = TripManifest.objects.select_related("trip_execution", "trip_execution__municipality").prefetch_related(
+        "passengers"
+    )
+    serializer_class = TripManifestSerializer
+    permission_classes = [permissions.IsAuthenticated, IsMunicipalityAdminOrReadOnly]
+    municipality_field = "trip_execution__municipality"
+
+    def get_queryset(self):
+        qs = super().get_queryset()
+        execution_id = self.request.query_params.get("trip_execution_id")
+        if execution_id:
+            qs = qs.filter(trip_execution_id=execution_id)
+        return qs

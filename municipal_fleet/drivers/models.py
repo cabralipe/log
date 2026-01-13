@@ -19,6 +19,7 @@ class Driver(models.Model):
     cnh_category = models.CharField(max_length=5)
     cnh_expiration_date = models.DateField()
     phone = models.CharField(max_length=20)
+    photo = models.ImageField(upload_to="driver_photos/", null=True, blank=True)
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.ACTIVE)
     access_code = models.CharField(max_length=20, unique=True, default=generate_access_code)
     free_trip_enabled = models.BooleanField(default=False)

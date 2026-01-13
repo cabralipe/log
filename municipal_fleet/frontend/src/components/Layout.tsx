@@ -29,6 +29,8 @@ import {
   ChevronLeft,
   ChevronRight,
   HelpCircle,
+  FileCheck,
+  Droplets,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import "./Layout.css";
@@ -62,7 +64,13 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
     { to: "/contracts", label: "Contratos", icon: FileText },
     { to: "/rental-periods", label: "Locações", icon: Clock3 },
     ...(isAdmin ? [{ to: "/fuel-stations", label: "Postos", icon: Fuel }] : []),
+    { to: "/service-orders", label: "Ordens de Serviço", icon: FileCheck },
+    { to: "/fuel-management", label: "Gestão de Combustível", icon: Droplets },
     { to: "/trips", label: "Viagens", icon: MapPin },
+    { to: "/destinations", label: "Destinos", icon: MapPin },
+    { to: "/health/patients", label: "Saúde", icon: Users },
+    { to: "/education/classes", label: "Turmas", icon: Building2 },
+    { to: "/education/students", label: "Alunos", icon: Users },
     { to: "/live-tracking", label: "Rastreamento", icon: Map },
     { to: "/free-trips", label: "Viagens livres", icon: Shuffle },
     { to: "/scheduling", label: "Agenda de motoristas", icon: CalendarClock },

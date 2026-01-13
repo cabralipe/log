@@ -30,6 +30,12 @@ class User(AbstractUser):
             self.municipality = None
             self.is_staff = True
             self.is_superuser = True
+        elif self.role == self.Roles.ADMIN_MUNICIPALITY:
+            self.is_staff = True
+            self.is_superuser = False
+        else:
+            self.is_staff = False
+            self.is_superuser = False
         super().save(*args, **kwargs)
 
     def __str__(self) -> str:

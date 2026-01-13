@@ -100,7 +100,7 @@ class FormSubmission(models.Model):
     municipality = models.ForeignKey(
         "tenants.Municipality", on_delete=models.CASCADE, related_name="form_submissions"
     )
-    cpf = models.CharField(max_length=20, db_index=True)
+    cpf = models.CharField(max_length=20, db_index=True, blank=True, null=True)
     protocol_number = models.CharField(max_length=64, unique=True)
     status = models.CharField(max_length=32, choices=Status.choices, default=Status.PENDING)
     status_notes = models.TextField(blank=True)

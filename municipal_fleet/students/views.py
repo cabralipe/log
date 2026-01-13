@@ -3,13 +3,14 @@ from rest_framework import viewsets, permissions, exceptions, response, status
 from rest_framework.views import APIView
 from tenants.mixins import MunicipalityQuerysetMixin
 from accounts.permissions import IsMunicipalityAdminOrReadOnly, IsMunicipalityAdmin
-from students.models import School, Student, StudentCard, StudentTransportRegistration
+from students.models import School, Student, StudentCard, StudentTransportRegistration, ClassGroup
 from forms.models import FormSubmission
 from students.serializers import (
     SchoolSerializer,
     StudentSerializer,
     StudentCardSerializer,
     StudentTransportRegistrationSerializer,
+    ClassGroupSerializer,
 )
 
 
@@ -35,9 +36,9 @@ class SchoolViewSet(BaseMunicipalityCreateMixin, MunicipalityQuerysetMixin, view
         serializer.save(municipality=municipality)
 
 
-class StudentViewSet(BaseMunicipalityCreateMixin, MunicipalityQuerysetMixin, viewsets.ModelViewSet):
-    queryset = Student.objects.select_related("municipality", "school")
-    serializer_class = StudentSerializer
+class ClassGroupViewSet(BaseMunicipalityCreateMixin, MunicipalityQuerysetMixin, viewsets.ModelViewSet):
+    queryset = ClassGroup.objects.select_related("municipality", "school")
+    serializer_class = ClassGroupSerializer
     permission_classes = [permissions.IsAuthenticated, IsMunicipalityAdminOrReadOnly]
 
     def perform_create(self, serializer):
@@ -52,6 +53,36 @@ class StudentViewSet(BaseMunicipalityCreateMixin, MunicipalityQuerysetMixin, vie
         school = serializer.validated_data.get("school", serializer.instance.school)
         if school and municipality and school.municipality_id != municipality.id:
             raise exceptions.ValidationError("Escola precisa pertencer à mesma prefeitura.")
+        serializer.save(municipality=municipality)
+
+
+class StudentViewSet(BaseMunicipalityCreateMixin, MunicipalityQuerysetMixin, viewsets.ModelViewSet):
+    queryset = Student.objects.select_related("municipality", "school", "class_group")
+    serializer_class = StudentSerializer
+    permission_classes = [permissions.IsAuthenticated, IsMunicipalityAdminOrReadOnly]
+
+    def perform_create(self, serializer):
+        municipality = self.get_municipality(serializer)
+        school = serializer.validated_data.get("school")
+        class_group = serializer.validated_data.get("class_group")
+        if school and municipality and school.municipality_id != municipality.id:
+            raise exceptions.ValidationError("Escola precisa pertencer à mesma prefeitura.")
+        if class_group and municipality and class_group.municipality_id != municipality.id:
+            raise exceptions.ValidationError("Turma precisa pertencer à mesma prefeitura.")
+        if class_group and school and class_group.school_id != school.id:
+            raise exceptions.ValidationError("Turma precisa pertencer à escola informada.")
+        serializer.save(municipality=municipality)
+
+    def perform_update(self, serializer):
+        municipality = self.get_municipality(serializer)
+        school = serializer.validated_data.get("school", serializer.instance.school)
+        class_group = serializer.validated_data.get("class_group", serializer.instance.class_group)
+        if school and municipality and school.municipality_id != municipality.id:
+            raise exceptions.ValidationError("Escola precisa pertencer à mesma prefeitura.")
+        if class_group and municipality and class_group.municipality_id != municipality.id:
+            raise exceptions.ValidationError("Turma precisa pertencer à mesma prefeitura.")
+        if class_group and school and class_group.school_id != school.id:
+            raise exceptions.ValidationError("Turma precisa pertencer à escola informada.")
         serializer.save(municipality=municipality)
 
 
@@ -103,11 +134,6 @@ class StudentCardValidateView(APIView):
         user = request.user
         if user.role != "SUPERADMIN" and user.municipality_id != card.municipality_id:
             return response.Response({"valid": False, "reason": "WRONG_MUNICIPALITY"})
-        today = timezone.localdate()
-        if card.status != StudentCard.Status.ACTIVE:
-            return response.Response({"valid": False, "reason": card.status})
-        if card.expiration_date and card.expiration_date < today:
-            return response.Response({"valid": False, "reason": "CARD_EXPIRED"})
 
         submission = (
             FormSubmission.objects.filter(linked_student_card=card)
@@ -122,6 +148,12 @@ class StudentCardValidateView(APIView):
                 card.status = StudentCard.Status.BLOCKED
                 card.save(update_fields=["status", "updated_at"])
             return response.Response({"valid": False, "reason": FormSubmission.Status.REJECTED})
+
+        today = timezone.localdate()
+        if card.status != StudentCard.Status.ACTIVE:
+            return response.Response({"valid": False, "reason": card.status})
+        if card.expiration_date and card.expiration_date < today:
+            return response.Response({"valid": False, "reason": "CARD_EXPIRED"})
 
         student_payload = None
         if submission:

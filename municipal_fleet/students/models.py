@@ -49,6 +49,13 @@ class Student(models.Model):
         "tenants.Municipality", on_delete=models.CASCADE, related_name="students"
     )
     school = models.ForeignKey(School, on_delete=models.PROTECT, related_name="students")
+    class_group = models.ForeignKey(
+        "students.ClassGroup",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="students",
+    )
     full_name = models.CharField(max_length=255)
     social_name = models.CharField(max_length=255, blank=True)
     date_of_birth = models.DateField()
@@ -76,6 +83,25 @@ class Student(models.Model):
 
     def __str__(self) -> str:
         return self.full_name
+
+
+class ClassGroup(models.Model):
+    municipality = models.ForeignKey(
+        "tenants.Municipality", on_delete=models.CASCADE, related_name="class_groups"
+    )
+    school = models.ForeignKey(School, on_delete=models.PROTECT, related_name="class_groups")
+    name = models.CharField(max_length=120)
+    shift = models.CharField(max_length=20, choices=Student.Shift.choices, default=Student.Shift.MORNING)
+    active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["name"]
+        unique_together = ("municipality", "school", "name")
+
+    def __str__(self) -> str:
+        return f"{self.school.name} - {self.name}"
 
 
 class StudentCard(models.Model):
