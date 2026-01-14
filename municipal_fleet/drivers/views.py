@@ -1,5 +1,6 @@
 from datetime import timedelta
 from rest_framework import viewsets, permissions, filters, views, response, exceptions, parsers, status
+from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiTypes
 from rest_framework.exceptions import ValidationError
 from django.utils import timezone
 from asgiref.sync import async_to_sync
@@ -56,6 +57,10 @@ class DriverPortalAuthMixin:
 class DriverPortalLoginView(views.APIView):
     permission_classes = [permissions.AllowAny]
 
+    @extend_schema(
+        request=OpenApiTypes.OBJECT,
+        responses={200: OpenApiTypes.OBJECT},
+    )
     def post(self, request):
         code_raw = request.data.get("code", "")
         code = str(code_raw).strip().upper()
@@ -79,6 +84,9 @@ class DriverPortalLoginView(views.APIView):
 class DriverPortalTripsView(DriverPortalAuthMixin, views.APIView):
     permission_classes = [permissions.AllowAny]
 
+    @extend_schema(
+        responses={200: OpenApiTypes.OBJECT},
+    )
     def get(self, request):
         driver = self.get_portal_driver(request)
         trips = (
@@ -109,6 +117,9 @@ class DriverPortalTripsView(DriverPortalAuthMixin, views.APIView):
 class DriverPortalAvailabilityBlocksView(DriverPortalAuthMixin, views.APIView):
     permission_classes = [permissions.AllowAny]
 
+    @extend_schema(
+        responses={200: OpenApiTypes.OBJECT},
+    )
     def get(self, request):
         driver = self.get_portal_driver(request)
         now = timezone.now()
@@ -140,6 +151,9 @@ class DriverPortalAvailabilityBlocksView(DriverPortalAuthMixin, views.APIView):
 class DriverPortalAssignmentsView(DriverPortalAuthMixin, views.APIView):
     permission_classes = [permissions.AllowAny]
 
+    @extend_schema(
+        responses={200: OpenApiTypes.OBJECT},
+    )
     def get(self, request):
         driver = self.get_portal_driver(request)
         today = timezone.localdate()
@@ -189,6 +203,9 @@ class DriverPortalAssignmentsView(DriverPortalAuthMixin, views.APIView):
 class DriverPortalTripCompleteView(DriverPortalAuthMixin, views.APIView):
     permission_classes = [permissions.AllowAny]
 
+    @extend_schema(
+        responses={200: TripSerializer},
+    )
     def post(self, request, trip_id: int):
         driver = self.get_portal_driver(request)
         trip = driver.trips.filter(id=trip_id).first()
@@ -208,6 +225,9 @@ class DriverPortalTripCompleteView(DriverPortalAuthMixin, views.APIView):
 class DriverPortalTripStartView(DriverPortalAuthMixin, views.APIView):
     permission_classes = [permissions.AllowAny]
 
+    @extend_schema(
+        responses={200: TripSerializer},
+    )
     def post(self, request, trip_id: int):
         driver = self.get_portal_driver(request)
         trip = driver.trips.filter(id=trip_id).first()
@@ -225,6 +245,10 @@ class DriverPortalTripStartView(DriverPortalAuthMixin, views.APIView):
 class DriverPortalGpsPingView(DriverPortalAuthMixin, views.APIView):
     permission_classes = [permissions.AllowAny]
 
+    @extend_schema(
+        request=TripGpsPingSerializer,
+        responses={201: TripGpsPingSerializer},
+    )
     def post(self, request):
         driver = self.get_portal_driver(request)
         trip_id = request.data.get("trip_id")
@@ -298,6 +322,9 @@ class DriverGeofenceView(views.APIView):
             raise exceptions.PermissionDenied("Permissão negada.")
         return driver
 
+    @extend_schema(
+        responses={200: DriverGeofenceSerializer},
+    )
     def get(self, request, driver_id: int):
         driver = self.get_driver(request, driver_id)
         geofence = getattr(driver, "geofence", None)
@@ -305,6 +332,10 @@ class DriverGeofenceView(views.APIView):
             return response.Response({"geofence": None})
         return response.Response({"geofence": DriverGeofenceSerializer(geofence).data})
 
+    @extend_schema(
+        request=DriverGeofenceSerializer,
+        responses={200: DriverGeofenceSerializer},
+    )
     def put(self, request, driver_id: int):
         driver = self.get_driver(request, driver_id)
         geofence = getattr(driver, "geofence", None)
@@ -331,6 +362,10 @@ class DriverGeofenceView(views.APIView):
 class DriverPortalTripIncidentView(DriverPortalAuthMixin, views.APIView):
     permission_classes = [permissions.AllowAny]
 
+    @extend_schema(
+        request=TripIncidentSerializer,
+        responses={201: TripIncidentSerializer},
+    )
     def post(self, request, trip_id: int):
         driver = self.get_portal_driver(request)
         trip = driver.trips.filter(id=trip_id).first()
@@ -350,6 +385,9 @@ class DriverPortalFuelLogView(DriverPortalAuthMixin, views.APIView):
     permission_classes = [permissions.AllowAny]
     parser_classes = [parsers.MultiPartParser, parsers.FormParser, parsers.JSONParser]
 
+    @extend_schema(
+        responses={200: FuelLogSerializer(many=True)},
+    )
     def get(self, request):
         driver = self.get_portal_driver(request)
         logs_qs = (
@@ -378,6 +416,10 @@ class DriverPortalFuelLogView(DriverPortalAuthMixin, views.APIView):
             )
         return response.Response({"logs": logs})
 
+    @extend_schema(
+        request=FuelLogSerializer,
+        responses={201: FuelLogSerializer},
+    )
     def post(self, request):
         driver = self.get_portal_driver(request)
         serializer = FuelLogSerializer(
@@ -392,6 +434,9 @@ class DriverPortalFuelLogView(DriverPortalAuthMixin, views.APIView):
 class DriverPortalFuelStationsView(DriverPortalAuthMixin, views.APIView):
     permission_classes = [permissions.AllowAny]
 
+    @extend_schema(
+        responses={200: OpenApiTypes.OBJECT},
+    )
     def get(self, request):
         driver = self.get_portal_driver(request)
         stations = (
@@ -405,6 +450,9 @@ class DriverPortalFuelStationsView(DriverPortalAuthMixin, views.APIView):
 class DriverPortalNotificationsView(DriverPortalAuthMixin, views.APIView):
     permission_classes = [permissions.AllowAny]
 
+    @extend_schema(
+        responses={200: NotificationSerializer(many=True)},
+    )
     def get(self, request):
         driver = self.get_portal_driver(request)
         notifications = Notification.objects.filter(recipient_driver=driver).order_by("-created_at")
@@ -415,6 +463,10 @@ class DriverPortalNotificationsView(DriverPortalAuthMixin, views.APIView):
 class DriverPortalNotificationDeviceView(DriverPortalAuthMixin, views.APIView):
     permission_classes = [permissions.AllowAny]
 
+    @extend_schema(
+        request=NotificationDeviceSerializer,
+        responses={201: NotificationDeviceSerializer},
+    )
     def post(self, request):
         driver = self.get_portal_driver(request)
         serializer = NotificationDeviceSerializer(data=request.data)
@@ -422,6 +474,10 @@ class DriverPortalNotificationDeviceView(DriverPortalAuthMixin, views.APIView):
         device = serializer.save(driver=driver, municipality=driver.municipality)
         return response.Response(NotificationDeviceSerializer(device).data, status=status.HTTP_201_CREATED)
 
+    @extend_schema(
+        request=OpenApiTypes.OBJECT,
+        responses={204: None},
+    )
     def delete(self, request):
         driver = self.get_portal_driver(request)
         token = request.data.get("token")
@@ -436,6 +492,9 @@ class DriverPortalInspectionView(DriverPortalAuthMixin, views.APIView):
     permission_classes = [permissions.AllowAny]
     parser_classes = [parsers.MultiPartParser, parsers.FormParser, parsers.JSONParser]
 
+    @extend_schema(
+        responses={200: VehicleInspectionSerializer(many=True)},
+    )
     def get(self, request):
         driver = self.get_portal_driver(request)
         inspections = (
@@ -447,6 +506,10 @@ class DriverPortalInspectionView(DriverPortalAuthMixin, views.APIView):
         data = VehicleInspectionSerializer(inspections, many=True, context={"request": request}).data
         return response.Response({"inspections": data})
 
+    @extend_schema(
+        request=VehicleInspectionSerializer,
+        responses={201: VehicleInspectionSerializer},
+    )
     def post(self, request):
         driver = self.get_portal_driver(request)
         serializer = VehicleInspectionSerializer(
@@ -464,6 +527,9 @@ class DriverPortalInspectionView(DriverPortalAuthMixin, views.APIView):
 class DriverPortalFreeTripListView(DriverPortalAuthMixin, views.APIView):
     permission_classes = [permissions.AllowAny]
 
+    @extend_schema(
+        responses={200: OpenApiTypes.OBJECT},
+    )
     def get(self, request):
         driver = self.get_portal_driver(request)
         open_trip = (
@@ -495,6 +561,10 @@ class DriverPortalFreeTripStartView(DriverPortalAuthMixin, views.APIView):
     permission_classes = [permissions.AllowAny]
     parser_classes = [parsers.MultiPartParser, parsers.FormParser, parsers.JSONParser]
 
+    @extend_schema(
+        request=FreeTripSerializer,
+        responses={201: FreeTripSerializer},
+    )
     def post(self, request):
         driver = self.get_portal_driver(request)
         if not driver.free_trip_enabled:
@@ -539,6 +609,10 @@ class DriverPortalFreeTripCloseView(DriverPortalAuthMixin, views.APIView):
     permission_classes = [permissions.AllowAny]
     parser_classes = [parsers.MultiPartParser, parsers.FormParser, parsers.JSONParser]
 
+    @extend_schema(
+        request=FreeTripSerializer,
+        responses={200: FreeTripSerializer},
+    )
     def post(self, request, free_trip_id: int):
         driver = self.get_portal_driver(request)
         free_trip = driver.free_trips.filter(id=free_trip_id, status=FreeTrip.Status.OPEN).first()
@@ -565,6 +639,10 @@ class DriverPortalFreeTripCloseView(DriverPortalAuthMixin, views.APIView):
 class DriverPortalFreeTripIncidentView(DriverPortalAuthMixin, views.APIView):
     permission_classes = [permissions.AllowAny]
 
+    @extend_schema(
+        request=FreeTripIncidentSerializer,
+        responses={201: FreeTripIncidentSerializer},
+    )
     def post(self, request, free_trip_id: int):
         driver = self.get_portal_driver(request)
         free_trip = driver.free_trips.filter(id=free_trip_id).first()
@@ -583,6 +661,9 @@ class DriverPortalFreeTripIncidentView(DriverPortalAuthMixin, views.APIView):
 class DriverPortalVehiclesView(DriverPortalAuthMixin, views.APIView):
     permission_classes = [permissions.AllowAny]
 
+    @extend_schema(
+        responses={200: OpenApiTypes.OBJECT},
+    )
     def get(self, request):
         driver = self.get_portal_driver(request)
         vehicles = (

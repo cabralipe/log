@@ -117,9 +117,18 @@ class StudentTransportRegistrationViewSet(
         serializer.save(municipality=municipality)
 
 
+from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiTypes
+
 class StudentCardValidateView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
+    @extend_schema(
+        parameters=[
+            OpenApiParameter("payload", OpenApiTypes.STR, description="QR Code Payload"),
+            OpenApiParameter("qr_payload", OpenApiTypes.STR, description="Alias for payload"),
+        ],
+        responses={200: OpenApiTypes.OBJECT},
+    )
     def get(self, request):
         payload = request.query_params.get("payload") or request.query_params.get("qr_payload")
         if not payload:

@@ -394,17 +394,17 @@ class FreeTripSerializer(serializers.ModelSerializer):
             vehicle.save(update_fields=["status"])
         handle_trip_completion(vehicle, distance)
 
-    def get_distance(self, obj: FreeTrip):
+    def get_distance(self, obj: FreeTrip) -> float:
         return obj.distance
 
-    def get_incidents(self, obj: FreeTrip):
+    def get_incidents(self, obj: FreeTrip) -> list:
         if not hasattr(obj, "incidents"):
             return []
         # Only include a small set for summaries
         recent = obj.incidents.all()[:5]
         return [{"id": inc.id, "description": inc.description, "created_at": inc.created_at} for inc in recent]
 
-    def get_incidents_count(self, obj: FreeTrip):
+    def get_incidents_count(self, obj: FreeTrip) -> int:
         if hasattr(obj, "incidents"):
             return obj.incidents.count()
         return 0

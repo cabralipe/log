@@ -3,6 +3,7 @@ from django.db import transaction
 from django.shortcuts import get_object_or_404
 from rest_framework import viewsets, permissions, response, status, exceptions, views, parsers, filters
 from rest_framework.decorators import action
+from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiTypes
 from forms.models import FormTemplate, FormQuestion, FormSubmission, FormAnswer, FormOption
 from forms.serializers import (
     FormTemplateSerializer,
@@ -357,6 +358,9 @@ class FormSubmissionViewSet(MunicipalityQuerysetMixin, viewsets.ReadOnlyModelVie
 class PublicFormDetailView(views.APIView):
     permission_classes = [permissions.AllowAny]
 
+    @extend_schema(
+        responses={200: PublicFormTemplateSerializer},
+    )
     def get(self, request, slug: str):
         template = get_object_or_404(FormTemplate, slug=slug, is_active=True)
         data = PublicFormTemplateSerializer(template).data
@@ -419,6 +423,10 @@ class PublicFormSubmitView(views.APIView):
             return {"value_text": str(raw_value)}
         return {"value_text": str(raw_value)}
 
+    @extend_schema(
+        request=OpenApiTypes.OBJECT,
+        responses={201: OpenApiTypes.OBJECT},
+    )
     @transaction.atomic
     def post(self, request, slug: str):
         template = get_object_or_404(FormTemplate, slug=slug, is_active=True)
@@ -457,6 +465,12 @@ class PublicFormSubmitView(views.APIView):
 class PublicFormStatusView(views.APIView):
     permission_classes = [permissions.AllowAny]
 
+    @extend_schema(
+        parameters=[
+            OpenApiParameter("cpf", OpenApiTypes.STR, description="CPF to search"),
+        ],
+        responses={200: PublicSubmissionStatusSerializer(many=True)},
+    )
     def get(self, request, slug: str):
         cpf = request.query_params.get("cpf")
         if not cpf:

@@ -4,6 +4,7 @@ from django.utils import timezone, dateparse
 from django.shortcuts import get_object_or_404
 from rest_framework import viewsets, permissions, views, response, status
 from rest_framework.exceptions import ValidationError, PermissionDenied
+from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiTypes
 from scheduling.models import DriverAvailabilityBlock
 from scheduling.serializers import DriverAvailabilityBlockSerializer
 from scheduling.permissions import DriverAvailabilityBlockPermission
@@ -42,9 +43,19 @@ class DriverAvailabilityBlockViewSet(MunicipalityQuerysetMixin, viewsets.ModelVi
         instance.save(update_fields=["status", "updated_at"])
 
 
+from drf_spectacular.utils import extend_schema
+
 class AvailableDriversView(views.APIView):
     permission_classes = [permissions.IsAuthenticated]
 
+    @extend_schema(
+        parameters=[
+            OpenApiParameter("start", OpenApiTypes.DATETIME, description="Start datetime (ISO 8601)"),
+            OpenApiParameter("end", OpenApiTypes.DATETIME, description="End datetime (ISO 8601)"),
+            OpenApiParameter("municipality", OpenApiTypes.INT, description="Municipality ID (Superadmin only)"),
+        ],
+        responses={200: DriverAvailabilityBlockSerializer(many=True)},  # Approximate response
+    )
     def get(self, request):
         start_param = request.query_params.get("start")
         end_param = request.query_params.get("end")
@@ -99,6 +110,13 @@ class AvailableDriversView(views.APIView):
 class DriverCalendarView(views.APIView):
     permission_classes = [permissions.IsAuthenticated]
 
+    @extend_schema(
+        parameters=[
+            OpenApiParameter("start_date", OpenApiTypes.DATE, description="Start date (YYYY-MM-DD)"),
+            OpenApiParameter("end_date", OpenApiTypes.DATE, description="End date (YYYY-MM-DD)"),
+        ],
+        responses={200: OpenApiTypes.OBJECT},
+    )
     def get(self, request, driver_id: int):
         driver = get_object_or_404(Driver.objects.select_related("municipality"), pk=driver_id)
         user = request.user

@@ -77,13 +77,13 @@ export const ResponsiveMaintenanceTest: React.FC = () => {
 
   const handleUpdateMaintenance = async (id: string, data: any) => {
     console.log('Updating maintenance:', id, data);
-    setRecords(records.map(record => 
-      record.id === id 
-        ? { 
-            ...record, 
-            ...data,
-            vehiclePlate: testVehicles.find(v => v.id.toString() === data.vehicleId)?.license_plate || record.vehiclePlate
-          }
+    setRecords(records.map(record =>
+      record.id === id
+        ? {
+          ...record,
+          ...data,
+          vehiclePlate: testVehicles.find(v => v.id.toString() === data.vehicleId)?.license_plate || record.vehiclePlate
+        }
         : record
     ));
   };
@@ -99,10 +99,10 @@ export const ResponsiveMaintenanceTest: React.FC = () => {
     <div className="p-4">
       <h1 className="text-2xl font-bold mb-4">Teste de Layout Responsivo - Manutenção</h1>
       <p className="text-gray-600 mb-6">
-        Este é um teste do layout responsivo para a página de manutenção. 
+        Este é um teste do layout responsivo para a página de manutenção.
         Redimensione a janela do navegador para ver o comportamento responsivo.
       </p>
-      
+
       <ResponsiveMaintenanceLayout
         records={records}
         vehicles={testVehicles}
@@ -119,13 +119,13 @@ export const ResponsiveMaintenanceTest: React.FC = () => {
         onUpdateMaintenance={handleUpdateMaintenance}
         onDeleteMaintenance={handleDeleteMaintenance}
       />
-      
+
       <div className="mt-8 p-4 bg-blue-50 rounded-lg">
         <h2 className="text-lg font-semibold mb-2">Instruções de Teste:</h2>
         <ul className="list-disc list-inside space-y-1 text-sm">
-          <li>Desktop (>1024px): Formulário na lateral esquerda, lista à direita</li>
+          <li>Desktop (&gt;1024px): Formulário na lateral esquerda, lista à direita</li>
           <li>Tablet (768px-1024px): Formulário menor na lateral, lista à direita</li>
-          <li>Mobile (<768px): Botão flutuante no canto superior direito que abre modal</li>
+          <li>Mobile (&lt;768px): Botão flutuante no canto superior direito que abre modal</li>
           <li>Teste o modal: clique no botão flutuante para abrir o formulário em modal</li>
           <li>Teste acessibilidade: use Tab para navegação, ESC para fechar modal</li>
           <li>Teste os filtros de busca e status na lista de manutenções</li>

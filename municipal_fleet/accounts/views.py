@@ -52,6 +52,12 @@ class UserViewSet(MunicipalityQuerysetMixin, viewsets.ModelViewSet):
         return Response(serializer.data)
 
 
+from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiTypes
+
+@extend_schema(
+    request=OpenApiTypes.OBJECT,
+    responses={200: OpenApiTypes.OBJECT},
+)
 @api_view(["POST"])
 @permission_classes([permissions.IsAuthenticated])
 def logout_view(request):

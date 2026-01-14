@@ -1,0 +1,57 @@
+.driver-portal__tracking-card {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    padding: 1rem;
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.driver-portal__tracking-status {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.driver-portal__tracking-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.25rem 0.65rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.driver-portal__tracking-pill.active {
+    background: rgba(74, 222, 128, 0.2);
+    color: #4ade80;
+}
+
+.driver-portal__tracking-pill.inactive {
+    background: rgba(148, 163, 184, 0.2);
+    color: #cbd5f5;
+}
+
+.driver-portal__tracking-trip {
+    color: var(--muted);
+    font-size: 0.9rem;
+}
+
+.driver-portal__tracking-meta {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    gap: 0.75rem;
+}
+
+.driver-portal__tracking-meta .label {
+    display: block;
+    font-size: 0.75rem;
+    color: var(--muted);
+    margin-bottom: 0.15rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}

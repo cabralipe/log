@@ -1,38 +1,37 @@
 import { Navigate, Outlet, Route, Routes } from "react-router-dom";
 import { AuthProvider, useAuth } from "./hooks/useAuth";
-import { LoginPage } from "./pages/Login";
-import { DriverPortalPage } from "./pages/DriverPortal";
-import { DashboardPage } from "./pages/Dashboard";
-import { VehiclesPage } from "./pages/Vehicles";
-import { DriversPage } from "./pages/Drivers";
-import { FuelStationsPage } from "./pages/FuelStations";
-import { TripsPage } from "./pages/Trips";
-import { ServiceOrdersPage } from "./pages/ServiceOrders";
-import { FuelManagementPage } from "./pages/FuelManagement";
-import { DestinationsPage } from "./pages/Destinations";
-import { PatientsPage } from "./pages/Patients";
-import { ClassesPage } from "./pages/Classes";
-import { StudentsPage } from "./pages/Students";
-import { TripManifestPage } from "./pages/TripManifest";
-import { ReportsPage } from "./pages/Reports";
-import { MaintenancePage } from "./pages/Maintenance";
-import { MunicipalitiesPage } from "./pages/Municipalities";
-import { UsersPage } from "./pages/Users";
-import { ContractsPage } from "./pages/Contracts";
-import { FreeTripsPage } from "./pages/FreeTrips";
-import { RentalPeriodsPage } from "./pages/RentalPeriods";
-import { PublicFormPage } from "./pages/PublicForm";
-import { FormSubmissionsPage } from "./pages/FormSubmissions";
-import { StudentCardsPage } from "./pages/StudentCards";
-import { FormTemplatesPage } from "./pages/FormTemplates";
-import { LiveTrackingPage } from "./pages/LiveTracking";
+import { LoginPage } from "./pages/Auth/Login";
+import { DriverPortalPage } from "./pages/Portals/DriverPortal";
+import { DashboardPage } from "./pages/Admin/Dashboard";
+import { VehiclesPage } from "./pages/Fleet/Vehicles";
+import { DriversPage } from "./pages/Fleet/Drivers";
+import { FuelStationsPage } from "./pages/Fleet/FuelStations";
+import { TripsPage } from "./pages/Operations/Trips";
+import { ServiceOrdersPage } from "./pages/Fleet/ServiceOrders";
+import { FuelManagementPage } from "./pages/Fleet/FuelManagement";
+import { DestinationsPage } from "./pages/Planning/Destinations";
+import { PatientsPage } from "./pages/Health/Patients";
+import { EducationPage } from "./pages/Education/Education";
+import { TripManifestPage } from "./pages/Operations/TripManifest";
+import { ReportsPage } from "./pages/Admin/Reports";
+import { MaintenancePage } from "./pages/Fleet/Maintenance";
+import { MunicipalitiesPage } from "./pages/Admin/Municipalities";
+import { UsersPage } from "./pages/Auth/Users";
+import { ContractsPage } from "./pages/Admin/Contracts";
+import { FreeTripsPage } from "./pages/Operations/FreeTrips";
+import { RentalPeriodsPage } from "./pages/Admin/RentalPeriods";
+import { PublicFormPage } from "./pages/Forms/PublicForm";
+import { FormSubmissionsPage } from "./pages/Forms/FormSubmissions";
+import { StudentCardsPage } from "./pages/Education/StudentCards";
+import { FormTemplatesPage } from "./pages/Forms/FormTemplates";
+import { LiveTrackingPage } from "./pages/Operations/LiveTracking";
 import { Layout } from "./components/Layout";
-import { CardValidatorPage } from "./pages/CardValidator";
-import { TransportPlanningPage } from "./pages/TransportPlanning";
-import { SchedulingPage } from "./pages/Scheduling";
-import { TransportRequestsPage } from "./pages/TransportRequests";
-import { NotificationsPage } from "./pages/Notifications";
-import { HelpPage } from "./pages/Help";
+import { CardValidatorPage } from "./pages/Education/CardValidator";
+import { TransportPlanningPage } from "./pages/Planning/TransportPlanning";
+import { SchedulingPage } from "./pages/Operations/Scheduling";
+import { TransportRequestsPage } from "./pages/Planning/TransportRequests";
+import { NotificationsPage } from "./pages/Admin/Notifications";
+import { HelpPage } from "./pages/Admin/Help";
 
 const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading } = useAuth();
@@ -67,8 +66,9 @@ const AppRoutes = () => (
       <Route path="/fuel-stations" element={<FuelStationsPage />} />
       <Route path="/destinations" element={<DestinationsPage />} />
       <Route path="/health/patients" element={<PatientsPage />} />
-      <Route path="/education/classes" element={<ClassesPage />} />
-      <Route path="/education/students" element={<StudentsPage />} />
+      <Route path="/education" element={<EducationPage />} />
+      <Route path="/education/classes" element={<Navigate to="/education" replace />} />
+      <Route path="/education/students" element={<Navigate to="/education" replace />} />
       <Route path="/trips" element={<TripsPage />} />
       <Route path="/trips/manifest/:id" element={<TripManifestPage />} />
       <Route path="/live-tracking" element={<LiveTrackingPage />} />

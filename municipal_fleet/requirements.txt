@@ -12,3 +12,4 @@ psycopg2-binary>=2.9
 gunicorn>=21.2
 ruff>=0.6
 qrcode>=7.4
+Pillow>=10.0.0

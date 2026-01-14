@@ -154,9 +154,18 @@ class FreeTripViewSet(MunicipalityQuerysetMixin, viewsets.ModelViewSet):
         return response.Response(FreeTripIncidentSerializer(incident).data, status=status.HTTP_201_CREATED)
 
 
+from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiTypes
+
 class TripMapStateView(views.APIView):
     permission_classes = [permissions.IsAuthenticated]
 
+    @extend_schema(
+        parameters=[
+            OpenApiParameter("include_history", OpenApiTypes.BOOL, description="Include GPS history"),
+            OpenApiParameter("history_limit", OpenApiTypes.INT, description="Limit history points"),
+        ],
+        responses={200: OpenApiTypes.OBJECT},
+    )
     def get(self, request):
         user = request.user
         if user.role not in ("SUPERADMIN", "ADMIN_MUNICIPALITY", "OPERATOR"):

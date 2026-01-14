@@ -1,0 +1,71 @@
+/* Free Trip Section */
+.driver-portal__free-trip-form {
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: 1fr;
+}
+
+.driver-portal__free-trip-status {
+    display: grid;
+    gap: 0.75rem;
+    grid-template-columns: 1fr 1fr;
+    padding: 1rem;
+    background: rgba(74, 222, 128, 0.05);
+    border: 1px solid rgba(74, 222, 128, 0.2);
+    border-radius: 12px;
+    margin-bottom: 1rem;
+}
+
+.driver-portal__free-trip-status .stat-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.driver-portal__free-trip-status .stat-label {
+    color: var(--muted);
+    font-size: 0.85rem;
+}
+
+.driver-portal__free-trip-status .stat-value {
+    font-weight: 600;
+    font-size: 1rem;
+}
+
+.driver-portal__free-trip-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+@media (min-width: 480px) {
+    .driver-portal__free-trip-status {
+        grid-template-columns: repeat(3, 1fr);
+    }
+
+    .driver-portal__free-trip-actions {
+        flex-direction: row;
+        flex-wrap: wrap;
+    }
+
+    .driver-portal__free-trip-actions .btn {
+        flex: 1;
+        min-width: 150px;
+    }
+}
+
+@media (min-width: 768px) {
+    .driver-portal__free-trip-form {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .driver-portal__free-trip-form .full-width {
+        grid-column: 1 / -1;
+    }
+}
+
+@media (min-width: 1024px) {
+    .driver-portal__free-trip-form {
+        grid-template-columns: repeat(4, 1fr);
+    }
+}

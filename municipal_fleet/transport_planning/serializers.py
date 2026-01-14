@@ -249,11 +249,11 @@ class AssignmentSerializer(serializers.ModelSerializer):
         fields = "__all__"
         read_only_fields = ["id", "municipality", "created_at", "updated_at", "generated_trip"]
 
-    def get_vehicle_detail(self, obj):
+    def get_vehicle_detail(self, obj) -> dict:
         vehicle = obj.vehicle
         return {"id": vehicle.id, "license_plate": vehicle.license_plate, "capacity": vehicle.max_passengers}
 
-    def get_driver_detail(self, obj):
+    def get_driver_detail(self, obj) -> dict:
         driver = obj.driver
         return {"id": driver.id, "name": driver.name}
 

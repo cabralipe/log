@@ -1,0 +1,76 @@
+/* Fuel Form */
+.driver-portal__fuel-form {
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: 1fr;
+}
+
+.driver-portal__fuel-form label {
+    font-size: 0.9rem;
+}
+
+/* Fuel History Cards */
+.driver-portal__fuel-history {
+    margin-top: 1.25rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border);
+}
+
+.driver-portal__fuel-history h4 {
+    margin: 0 0 0.75rem;
+    font-size: 0.95rem;
+    color: var(--muted);
+}
+
+.driver-portal__fuel-cards {
+    display: grid;
+    gap: 0.75rem;
+}
+
+.driver-portal__fuel-card {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 0.85rem;
+    background: #0b1422;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 0.5rem;
+    align-items: start;
+}
+
+.driver-portal__fuel-card-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.driver-portal__fuel-card-station {
+    font-weight: 600;
+}
+
+.driver-portal__fuel-card-details {
+    color: var(--muted);
+    font-size: 0.9rem;
+}
+
+.driver-portal__fuel-card-liters {
+    font-weight: 700;
+    font-size: 1.1rem;
+    color: var(--accent);
+}
+
+@media (min-width: 768px) {
+    .driver-portal__fuel-form {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .driver-portal__fuel-form .full-width {
+        grid-column: 1 / -1;
+    }
+}
+
+@media (min-width: 1024px) {
+    .driver-portal__fuel-form {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}

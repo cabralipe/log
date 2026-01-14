@@ -3,11 +3,10 @@ import { useMediaQuery } from "../hooks/useMediaQuery";
 import { Modal } from "./Modal";
 import { FloatingActionButton } from "./FloatingActionButton";
 import { MaintenanceForm, type MaintenanceFormData } from "./MaintenanceForm";
-import { MaintenanceList } from "./MaintenanceList";
+import { MaintenanceList, MaintenanceRecord } from "./MaintenanceList";
 import { Button } from "./Button";
 import { Pagination } from "./Pagination";
 import { Wrench } from "lucide-react";
-import { MaintenanceRecord } from "../types/maintenance";
 import "./ResponsiveMaintenanceLayout.css";
 
 interface Vehicle {
@@ -94,14 +93,10 @@ export const ResponsiveMaintenanceLayout = ({
     <MaintenanceForm
       vehicles={vehicles}
       initialData={editingRecord ? {
-        vehicle: editingRecord.vehicleId,
-        serviceType: editingRecord.serviceType,
+        vehicle: Number(editingRecord.vehicleId),
         description: editingRecord.description,
-        scheduledDate: editingRecord.scheduledDate,
-        mileage: editingRecord.mileage,
-        cost: editingRecord.cost,
-        status: editingRecord.status,
-        nextMaintenanceDate: editingRecord.nextMaintenanceDate,
+        date: editingRecord.scheduledDate,
+        mileage: 0,
       } : undefined}
       isModal={isMobile}
       onSubmit={handleFormSubmit}
@@ -120,7 +115,7 @@ export const ResponsiveMaintenanceLayout = ({
                 <h2>Histórico de Manutenções</h2>
                 {error && <div className="error-message">{error}</div>}
               </div>
-              
+
               <div className="maintenance-controls">
                 <input
                   placeholder="Buscar por veículo ou descrição"
@@ -128,7 +123,7 @@ export const ResponsiveMaintenanceLayout = ({
                   onChange={(e) => onSearchChange(e.target.value)}
                   className="maintenance-search-input"
                 />
-                
+
                 <div className="maintenance-filters">
                   <span className="maintenance-label">Itens por página</span>
                   <select
@@ -151,7 +146,7 @@ export const ResponsiveMaintenanceLayout = ({
                 onDelete={handleDeleteClick}
                 loading={loading}
               />
-              
+
               <Pagination
                 page={page}
                 pageSize={pageSize}
@@ -159,7 +154,7 @@ export const ResponsiveMaintenanceLayout = ({
                 onChange={onPageChange}
               />
             </div>
-            
+
             <FloatingActionButton
               onClick={handleCreateClick}
               aria-label="Registrar manutenção"
@@ -167,7 +162,7 @@ export const ResponsiveMaintenanceLayout = ({
               ariaControls="maintenance-modal"
               ariaExpanded={isModalOpen}
             />
-            
+
             <Modal
               open={isModalOpen}
               onClose={handleModalClose}
@@ -191,7 +186,7 @@ export const ResponsiveMaintenanceLayout = ({
                   <h2>Histórico de Manutenções</h2>
                   {error && <div className="error-message">{error}</div>}
                 </div>
-                
+
                 <div className="maintenance-controls">
                   <input
                     placeholder="Buscar por veículo ou descrição"
@@ -199,7 +194,7 @@ export const ResponsiveMaintenanceLayout = ({
                     onChange={(e) => onSearchChange(e.target.value)}
                     className="maintenance-search-input"
                   />
-                  
+
                   <div className="maintenance-filters">
                     <span className="maintenance-label">Itens por página</span>
                     <select
@@ -222,7 +217,7 @@ export const ResponsiveMaintenanceLayout = ({
                   onDelete={handleDeleteClick}
                   loading={loading}
                 />
-                
+
                 <Pagination
                   page={page}
                   pageSize={pageSize}
@@ -230,8 +225,8 @@ export const ResponsiveMaintenanceLayout = ({
                   onChange={onPageChange}
                 />
               </div>
-              
-              
+
+
             </div>
           </div>
         )}
@@ -248,7 +243,7 @@ export const ResponsiveMaintenanceLayout = ({
                   <h2>Histórico de Manutenções</h2>
                   {error && <div className="error-message">{error}</div>}
                 </div>
-                
+
                 <div className="maintenance-controls">
                   <input
                     placeholder="Buscar por veículo ou descrição"
@@ -256,7 +251,7 @@ export const ResponsiveMaintenanceLayout = ({
                     onChange={(e) => onSearchChange(e.target.value)}
                     className="maintenance-search-input"
                   />
-                  
+
                   <div className="maintenance-filters">
                     <span className="maintenance-label">Itens por página</span>
                     <select
@@ -279,7 +274,7 @@ export const ResponsiveMaintenanceLayout = ({
                   onDelete={handleDeleteClick}
                   loading={loading}
                 />
-                
+
                 <Pagination
                   page={page}
                   pageSize={pageSize}
@@ -287,8 +282,8 @@ export const ResponsiveMaintenanceLayout = ({
                   onChange={onPageChange}
                 />
               </div>
-              
-              
+
+
             </div>
           </div>
         )}

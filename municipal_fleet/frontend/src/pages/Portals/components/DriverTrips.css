@@ -1,0 +1,68 @@
+/* Trips Section - Mobile Cards */
+.driver-portal__trips-grid {
+    display: grid;
+    gap: 0.75rem;
+}
+
+.driver-portal__trip-card {
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1rem;
+    background: #0b1422;
+}
+
+.driver-portal__trip-route {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.driver-portal__trip-route-arrow {
+    color: var(--accent);
+}
+
+.driver-portal__trip-meta {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.5rem 1rem;
+    margin-bottom: 0.75rem;
+    font-size: 0.9rem;
+}
+
+.driver-portal__trip-meta-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+}
+
+.driver-portal__trip-meta-label {
+    color: var(--muted);
+    font-size: 0.8rem;
+}
+
+.driver-portal__trip-meta-value {
+    font-weight: 500;
+}
+
+.driver-portal__trip-actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--border);
+}
+
+.driver-portal__trip-actions .btn {
+    flex: 1;
+    min-width: 120px;
+    min-height: 44px;
+}
+
+@media (min-width: 1024px) {
+    .driver-portal__trips-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}

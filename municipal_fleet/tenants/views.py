@@ -37,9 +37,17 @@ class MunicipalityViewSet(MunicipalityQuerysetMixin, viewsets.ModelViewSet):
         return super().destroy(request, *args, **kwargs)
 
 
+from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiTypes
+
 class MunicipalitySettingsView(views.APIView):
     permission_classes = [permissions.IsAuthenticated]
 
+    @extend_schema(
+        parameters=[
+            OpenApiParameter("municipality_id", OpenApiTypes.INT, description="Municipality ID (Superadmin only)"),
+        ],
+        responses={200: MunicipalitySettingsSerializer},
+    )
     def get(self, request):
         municipality = self._get_target_municipality(request)
         if not municipality:
@@ -47,6 +55,10 @@ class MunicipalitySettingsView(views.APIView):
         serializer = MunicipalitySettingsSerializer(municipality)
         return response.Response(serializer.data)
 
+    @extend_schema(
+        request=MunicipalitySettingsSerializer,
+        responses={200: MunicipalitySettingsSerializer},
+    )
     def patch(self, request):
         municipality = self._get_target_municipality(request)
         if not municipality:

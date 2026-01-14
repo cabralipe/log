@@ -6,6 +6,7 @@ from django.db.models import Count, Sum, F, ExpressionWrapper, IntegerField, Q, 
 from django.db.models.functions import TruncMonth, TruncYear
 from django.utils import timezone
 from rest_framework import permissions, response, views, status
+from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiTypes
 from fleet.models import Vehicle, FuelLog
 from trips.models import Trip, TripIncident, MonthlyOdometer, FreeTrip, TripExecution, TripManifest
 from contracts.models import Contract, RentalPeriod
@@ -92,6 +93,9 @@ def _filter_odometer_range(qs, start: date | None, end: date | None):
 class DashboardView(views.APIView):
     permission_classes = [permissions.IsAuthenticated]
 
+    @extend_schema(
+        responses={200: OpenApiTypes.OBJECT},
+    )
     def get(self, request):
         user = request.user
         today = timezone.localdate()
@@ -409,6 +413,14 @@ class DashboardView(views.APIView):
 class OdometerReportView(views.APIView):
     permission_classes = [permissions.IsAuthenticated]
 
+    @extend_schema(
+        parameters=[
+            OpenApiParameter("start_date", OpenApiTypes.DATE, description="Start date (YYYY-MM-DD)"),
+            OpenApiParameter("end_date", OpenApiTypes.DATE, description="End date (YYYY-MM-DD)"),
+            OpenApiParameter("vehicle_id", OpenApiTypes.INT, description="Vehicle ID"),
+        ],
+        responses={200: OpenApiTypes.OBJECT},
+    )
     def get(self, request):
         user = request.user
         start_date = request.query_params.get("start_date")
@@ -437,6 +449,15 @@ class OdometerReportView(views.APIView):
 class TripReportView(views.APIView):
     permission_classes = [permissions.IsAuthenticated]
 
+    @extend_schema(
+        parameters=[
+            OpenApiParameter("start_date", OpenApiTypes.DATE, description="Start date (YYYY-MM-DD)"),
+            OpenApiParameter("end_date", OpenApiTypes.DATE, description="End date (YYYY-MM-DD)"),
+            OpenApiParameter("driver_id", OpenApiTypes.INT, description="Driver ID"),
+            OpenApiParameter("vehicle_id", OpenApiTypes.INT, description="Vehicle ID"),
+        ],
+        responses={200: OpenApiTypes.OBJECT},
+    )
     def get(self, request):
         user = request.user
         qs = Trip.objects.select_related("vehicle", "driver")
@@ -480,6 +501,15 @@ class TripReportView(views.APIView):
 class FuelReportView(views.APIView):
     permission_classes = [permissions.IsAuthenticated]
 
+    @extend_schema(
+        parameters=[
+            OpenApiParameter("start_date", OpenApiTypes.DATE, description="Start date (YYYY-MM-DD)"),
+            OpenApiParameter("end_date", OpenApiTypes.DATE, description="End date (YYYY-MM-DD)"),
+            OpenApiParameter("driver_id", OpenApiTypes.INT, description="Driver ID"),
+            OpenApiParameter("vehicle_id", OpenApiTypes.INT, description="Vehicle ID"),
+        ],
+        responses={200: OpenApiTypes.OBJECT},
+    )
     def get(self, request):
         user = request.user
         qs = FuelLog.objects.select_related("vehicle", "driver")
@@ -533,6 +563,13 @@ class FuelReportView(views.APIView):
 class FuelCostReportView(views.APIView):
     permission_classes = [permissions.IsAuthenticated]
 
+    @extend_schema(
+        parameters=[
+            OpenApiParameter("start_date", OpenApiTypes.DATE, description="Start date (YYYY-MM-DD)"),
+            OpenApiParameter("end_date", OpenApiTypes.DATE, description="End date (YYYY-MM-DD)"),
+        ],
+        responses={200: OpenApiTypes.OBJECT},
+    )
     def get(self, request):
         user = request.user
         start = _parse_date(request.query_params.get("start_date"))
@@ -608,6 +645,13 @@ class FuelCostReportView(views.APIView):
 class TcoReportView(views.APIView):
     permission_classes = [permissions.IsAuthenticated]
 
+    @extend_schema(
+        parameters=[
+            OpenApiParameter("start_date", OpenApiTypes.DATE, description="Start date (YYYY-MM-DD)"),
+            OpenApiParameter("end_date", OpenApiTypes.DATE, description="End date (YYYY-MM-DD)"),
+        ],
+        responses={200: OpenApiTypes.OBJECT},
+    )
     def get(self, request):
         user = request.user
         start = _parse_date(request.query_params.get("start_date"))
@@ -703,6 +747,9 @@ class TcoReportView(views.APIView):
 class TripIncidentReportView(views.APIView):
     permission_classes = [permissions.IsAuthenticated]
 
+    @extend_schema(
+        responses={200: OpenApiTypes.OBJECT},
+    )
     def get(self, request):
         user = request.user
         qs = TripIncident.objects.select_related("trip", "driver", "municipality")
@@ -724,6 +771,12 @@ class TripIncidentReportView(views.APIView):
 class ContractsReportView(views.APIView):
     permission_classes = [permissions.IsAuthenticated]
 
+    @extend_schema(
+        parameters=[
+            OpenApiParameter("expiring_in", OpenApiTypes.INT, description="Days to expire (default 30)"),
+        ],
+        responses={200: OpenApiTypes.OBJECT},
+    )
     def get(self, request):
         user = request.user
         days = int(request.query_params.get("expiring_in", 30))
@@ -752,6 +805,14 @@ class ContractsReportView(views.APIView):
 class ContractUsageReportView(views.APIView):
     permission_classes = [permissions.IsAuthenticated]
 
+    @extend_schema(
+        parameters=[
+            OpenApiParameter("contract_id", OpenApiTypes.INT, description="Contract ID"),
+            OpenApiParameter("start_date", OpenApiTypes.DATE, description="Start date (YYYY-MM-DD)"),
+            OpenApiParameter("end_date", OpenApiTypes.DATE, description="End date (YYYY-MM-DD)"),
+        ],
+        responses={200: OpenApiTypes.OBJECT},
+    )
     def get(self, request):
         user = request.user
         contract_id = request.query_params.get("contract_id")
@@ -799,6 +860,12 @@ class ContractUsageReportView(views.APIView):
 class ExpiringContractsReportView(views.APIView):
     permission_classes = [permissions.IsAuthenticated]
 
+    @extend_schema(
+        parameters=[
+            OpenApiParameter("expiring_in", OpenApiTypes.INT, description="Days to expire (default 30)"),
+        ],
+        responses={200: OpenApiTypes.OBJECT},
+    )
     def get(self, request):
         user = request.user
         days = int(request.query_params.get("days", 30))

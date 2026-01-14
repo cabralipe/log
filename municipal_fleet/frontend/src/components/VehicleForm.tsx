@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Button } from "./Button";
 import "./VehicleForm.css";
 
-type VehicleStatus = "AVAILABLE" | "IN_USE" | "MAINTENANCE" | "INACTIVE";
+export type VehicleStatus = "AVAILABLE" | "IN_USE" | "MAINTENANCE" | "INACTIVE";
 
 export interface VehicleFormData {
   license_plate: string;

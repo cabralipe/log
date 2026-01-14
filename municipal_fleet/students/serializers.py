@@ -11,6 +11,9 @@ class SchoolSerializer(serializers.ModelSerializer):
 
 
 class StudentSerializer(serializers.ModelSerializer):
+    school_name = serializers.CharField(source="school.name", read_only=True)
+    class_group_name = serializers.CharField(source="class_group.name", read_only=True)
+
     class Meta:
         model = Student
         fields = "__all__"
@@ -37,6 +40,8 @@ class StudentTransportRegistrationSerializer(serializers.ModelSerializer):
 
 
 class ClassGroupSerializer(serializers.ModelSerializer):
+    school_name = serializers.CharField(source="school.name", read_only=True)
+
     class Meta:
         model = ClassGroup
         fields = "__all__"

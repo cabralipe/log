@@ -1,0 +1,153 @@
+/* Availability Blocks Grid */
+.driver-portal__blocks-grid {
+    display: grid;
+    gap: 0.75rem;
+    grid-template-columns: 1fr;
+}
+
+.driver-portal__block-card {
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1rem;
+    background: #0b1422;
+}
+
+.driver-portal__block-card--active {
+    background: rgba(239, 68, 68, 0.08);
+    border-color: rgba(239, 68, 68, 0.3);
+}
+
+.driver-portal__block-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.driver-portal__block-badge {
+    padding: 0.25rem 0.6rem;
+    border-radius: 999px;
+    font-size: 0.85rem;
+    white-space: nowrap;
+}
+
+.driver-portal__block-badge--active {
+    background: #7f1d1d;
+    color: #fecaca;
+}
+
+.driver-portal__block-badge--scheduled {
+    background: #1f2937;
+    color: var(--muted);
+}
+
+/* Schedule Section */
+.driver-portal__schedule-grid {
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: 1fr;
+}
+
+.driver-portal__week-panel,
+.driver-portal__month-panel {
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1rem;
+    background: #0b1422;
+}
+
+.driver-portal__week-panel h4,
+.driver-portal__month-panel h4 {
+    margin: 0 0 0.75rem;
+    font-size: 1rem;
+}
+
+/* Assignment Cards */
+.driver-portal__assignments-list {
+    display: grid;
+    gap: 0.75rem;
+}
+
+.driver-portal__assignment-card {
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 0.85rem;
+    background: #0f1a2b;
+}
+
+.driver-portal__assignment-card-header {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.driver-portal__assignment-date {
+    font-weight: 700;
+    font-size: 1rem;
+}
+
+.driver-portal__assignment-route {
+    color: var(--muted);
+    font-size: 0.9rem;
+}
+
+.driver-portal__assignment-vehicle {
+    color: var(--muted);
+    font-size: 0.85rem;
+}
+
+.driver-portal__assignment-time {
+    color: var(--accent);
+    font-weight: 700;
+    font-size: 0.95rem;
+    margin-top: 0.5rem;
+}
+
+.driver-portal__assignment-status {
+    display: inline-block;
+    margin-top: 0.5rem;
+    padding: 0.2rem 0.6rem;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    font-size: 0.85rem;
+}
+
+.driver-portal__assignment-status--confirmed {
+    background: #0f5132;
+    color: #c6f6d5;
+    border-color: rgba(34, 197, 94, 0.3);
+}
+
+.driver-portal__assignment-status--draft {
+    background: #2a2438;
+    color: var(--muted);
+}
+
+@media (min-width: 768px) {
+    .driver-portal__blocks-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .driver-portal__schedule-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .driver-portal__assignment-card-header {
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: flex-start;
+    }
+
+    .driver-portal__assignment-time {
+        margin-top: 0;
+        text-align: right;
+    }
+}
+
+@media (min-width: 1024px) {
+    .driver-portal__blocks-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
