@@ -25,6 +25,7 @@ import { FormSubmissionsPage } from "./pages/Forms/FormSubmissions";
 import { StudentCardsPage } from "./pages/Education/StudentCards";
 import { FormTemplatesPage } from "./pages/Forms/FormTemplates";
 import { LiveTrackingPage } from "./pages/Operations/LiveTracking";
+import { SchoolMonitorPage } from "./pages/Operations/SchoolMonitor";
 import { Layout } from "./components/Layout";
 import { CardValidatorPage } from "./pages/Education/CardValidator";
 import { TransportPlanningPage } from "./pages/Planning/TransportPlanning";
@@ -71,6 +72,7 @@ const AppRoutes = () => (
       <Route path="/education/students" element={<Navigate to="/education" replace />} />
       <Route path="/trips" element={<TripsPage />} />
       <Route path="/trips/manifest/:id" element={<TripManifestPage />} />
+      <Route path="/school-monitor" element={<SchoolMonitorPage />} />
       <Route path="/live-tracking" element={<LiveTrackingPage />} />
       <Route path="/free-trips" element={<FreeTripsPage />} />
       <Route path="/scheduling" element={<SchedulingPage />} />

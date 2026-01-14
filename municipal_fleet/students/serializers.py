@@ -3,6 +3,7 @@ from students.models import School, Student, StudentCard, StudentTransportRegist
 
 
 class SchoolSerializer(serializers.ModelSerializer):
+    destination_name = serializers.CharField(source="destination.name", read_only=True)
     class Meta:
         model = School
         fields = "__all__"

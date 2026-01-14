@@ -1,0 +1,136 @@
+.school-monitor-grid {
+  display: grid;
+  gap: 1rem;
+}
+
+.school-monitor-card {
+  background: var(--card, #fff);
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 12px;
+  padding: 1rem;
+  box-shadow: 0 1px 6px rgba(15, 23, 42, 0.06);
+}
+
+.school-monitor-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: flex-start;
+}
+
+.school-monitor-title {
+  font-weight: 600;
+  font-size: 1.05rem;
+}
+
+.school-monitor-subtitle {
+  color: var(--muted, #64748b);
+  margin-top: 0.25rem;
+}
+
+.school-monitor-metrics {
+  display: flex;
+  gap: 0.75rem;
+  font-weight: 600;
+  color: var(--primary, #0f172a);
+}
+
+.school-monitor-stops {
+  margin-top: 1rem;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.school-monitor-stop {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  padding: 0.5rem 0.75rem;
+  border-radius: 10px;
+  background: rgba(15, 23, 42, 0.04);
+}
+
+.stop-order {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  background: rgba(59, 130, 246, 0.15);
+  color: #1d4ed8;
+  font-weight: 600;
+}
+
+.stop-title {
+  font-weight: 600;
+}
+
+.stop-subtitle {
+  color: var(--muted, #64748b);
+  font-size: 0.85rem;
+}
+
+.school-monitor-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 1rem;
+}
+
+.school-monitor-link {
+  color: #1d4ed8;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.school-monitor-students {
+  margin-top: 1rem;
+  border-top: 1px solid var(--border, #e5e7eb);
+  padding-top: 0.75rem;
+  display: grid;
+  gap: 0.75rem;
+}
+
+.student-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.student-name {
+  font-weight: 600;
+}
+
+.student-meta {
+  color: var(--muted, #64748b);
+  font-size: 0.85rem;
+}
+
+.student-badge {
+  font-size: 0.75rem;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  font-weight: 600;
+}
+
+.student-badge.ok {
+  background: rgba(34, 197, 94, 0.16);
+  color: #166534;
+}
+
+.student-badge.warn {
+  background: rgba(251, 191, 36, 0.2);
+  color: #92400e;
+}
+
+@media (max-width: 768px) {
+  .school-monitor-header {
+    flex-direction: column;
+  }
+  .school-monitor-actions {
+    flex-direction: column;
+    gap: 0.75rem;
+    align-items: flex-start;
+  }
+}

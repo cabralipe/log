@@ -8,7 +8,16 @@ from django.utils import timezone
 from rest_framework import permissions, response, views, status
 from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiTypes
 from fleet.models import Vehicle, FuelLog
-from trips.models import Trip, TripIncident, MonthlyOdometer, FreeTrip, TripExecution, TripManifest
+from trips.models import (
+    Trip,
+    TripIncident,
+    MonthlyOdometer,
+    FreeTrip,
+    TripExecution,
+    TripManifest,
+    TripManifestPassenger,
+    PlannedTrip,
+)
 from contracts.models import Contract, RentalPeriod
 from maintenance.models import ServiceOrder, MaintenancePlan, InventoryPart, InventoryMovement, Tire
 from transport_planning.models import TransportService, Route, Assignment, ServiceApplication
@@ -1247,5 +1256,67 @@ class TripExecutionReportView(views.APIView):
                 },
                 "vehicles": vehicle_stats,
                 "trips": trips_payload,
+            }
+        )
+
+
+class SchoolTransportReportView(views.APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        start_date = _parse_date(request.query_params.get("start_date"))
+        end_date = _parse_date(request.query_params.get("end_date"))
+        school_id = request.query_params.get("school_id")
+        vehicle_id = request.query_params.get("vehicle_id")
+        driver_id = request.query_params.get("driver_id")
+
+        qs = TripExecution.objects.select_related("vehicle", "driver").filter(module=PlannedTrip.Module.EDUCATION)
+        if user.role != "SUPERADMIN":
+            qs = qs.filter(municipality=user.municipality)
+        if start_date:
+            qs = qs.filter(scheduled_departure__date__gte=start_date)
+        if end_date:
+            qs = qs.filter(scheduled_departure__date__lte=end_date)
+        if vehicle_id:
+            qs = qs.filter(vehicle_id=vehicle_id)
+        if driver_id:
+            qs = qs.filter(driver_id=driver_id)
+        if school_id:
+            qs = qs.filter(
+                manifest__passengers__passenger_type=TripManifestPassenger.PassengerType.STUDENT,
+                manifest__passengers__student__school_id=school_id,
+            )
+
+        qs = qs.distinct()
+        total_trips = qs.count()
+        students_qs = TripManifestPassenger.objects.filter(
+            manifest__trip_execution__in=qs,
+            passenger_type=TripManifestPassenger.PassengerType.STUDENT,
+        )
+        total_students = students_qs.count()
+        special_needs = students_qs.filter(student__has_special_needs=True).count()
+
+        routes_per_day = list(
+            qs.values("scheduled_departure__date")
+            .annotate(total=Count("id"))
+            .order_by("scheduled_departure__date")
+        )
+
+        students_by_school = list(
+            students_qs.values("student__school_id", "student__school__name")
+            .annotate(total=Count("id"))
+            .order_by("student__school__name")
+        )
+
+        return response.Response(
+            {
+                "summary": {
+                    "total_trips": total_trips,
+                    "total_students": total_students,
+                    "special_needs_students": special_needs,
+                },
+                "routes_per_day": routes_per_day,
+                "students_by_school": students_by_school,
             }
         )

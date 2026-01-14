@@ -571,8 +571,76 @@ class TripExecutionStopSerializer(serializers.ModelSerializer):
         read_only_fields = ["id"]
 
 
+def normalize_health_manifest_passengers(passengers, module):
+    if module != PlannedTrip.Module.HEALTH or not passengers:
+        return passengers
+    normalized = list(passengers)
+    companion_links = set()
+    for entry in normalized:
+        if entry.get("passenger_type") != TripManifestPassenger.PassengerType.COMPANION:
+            continue
+        companion = entry.get("companion")
+        linked_patient = entry.get("linked_patient")
+        if companion and linked_patient and companion.patient_id != linked_patient.id:
+            raise serializers.ValidationError("Acompanhante precisa estar vinculado ao paciente informado.")
+        if linked_patient:
+            companion_links.add(linked_patient.id)
+
+    for entry in list(normalized):
+        if entry.get("passenger_type") != TripManifestPassenger.PassengerType.PATIENT:
+            continue
+        patient = entry.get("patient")
+        if not patient or not patient.needs_companion:
+            continue
+        if patient.id in companion_links:
+            continue
+        companion = patient.companions.filter(active=True).order_by("id").first()
+        if not companion:
+            raise serializers.ValidationError(
+                f"Paciente {patient.full_name} precisa de acompanhante ativo cadastrado."
+            )
+        normalized.append(
+            {
+                "passenger_type": TripManifestPassenger.PassengerType.COMPANION,
+                "companion": companion,
+                "linked_patient": patient,
+                "notes": "",
+            }
+        )
+        companion_links.add(patient.id)
+
+    return normalized
+
+
+def validate_education_manifest_students(execution, passengers_data):
+    if execution.module != PlannedTrip.Module.EDUCATION or not passengers_data:
+        return
+    stop_ids = set(execution.stops.values_list("destination_id", flat=True))
+    if not stop_ids:
+        return
+    for passenger in passengers_data:
+        if passenger.get("passenger_type") != TripManifestPassenger.PassengerType.STUDENT:
+            continue
+        student = passenger.get("student")
+        if not student:
+            continue
+        destination_id = getattr(student.school, "destination_id", None)
+        if not destination_id:
+            raise serializers.ValidationError(
+                f"Escola do aluno {student.full_name} precisa estar vinculada a um destino."
+            )
+        if destination_id not in stop_ids:
+            raise serializers.ValidationError(
+                f"Aluno {student.full_name} não pertence às escolas definidas na rota."
+            )
+
+
 class TripManifestPassengerSerializer(serializers.ModelSerializer):
     student_name = serializers.CharField(source="student.full_name", read_only=True)
+    student_school_name = serializers.CharField(source="student.school.name", read_only=True)
+    student_class_group_name = serializers.CharField(source="student.class_group.name", read_only=True)
+    student_has_special_needs = serializers.BooleanField(source="student.has_special_needs", read_only=True)
+    student_special_needs_details = serializers.CharField(source="student.special_needs_details", read_only=True)
     patient_name = serializers.CharField(source="patient.full_name", read_only=True)
     companion_name = serializers.CharField(source="companion.full_name", read_only=True)
 
@@ -586,11 +654,24 @@ class TripManifestPassengerSerializer(serializers.ModelSerializer):
             "companion",
             "linked_patient",
             "student_name",
+            "student_school_name",
+            "student_class_group_name",
+            "student_has_special_needs",
+            "student_special_needs_details",
             "patient_name",
             "companion_name",
             "notes",
         ]
-        read_only_fields = ["id", "student_name", "patient_name", "companion_name"]
+        read_only_fields = [
+            "id",
+            "student_name",
+            "student_school_name",
+            "student_class_group_name",
+            "student_has_special_needs",
+            "student_special_needs_details",
+            "patient_name",
+            "companion_name",
+        ]
 
     def validate(self, attrs):
         passenger_type = attrs.get("passenger_type", getattr(self.instance, "passenger_type", None))
@@ -611,6 +692,8 @@ class TripManifestPassengerSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError("Acompanhante é obrigatório para passageiro do tipo acompanhante.")
             if not linked_patient:
                 raise serializers.ValidationError("Vínculo com paciente é obrigatório para acompanhante.")
+            if companion.patient_id != linked_patient.id:
+                raise serializers.ValidationError("Acompanhante precisa estar vinculado ao paciente informado.")
         return attrs
 
 
@@ -640,6 +723,13 @@ class TripManifestSerializer(serializers.ModelSerializer):
         return manifest
 
     def _replace_passengers(self, manifest, passengers_data):
+        passengers_data = normalize_health_manifest_passengers(
+            passengers_data, manifest.trip_execution.module
+        )
+        vehicle = manifest.trip_execution.vehicle
+        if vehicle and len(passengers_data) > vehicle.max_passengers:
+            raise serializers.ValidationError("Quantidade de passageiros excede a capacidade do veículo.")
+        validate_education_manifest_students(manifest.trip_execution, passengers_data)
         manifest.passengers.all().delete()
         for passenger in passengers_data:
             TripManifestPassenger.objects.create(manifest=manifest, **passenger)
@@ -664,6 +754,7 @@ class TripExecutionSerializer(serializers.ModelSerializer):
 
         vehicle = attrs.get("vehicle", getattr(self.instance, "vehicle", None))
         driver = attrs.get("driver", getattr(self.instance, "driver", None))
+        planned_trip = attrs.get("planned_trip", getattr(self.instance, "planned_trip", None))
         scheduled_departure = attrs.get(
             "scheduled_departure", getattr(self.instance, "scheduled_departure", None)
         )
@@ -671,6 +762,11 @@ class TripExecutionSerializer(serializers.ModelSerializer):
         status = attrs.get("status", getattr(self.instance, "status", TripExecution.Status.PLANNED))
         manifest_data = attrs.get("manifest")
         planned_capacity = attrs.get("planned_capacity", getattr(self.instance, "planned_capacity", 0))
+        module = attrs.get("module", getattr(self.instance, "module", None))
+        if planned_trip:
+            module = planned_trip.module
+        if not module:
+            module = PlannedTrip.Module.OTHER
 
         if scheduled_departure and scheduled_return and scheduled_return <= scheduled_departure:
             raise serializers.ValidationError("Data/horário de retorno deve ser após a saída.")
@@ -741,10 +837,14 @@ class TripExecutionSerializer(serializers.ModelSerializer):
                     f"Motorista indisponível ({block.get_type_display()}) de {start_fmt} até {end_fmt}."
                 )
 
-        if vehicle and manifest_data:
-            passengers = manifest_data.get("passengers", [])
-            if passengers and len(passengers) > vehicle.max_passengers:
-                raise serializers.ValidationError("Quantidade de passageiros excede a capacidade do veículo.")
+        if manifest_data:
+            passengers = manifest_data.get("passengers")
+            if passengers is not None:
+                normalized = normalize_health_manifest_passengers(passengers, module)
+                manifest_data = {**manifest_data, "passengers": normalized}
+                attrs["manifest"] = manifest_data
+                if vehicle and len(normalized) > vehicle.max_passengers:
+                    raise serializers.ValidationError("Quantidade de passageiros excede a capacidade do veículo.")
 
         return attrs
 
@@ -818,6 +918,7 @@ class TripExecutionSerializer(serializers.ModelSerializer):
 
         if manifest_data:
             passengers_data = manifest_data.pop("passengers", [])
+            passengers_data = normalize_health_manifest_passengers(passengers_data, execution.module)
             manifest = TripManifest.objects.create(trip_execution=execution, **manifest_data)
             if passengers_data:
                 for passenger in passengers_data:
@@ -825,6 +926,7 @@ class TripExecutionSerializer(serializers.ModelSerializer):
                 manifest.total_passengers = len(passengers_data)
                 manifest.save(update_fields=["total_passengers"])
             self._validate_manifest_conflicts(execution, passengers_data)
+            validate_education_manifest_students(execution, passengers_data)
         else:
             TripManifest.objects.get_or_create(trip_execution=execution)
         return execution
@@ -844,6 +946,7 @@ class TripExecutionSerializer(serializers.ModelSerializer):
             passengers_data = manifest_data.pop("passengers", None)
             manifest, _ = TripManifest.objects.get_or_create(trip_execution=execution)
             if passengers_data is not None:
+                passengers_data = normalize_health_manifest_passengers(passengers_data, execution.module)
                 manifest.passengers.all().delete()
                 for passenger in passengers_data:
                     TripManifestPassenger.objects.create(manifest=manifest, **passenger)
@@ -853,4 +956,5 @@ class TripExecutionSerializer(serializers.ModelSerializer):
             manifest.save()
             if passengers_data is not None:
                 self._validate_manifest_conflicts(execution, passengers_data)
+                validate_education_manifest_students(execution, passengers_data)
         return execution

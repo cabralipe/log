@@ -17,10 +17,15 @@ type School = {
   phone?: string;
   type: "MUNICIPAL" | "ESTADUAL" | "PARTICULAR" | "FEDERAL" | "OTHER";
   is_active: boolean;
+  destination?: number | null;
+  destination_name?: string | null;
 };
+
+type Destination = { id: number; name: string };
 
 export const SchoolsPage = () => {
   const [schools, setSchools] = useState<School[]>([]);
+  const [destinations, setDestinations] = useState<Destination[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [pageSize] = useState(10);
@@ -63,6 +68,17 @@ export const SchoolsPage = () => {
       })
       .catch(() => setError("Erro ao carregar escolas."))
       .finally(() => setLoading(false));
+
+    if (destinations.length === 0) {
+      api
+        .get<Paginated<Destination>>("/destinations/destinations/", {
+          params: { page_size: 200, type: "SCHOOL" },
+        })
+        .then((res) => {
+          const data = res.data as any;
+          setDestinations(Array.isArray(data) ? data : data.results);
+        });
+    }
   };
 
   useEffect(() => {
@@ -137,6 +153,7 @@ export const SchoolsPage = () => {
           <Table
             columns={[
               { label: "Nome", key: "name" },
+              { label: "Destino", key: "destination_name", render: (d) => d.destination_name || "—" },
               { label: "Tipo", key: "type", render: (d) => typeLabels[d.type] || d.type },
               { label: "Cidade", key: "city" },
               { label: "Bairro", key: "district" },
@@ -190,6 +207,22 @@ export const SchoolsPage = () => {
                 {Object.entries(typeLabels).map(([k, v]) => (
                   <option key={k} value={k}>
                     {v}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="full-width">
+              Destino (parada escolar)
+              <select
+                value={form.destination ?? ""}
+                onChange={(e) =>
+                  setForm({ ...form, destination: e.target.value ? Number(e.target.value) : null })
+                }
+              >
+                <option value="">Sem destino</option>
+                {destinations.map((dest) => (
+                  <option key={dest.id} value={dest.id}>
+                    {dest.name}
                   </option>
                 ))}
               </select>

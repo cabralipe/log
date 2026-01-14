@@ -93,7 +93,7 @@ class FullApplicationTests(TestCase):
         blocked_refresh = self.client.post("/api/auth/refresh/", {"refresh": refresh}, format="json")
         self.assertEqual(blocked_refresh.status_code, 401)
 
-    def test_vehicle_list_is_filtered_by_municipality(self):
+Se    def test_vehicle_list_is_filtered_by_municipality(self):
         self._make_vehicle(self.muni_a, license_plate="AAA0001")
         self._make_vehicle(self.muni_b, license_plate="BBB0002")
 

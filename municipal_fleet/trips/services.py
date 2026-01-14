@@ -111,6 +111,20 @@ def generate_executions(plan: PlannedTrip, start: date, end: date):
 
         manifest = TripManifest.objects.create(trip_execution=execution, total_passengers=0)
         passenger_items = list(plan.passengers.all())
+        if plan.module == PlannedTrip.Module.EDUCATION and destinations:
+            destination_ids = {dest.id for dest in destinations}
+            for passenger in passenger_items:
+                if passenger.passenger_type != passenger.PassengerType.STUDENT or not passenger.student:
+                    continue
+                destination_id = getattr(passenger.student.school, "destination_id", None)
+                if not destination_id:
+                    raise ValueError(
+                        f"Escola do aluno {passenger.student.full_name} precisa estar vinculada a um destino."
+                    )
+                if destination_id not in destination_ids:
+                    raise ValueError(
+                        f"Aluno {passenger.student.full_name} não pertence às escolas definidas na rota."
+                    )
         for passenger in passenger_items:
             TripManifestPassenger.objects.create(
                 manifest=manifest,

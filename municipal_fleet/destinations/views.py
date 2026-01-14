@@ -12,6 +12,13 @@ class DestinationViewSet(MunicipalityQuerysetMixin, viewsets.ModelViewSet):
     filter_backends = [filters.SearchFilter]
     search_fields = ["name", "address", "district", "city", "state"]
 
+    def get_queryset(self):
+        qs = super().get_queryset()
+        dest_type = self.request.query_params.get("type")
+        if dest_type:
+            qs = qs.filter(type=dest_type)
+        return qs
+
     def perform_create(self, serializer):
         user = self.request.user
         if user.role == "SUPERADMIN":

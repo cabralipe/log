@@ -11,6 +11,7 @@ from trips.serializers import (
     PlannedTripSerializer,
     TripExecutionSerializer,
     TripManifestSerializer,
+    TripManifestPassengerSerializer,
 )
 from tenants.mixins import MunicipalityQuerysetMixin
 from accounts.permissions import IsMunicipalityAdminOrReadOnly
@@ -412,6 +413,45 @@ class TripExecutionViewSet(MunicipalityQuerysetMixin, viewsets.ModelViewSet):
         execution.save(update_fields=["route_geometry", "route_distance_km", "route_duration_minutes"])
         return response.Response({"detail": "Rota otimizada com sucesso."})
 
+    @decorators.action(detail=True, methods=["get"], url_path="itinerary")
+    def itinerary(self, request, pk=None):
+        execution = self.get_object()
+        stops = execution.stops.select_related("destination").order_by("order")
+        stops_payload = [
+            {
+                "id": stop.id,
+                "order": stop.order,
+                "destination_id": stop.destination_id,
+                "destination_name": stop.destination.name if stop.destination else None,
+                "address": stop.destination.address if stop.destination else None,
+                "latitude": float(stop.destination.latitude) if stop.destination else None,
+                "longitude": float(stop.destination.longitude) if stop.destination else None,
+            }
+            for stop in stops
+        ]
+        manifest = getattr(execution, "manifest", None)
+        passengers_payload = []
+        if manifest:
+            passengers_payload = TripManifestPassengerSerializer(manifest.passengers.all(), many=True).data
+        return response.Response(
+            {
+                "execution_id": execution.id,
+                "module": execution.module,
+                "status": execution.status,
+                "scheduled_departure": execution.scheduled_departure,
+                "scheduled_return": execution.scheduled_return,
+                "vehicle_id": execution.vehicle_id,
+                "vehicle_plate": execution.vehicle.license_plate,
+                "driver_id": execution.driver_id,
+                "driver_name": execution.driver.name,
+                "route_geometry": execution.route_geometry,
+                "route_distance_km": execution.route_distance_km,
+                "route_duration_minutes": execution.route_duration_minutes,
+                "stops": stops_payload,
+                "passengers": passengers_payload,
+            }
+        )
+
 
 class TripManifestViewSet(MunicipalityQuerysetMixin, viewsets.ModelViewSet):
     queryset = TripManifest.objects.select_related("trip_execution", "trip_execution__municipality").prefetch_related(
@@ -424,6 +464,90 @@ class TripManifestViewSet(MunicipalityQuerysetMixin, viewsets.ModelViewSet):
     def get_queryset(self):
         qs = super().get_queryset()
         execution_id = self.request.query_params.get("trip_execution_id")
+        if not execution_id:
+            execution_id = self.request.query_params.get("trip_execution")
         if execution_id:
             qs = qs.filter(trip_execution_id=execution_id)
         return qs
+
+
+class SchoolMonitorDashboardView(views.APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        date_param = request.query_params.get("date")
+        qs = TripExecution.objects.select_related("vehicle", "driver").prefetch_related(
+            "stops__destination",
+            "manifest__passengers__student__school",
+            "manifest__passengers__student__class_group",
+        )
+        if user.role != "SUPERADMIN":
+            qs = qs.filter(municipality=user.municipality)
+        qs = qs.filter(module=PlannedTrip.Module.EDUCATION, status__in=[
+            TripExecution.Status.PLANNED,
+            TripExecution.Status.IN_PROGRESS,
+        ])
+        if date_param:
+            qs = qs.filter(scheduled_departure__date=date_param)
+
+        executions_payload = []
+        for execution in qs.order_by("scheduled_departure"):
+            stops = execution.stops.select_related("destination").order_by("order")
+            stops_payload = [
+                {
+                    "id": stop.id,
+                    "order": stop.order,
+                    "destination_id": stop.destination_id,
+                    "destination_name": stop.destination.name if stop.destination else None,
+                    "address": stop.destination.address if stop.destination else None,
+                    "latitude": float(stop.destination.latitude) if stop.destination else None,
+                    "longitude": float(stop.destination.longitude) if stop.destination else None,
+                }
+                for stop in stops
+            ]
+            manifest = getattr(execution, "manifest", None)
+            passengers = []
+            special_needs = 0
+            if manifest:
+                for passenger in manifest.passengers.select_related("student__school", "student__class_group"):
+                    if passenger.passenger_type != passenger.PassengerType.STUDENT or not passenger.student:
+                        continue
+                    if passenger.student.has_special_needs:
+                        special_needs += 1
+                    passengers.append(
+                        {
+                            "id": passenger.id,
+                            "student_id": passenger.student_id,
+                            "student_name": passenger.student.full_name,
+                            "school_id": passenger.student.school_id,
+                            "school_name": passenger.student.school.name,
+                            "class_group_id": passenger.student.class_group_id,
+                            "class_group_name": passenger.student.class_group.name
+                            if passenger.student.class_group
+                            else None,
+                            "has_special_needs": passenger.student.has_special_needs,
+                            "special_needs_details": passenger.student.special_needs_details,
+                        }
+                    )
+            executions_payload.append(
+                {
+                    "id": execution.id,
+                    "status": execution.status,
+                    "scheduled_departure": execution.scheduled_departure,
+                    "scheduled_return": execution.scheduled_return,
+                    "vehicle_id": execution.vehicle_id,
+                    "vehicle_plate": execution.vehicle.license_plate,
+                    "driver_id": execution.driver_id,
+                    "driver_name": execution.driver.name,
+                    "route_distance_km": execution.route_distance_km,
+                    "route_duration_minutes": execution.route_duration_minutes,
+                    "itinerary_link": f"/api/trips/executions/{execution.id}/itinerary/",
+                    "stops": stops_payload,
+                    "students_count": len(passengers),
+                    "special_needs_count": special_needs,
+                    "students": passengers,
+                }
+            )
+
+        return response.Response({"date": date_param, "executions": executions_payload})

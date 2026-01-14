@@ -33,6 +33,16 @@ class SchoolViewSet(BaseMunicipalityCreateMixin, MunicipalityQuerysetMixin, view
 
     def perform_create(self, serializer):
         municipality = self.get_municipality(serializer)
+        destination = serializer.validated_data.get("destination")
+        if destination and municipality and destination.municipality_id != municipality.id:
+            raise exceptions.ValidationError("Destino precisa pertencer à mesma prefeitura.")
+        serializer.save(municipality=municipality)
+
+    def perform_update(self, serializer):
+        municipality = self.get_municipality(serializer)
+        destination = serializer.validated_data.get("destination", serializer.instance.destination)
+        if destination and municipality and destination.municipality_id != municipality.id:
+            raise exceptions.ValidationError("Destino precisa pertencer à mesma prefeitura.")
         serializer.save(municipality=municipality)
 
 

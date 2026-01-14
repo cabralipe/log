@@ -32,6 +32,16 @@ class CompanionViewSet(BaseMunicipalityCreateMixin, MunicipalityQuerysetMixin, v
     filter_backends = [filters.SearchFilter]
     search_fields = ["full_name", "cpf", "patient__full_name"]
 
+    def get_queryset(self):
+        qs = super().get_queryset()
+        patient_id = self.request.query_params.get("patient")
+        active = self.request.query_params.get("active")
+        if patient_id:
+            qs = qs.filter(patient_id=patient_id)
+        if active is not None:
+            qs = qs.filter(active=active.lower() == "true")
+        return qs
+
     def perform_create(self, serializer):
         municipality = self.get_municipality(serializer)
         patient = serializer.validated_data.get("patient")

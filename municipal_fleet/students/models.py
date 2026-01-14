@@ -19,6 +19,13 @@ class School(models.Model):
     city = models.CharField(max_length=100, blank=True)
     district = models.CharField(max_length=100, blank=True)
     phone = models.CharField(max_length=20, blank=True)
+    destination = models.ForeignKey(
+        "destinations.Destination",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="schools",
+    )
     type = models.CharField(max_length=20, choices=SchoolType.choices, default=SchoolType.MUNICIPAL)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)

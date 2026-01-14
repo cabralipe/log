@@ -20,6 +20,10 @@ type ManifestPassenger = {
     passenger_type: "STUDENT" | "PATIENT" | "COMPANION";
     student?: number;
     student_name?: string;
+    student_school_name?: string;
+    student_class_group_name?: string;
+    student_has_special_needs?: boolean;
+    student_special_needs_details?: string;
     patient?: number;
     patient_name?: string;
     companion?: number;
@@ -213,6 +217,9 @@ export const TripManifestPage = () => {
                     columns={[
                         { label: "Tipo", key: "passenger_type", render: (d) => d.passenger_type === "STUDENT" ? "Aluno" : d.passenger_type === "PATIENT" ? "Paciente" : "Acompanhante" },
                         { label: "Nome", key: "name", render: (d) => d.student_name || d.patient_name || d.companion_name || "—" },
+                        { label: "Escola", key: "student_school_name", render: (d) => d.student_school_name || "—" },
+                        { label: "Turma", key: "student_class_group_name", render: (d) => d.student_class_group_name || "—" },
+                        { label: "Necessidade", key: "student_has_special_needs", render: (d) => d.student_has_special_needs ? (d.student_special_needs_details || "Sim") : "—" },
                         { label: "Observações", key: "notes" },
                         {
                             label: "Ações",

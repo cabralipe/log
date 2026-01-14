@@ -70,6 +70,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
     { to: "/destinations", label: "Destinos", icon: MapPin },
     { to: "/health/patients", label: "Saúde", icon: Users },
     { to: "/education", label: "Educação", icon: Building2 },
+    { to: "/school-monitor", label: "Monitor escolar", icon: RouteIcon },
     { to: "/live-tracking", label: "Rastreamento", icon: Map },
     { to: "/free-trips", label: "Viagens livres", icon: Shuffle },
     { to: "/scheduling", label: "Agenda de motoristas", icon: CalendarClock },

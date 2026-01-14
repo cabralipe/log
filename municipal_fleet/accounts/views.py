@@ -46,6 +46,16 @@ class UserViewSet(MunicipalityQuerysetMixin, viewsets.ModelViewSet):
         else:
             serializer.save()
 
+    def perform_update(self, serializer):
+        user = self.request.user
+        role = serializer.validated_data.get("role", serializer.instance.role)
+        if user.role != User.Roles.SUPERADMIN and role == User.Roles.SUPERADMIN:
+            raise PermissionDenied("Apenas superadmin pode criar outro superadmin.")
+        if user.role != User.Roles.SUPERADMIN:
+            serializer.save(municipality=user.municipality)
+        else:
+            serializer.save()
+
     @action(detail=False, methods=["get"])
     def me(self, request):
         serializer = self.get_serializer(request.user)

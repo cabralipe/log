@@ -7,6 +7,7 @@ from trips.views import (
     PlannedTripViewSet,
     TripExecutionViewSet,
     TripManifestViewSet,
+    SchoolMonitorDashboardView,
 )
 
 router = DefaultRouter()
@@ -18,5 +19,6 @@ router.register(r"", TripViewSet, basename="trip")
 
 urlpatterns = [
     path("map-state/", TripMapStateView.as_view(), name="trip-map-state"),
+    path("school-monitor/", SchoolMonitorDashboardView.as_view(), name="school-monitor-dashboard"),
 ]
 urlpatterns += router.urls

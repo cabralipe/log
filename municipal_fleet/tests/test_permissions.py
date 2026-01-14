@@ -41,6 +41,27 @@ class UserPermissionTests(TestCase):
         resp = self.client.get(f"/api/auth/users/{self.viewer.id}/")
         self.assertEqual(resp.status_code, 200)
 
+    def test_admin_cannot_move_user_to_other_municipality(self):
+        other = Municipality.objects.create(
+            name="Pref Z",
+            cnpj="99.999.999/0001-99",
+            address="Rua 9",
+            city="Cidade",
+            state="SP",
+            phone="11999990009",
+        )
+        target = User.objects.create_user(
+            email="user@a.com", password="pass123", role=User.Roles.OPERATOR, municipality=self.muni
+        )
+        self.client.force_authenticate(self.admin)
+        resp = self.client.patch(
+            f"/api/auth/users/{target.id}/",
+            {"municipality": other.id},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.data["municipality"], self.muni.id)
+
 
 class FleetPermissionTests(TestCase):
     def setUp(self):
