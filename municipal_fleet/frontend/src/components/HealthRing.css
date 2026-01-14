@@ -1,0 +1,66 @@
+.health-ring-container {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.health-ring-svg {
+    transform: rotate(-90deg);
+}
+
+.health-ring-bg {
+    color: rgba(255, 255, 255, 0.1);
+}
+
+.health-ring-progress {
+    transition: stroke-dashoffset 1s ease-in-out;
+    stroke-linecap: round;
+}
+
+.health-ring-progress.success {
+    color: var(--accent);
+    filter: drop-shadow(0 0 4px rgba(74, 222, 128, 0.5));
+}
+
+.health-ring-progress.warning {
+    color: #f59e0b;
+    filter: drop-shadow(0 0 4px rgba(245, 158, 11, 0.5));
+}
+
+.health-ring-progress.danger {
+    color: var(--danger);
+    filter: drop-shadow(0 0 4px rgba(239, 68, 68, 0.5));
+}
+
+.health-ring-progress.info {
+    color: #38bdf8;
+    filter: drop-shadow(0 0 4px rgba(56, 189, 248, 0.5));
+}
+
+.health-ring-icon {
+    position: absolute;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text);
+    font-size: 1.2rem;
+}
+
+.pulsing .health-ring-progress.danger {
+    animation: pulse-danger 2s infinite;
+}
+
+@keyframes pulse-danger {
+    0% {
+        filter: drop-shadow(0 0 2px rgba(239, 68, 68, 0.3));
+    }
+
+    50% {
+        filter: drop-shadow(0 0 8px rgba(239, 68, 68, 0.8));
+    }
+
+    100% {
+        filter: drop-shadow(0 0 2px rgba(239, 68, 68, 0.3));
+    }
+}

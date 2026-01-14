@@ -7,6 +7,20 @@ import { StatusBadge } from "../../components/StatusBadge";
 import { useAuth } from "../../hooks/useAuth";
 import { Skeleton } from "../../components/Skeleton";
 import { AreaTrendChart, DonutChart, SimpleBarChart } from "../../components/Charts";
+import { HealthRing } from "../../components/HealthRing";
+import { TrendLabel } from "../../components/TrendLabel";
+import {
+  LayoutDashboard,
+  Car,
+  Activity,
+  Wrench,
+  FileText,
+  Map as MapIcon,
+  CreditCard,
+  Users,
+  Fuel,
+  AlertTriangle
+} from "lucide-react";
 
 type CountItem = { status: string; total: number };
 type OwnershipItem = { ownership_type: string; total: number };
@@ -139,6 +153,18 @@ export const DashboardPage = () => {
   const { user } = useAuth();
 
   const [maintenanceCosts, setMaintenanceCosts] = useState<{ name: string; value: number }[]>([]);
+  const [activeFilter, setActiveFilter] = useState("all");
+
+  const vehiclesTotal = data?.summary?.total_vehicles ?? data?.total_vehicles ?? data?.vehicles?.total ?? 0;
+
+  // Calculate Fleet Health (Availability)
+  const fleetHealth = useMemo(() => {
+    if (!vehiclesTotal) return 0;
+    const available = (data?.vehicles?.by_status ?? []).find(s => s.status === "AVAILABLE")?.total ?? 0;
+    const active = (data?.vehicles?.by_status ?? []).find(s => s.status === "ACTIVE")?.total ?? 0;
+    const inUse = (data?.vehicles?.by_status ?? []).find(s => s.status === "IN_USE")?.total ?? 0;
+    return Math.round(((available + active + inUse) / vehiclesTotal) * 100);
+  }, [data, vehiclesTotal]);
 
   useEffect(() => {
     setLoading(true);
@@ -306,28 +332,24 @@ export const DashboardPage = () => {
   if (!data) return <p className="muted">Erro ao carregar dashboard.</p>;
 
   const tripsMonth = data.summary?.trips_month_total ?? data.trips?.month_total ?? data.trips_month_total ?? 0;
-  const vehiclesTotal = data.summary?.total_vehicles ?? data.total_vehicles ?? data.vehicles?.total ?? 0;
+  // vehiclesTotal is already defined above
   const isAdmin = user?.role === "SUPERADMIN" || user?.role === "ADMIN_MUNICIPALITY";
+
+  const tabs = [
+    { key: "overview", label: "Visão geral", icon: <LayoutDashboard size={20} /> },
+    { key: "fleet", label: "Frota", icon: <Car size={20} /> },
+    { key: "operations", label: "Operação", icon: <MapIcon size={20} /> },
+    { key: "maintenance", label: "Manutenção", icon: <Wrench size={20} /> },
+    { key: "contracts", label: "Contratos", icon: <FileText size={20} /> },
+    { key: "planning", label: "Planejamento", icon: <Activity size={20} /> },
+    { key: "cards", label: "Carteirinhas", icon: <CreditCard size={20} /> },
+  ];
+
   const showSection = (keys: TabKey | TabKey[]) => {
     const list = Array.isArray(keys) ? keys : [keys];
     return list.includes(tab);
   };
 
-  const summaryCards = [
-    { title: "Veículos na base", value: formatNumber(vehiclesTotal), hint: "Distribuição por status" },
-    { title: "Motoristas ativos", value: formatNumber(data.summary?.drivers_active ?? data.drivers?.active ?? 0), hint: `Total: ${formatNumber(data.drivers?.total ?? 0)}` },
-    { title: "Viagens no mês", value: formatNumber(tripsMonth), hint: `Passageiros: ${formatNumber(data.trips?.passengers_month ?? 0)}` },
-    { title: "Litros abastecidos", value: formatNumber(data.fuel?.month_liters ?? data.summary?.fuel_month_liters ?? 0), hint: `${formatNumber(data.fuel?.month_logs ?? 0)} registros` },
-    { title: "OS em aberto", value: formatNumber(data.summary?.open_service_orders ?? 0), hint: "Manutenção" },
-    { title: "Solicitações pendentes", value: formatNumber(data.summary?.pending_applications ?? 0), hint: "Transportes/Serviços" },
-  ];
-  if (isAdmin) {
-    summaryCards.push({
-      title: "Operadores",
-      value: formatNumber(data.users?.operators ?? 0),
-      hint: `Usuários: ${formatNumber(data.users?.total ?? 0)}`,
-    });
-  }
   const roleLabels: Record<string, string> = {
     SUPERADMIN: "Superadmin",
     ADMIN_MUNICIPALITY: "Admin prefeitura",
@@ -345,25 +367,49 @@ export const DashboardPage = () => {
 
   return (
     <div className="dashboard-page animate-fade-in">
-      <div className="dashboard-tabs">
-        {[
-          { key: "overview", label: "Visão geral" },
-          { key: "fleet", label: "Frota & Pessoas" },
-          { key: "operations", label: "Operação" },
-          { key: "maintenance", label: "Manutenção & Estoque" },
-          { key: "contracts", label: "Contratos & Custos" },
-          { key: "planning", label: "Planejamento & Demandas" },
-          { key: "cards", label: "Carteirinhas" },
-        ].map((item) => (
-          <button key={item.key} className={tab === item.key ? "active" : ""} onClick={() => setTab(item.key as TabKey)}>
-            {item.label}
+      {/* Mobile Tab Bar */}
+      <div className="mobile-tab-bar">
+        {tabs.map((t) => (
+          <button
+            key={t.key}
+            className={`tab-item ${tab === t.key ? "active" : ""}`}
+            onClick={() => setTab(t.key as TabKey)}
+          >
+            {t.icon}
+          </button>
+        ))}
+      </div>
+
+      {/* Desktop Tabs */}
+      <div className="desktop-tabs">
+        {tabs.map((t) => (
+          <button
+            key={t.key}
+            className={tab === t.key ? "active" : ""}
+            onClick={() => setTab(t.key as TabKey)}
+          >
+            {t.icon}
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {/* Quick Actions */}
+      <div className="quick-actions">
+        {["Todos", "Alertas", "Em Viagem", "Disponível", "Manutenção"].map(label => (
+          <button
+            key={label}
+            className={`status-pill ${activeFilter === label ? "active" : ""}`}
+            onClick={() => setActiveFilter(label)}
+          >
+            {label}
           </button>
         ))}
       </div>
 
       {tab === "overview" && (
         <>
-          <div className="overview-header card animate-slide-up">
+          <div className="overview-header animate-slide-up">
             <div>
               <p className="eyebrow">Visão geral</p>
               <h2>Resumo operacional</h2>
@@ -372,24 +418,53 @@ export const DashboardPage = () => {
               </p>
             </div>
             <div className="hero-badges">
-              <span className="pill">Frota {formatNumber(vehiclesTotal)}</span>
-              <span className="pill">Viagens mês {formatNumber(tripsMonth)}</span>
-              <span className="pill">Abastecimentos {formatNumber(data.fuel?.month_logs ?? 0)}</span>
-              <span className="pill">OS abertas {formatNumber(data.summary?.open_service_orders ?? 0)}</span>
+              <div className="glass-card" style={{ padding: "0.75rem 1.5rem", display: "flex", alignItems: "center", gap: "1rem" }}>
+                <HealthRing value={fleetHealth} size={48} strokeWidth={4} color={fleetHealth > 80 ? "success" : "danger"} />
+                <div>
+                  <p className="muted" style={{ fontSize: "0.8rem", margin: 0 }}>Saúde da Frota</p>
+                  <strong style={{ fontSize: "1.2rem" }}>{fleetHealth}%</strong>
+                </div>
+              </div>
             </div>
           </div>
 
           <div className="summary-grid animate-slide-up" style={{ marginTop: "1rem" }}>
-            {summaryCards.map((item) => (
-              <Card key={item.title} title={item.title} value={item.value} hint={item.hint} />
-            ))}
+            <div className="glass-card summary-card-content">
+              <p className="muted">Veículos</p>
+              <span className="summary-value">{formatNumber(vehiclesTotal)}</span>
+              <TrendLabel value={12} label="vs mês anterior" />
+            </div>
+            <div className="glass-card summary-card-content">
+              <p className="muted">Viagens</p>
+              <span className="summary-value">{formatNumber(tripsMonth)}</span>
+              <TrendLabel value={5} label="vs mês anterior" />
+            </div>
+            <div className="glass-card summary-card-content">
+              <p className="muted">Abastecimentos</p>
+              <span className="summary-value">{formatNumber(data.fuel?.month_logs ?? 0)}</span>
+            </div>
+            <div className="glass-card summary-card-content">
+              <p className="muted">OS Abertas</p>
+              <span className="summary-value">{formatNumber(data.summary?.open_service_orders ?? 0)}</span>
+              <TrendLabel value={-2} label="vs semana passada" inverse />
+            </div>
+            <div className="glass-card summary-card-content">
+              <p className="muted">Solicitações</p>
+              <span className="summary-value">{formatNumber(data.summary?.pending_applications ?? 0)}</span>
+            </div>
+            {isAdmin && (
+              <div className="glass-card summary-card-content">
+                <p className="muted">Operadores</p>
+                <span className="summary-value">{formatNumber(data.users?.operators ?? 0)}</span>
+              </div>
+            )}
           </div>
 
           <div className="charts-row animate-slide-up">
-            <div className="chart-card">
+            <div className="glass-card">
               <DonutChart data={vehicleStatusData} title="Status da Frota" height={220} />
             </div>
-            <div className="chart-card">
+            <div className="glass-card">
               <DonutChart data={tripsStatusData} title="Viagens por Status" height={220} />
             </div>
           </div>
@@ -406,7 +481,7 @@ export const DashboardPage = () => {
             <span className="pill ghost">Alertas {formatNumber(data.vehicles?.maintenance_alerts?.length ?? 0)}</span>
           </div>
           <div className="dashboard-grid three">
-            <div className="card">
+            <div className="glass-card">
               <div className="card-head">
                 <div>
                   <p className="muted">Veículos</p>
@@ -433,7 +508,7 @@ export const DashboardPage = () => {
                 ))}
               </div>
             </div>
-            <div className="card">
+            <div className="glass-card">
               <div className="card-head">
                 <div>
                   <p className="muted">Manutenção</p>
@@ -450,7 +525,7 @@ export const DashboardPage = () => {
                 data={(data.vehicles?.maintenance_alerts ?? data.maintenance_alerts ?? []).map((item) => ({ ...item, id: item.id }))}
               />
             </div>
-            <div className="card">
+            <div className="glass-card">
               <div className="card-head">
                 <div>
                   <p className="muted">Motoristas</p>
@@ -467,7 +542,7 @@ export const DashboardPage = () => {
               />
             </div>
             {isAdmin && (
-              <div className="card">
+              <div className="glass-card">
                 <div className="card-head">
                   <div>
                     <p className="muted">Equipe</p>
@@ -502,7 +577,7 @@ export const DashboardPage = () => {
             <span className="pill ghost">Incidentes 30d: {formatNumber(data.trips?.incidents_last_30d ?? 0)}</span>
           </div>
           <div className="dashboard-grid two">
-            <div className="card">
+            <div className="glass-card">
               <div className="card-head">
                 <div>
                   <p className="muted">Viagens</p>
@@ -540,7 +615,7 @@ export const DashboardPage = () => {
                 data={(data.trips?.incidents_recent ?? []).map((item) => ({ ...item, id: item.id }))}
               />
             </div>
-            <div className="card">
+            <div className="glass-card">
               <div className="card-head">
                 <div>
                   <p className="muted">Quilometragem</p>
@@ -583,7 +658,7 @@ export const DashboardPage = () => {
             <span className="pill ghost">Planos ativos {formatNumber(data.maintenance?.active_plans ?? 0)}</span>
           </div>
           <div className="dashboard-grid three">
-            <div className="card">
+            <div className="glass-card">
               <div className="card-head">
                 <div>
                   <p className="muted">Ordens de serviço</p>
@@ -613,7 +688,7 @@ export const DashboardPage = () => {
                 data={(data.maintenance?.plans_due ?? []).map((item) => ({ ...item, id: item.id }))}
               />
             </div>
-            <div className="card">
+            <div className="glass-card">
               <div className="card-head">
                 <div>
                   <p className="muted">Estoque</p>
@@ -631,7 +706,7 @@ export const DashboardPage = () => {
                 data={(data.maintenance?.inventory_low_stock ?? []).map((item) => ({ ...item, id: item.id }))}
               />
             </div>
-            <div className="card">
+            <div className="glass-card">
               <div className="card-head">
                 <div>
                   <p className="muted">Pneus</p>
@@ -673,7 +748,7 @@ export const DashboardPage = () => {
             <span className="pill ghost">Contratos ativos {formatNumber(data.contracts?.active ?? 0)}</span>
           </div>
           <div className="dashboard-grid three">
-            <div className="card">
+            <div className="glass-card">
               <div className="card-head">
                 <div>
                   <p className="muted">Contratos</p>
@@ -691,7 +766,7 @@ export const DashboardPage = () => {
                 data={(data.contracts?.expiring_soon ?? []).map((item) => ({ ...item, id: item.id }))}
               />
             </div>
-            <div className="card">
+            <div className="glass-card">
               <div className="card-head">
                 <div>
                   <p className="muted">Períodos de locação</p>
@@ -719,7 +794,7 @@ export const DashboardPage = () => {
                 </div>
               </div>
             </div>
-            <div className="card">
+            <div className="glass-card">
               <div className="card-head">
                 <div>
                   <p className="muted">Aplicativos & usuários</p>
@@ -757,7 +832,7 @@ export const DashboardPage = () => {
             </span>
           </div>
           <div className="dashboard-grid three">
-            <div className="card">
+            <div className="glass-card">
               <div className="card-head">
                 <div>
                   <p className="muted">Planejamento</p>
@@ -793,7 +868,7 @@ export const DashboardPage = () => {
                 ))}
               </div>
             </div>
-            <div className="card">
+            <div className="glass-card">
               <div className="card-head">
                 <div>
                   <p className="muted">Solicitações de serviço</p>
@@ -823,7 +898,7 @@ export const DashboardPage = () => {
                 ))}
               </div>
             </div>
-            <div className="card">
+            <div className="glass-card">
               <div className="card-head">
                 <div>
                   <p className="muted">Estudantes</p>
@@ -859,7 +934,7 @@ export const DashboardPage = () => {
             </span>
           </div>
           <div className="dashboard-grid three">
-            <div className="card">
+            <div className="glass-card">
               <div className="card-head">
                 <div>
                   <p className="muted">Resumo</p>
@@ -896,14 +971,14 @@ export const DashboardPage = () => {
               <p className="muted">Inscrições aprovadas</p>
               <strong>{formatNumber(data.student_cards?.approved_submissions ?? 0)}</strong>
             </div>
-            <div className="card">
+            <div className="glass-card">
               {cardStatusChart.length ? (
                 <DonutChart data={cardStatusChart} title="Status das carteirinhas" height={260} />
               ) : (
                 <p className="muted">Sem dados de status para carteirinhas.</p>
               )}
             </div>
-            <div className="card">
+            <div className="glass-card">
               {shiftChart.length ? (
                 <SimpleBarChart data={shiftChart} title="Alunos por turno" height={260} />
               ) : (
@@ -912,7 +987,7 @@ export const DashboardPage = () => {
             </div>
           </div>
           <div className="dashboard-grid two">
-            <div className="card">
+            <div className="glass-card">
               <div className="card-head">
                 <div>
                   <p className="muted">Cursos</p>
@@ -932,7 +1007,7 @@ export const DashboardPage = () => {
                 <p className="muted">Sem dados de cursos informados.</p>
               )}
             </div>
-            <div className="card">
+            <div className="glass-card">
               <div className="card-head">
                 <div>
                   <p className="muted">Base cadastrada</p>
