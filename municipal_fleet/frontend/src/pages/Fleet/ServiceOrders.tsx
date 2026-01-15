@@ -48,7 +48,7 @@ export const ServiceOrdersPage = () => {
 
     const loadOrders = (p = page, s = search) => {
         setLoading(true);
-        api.get<Paginated<ServiceOrder>>("/trips/service-orders/", { params: { page: p, search: s } })
+        api.get<Paginated<ServiceOrder>>("/service-orders/", { params: { page: p, search: s } })
             .then(res => {
                 const data = res.data as any;
                 setOrders(Array.isArray(data) ? data : data.results);
@@ -60,11 +60,11 @@ export const ServiceOrdersPage = () => {
     useEffect(() => {
         loadOrders();
         // Load dependencies
-        api.get("/vehicles/vehicles/", { params: { page_size: 1000 } }).then(res => {
+        api.get("/vehicles/", { params: { page_size: 1000 } }).then(res => {
             const data = res.data as any;
             setVehicles(Array.isArray(data) ? data : data.results);
         });
-        api.get("/drivers/drivers/", { params: { page_size: 1000 } }).then(res => {
+        api.get("/drivers/", { params: { page_size: 1000 } }).then(res => {
             const data = res.data as any;
             setDrivers(Array.isArray(data) ? data : data.results);
         });
@@ -74,9 +74,9 @@ export const ServiceOrdersPage = () => {
         e.preventDefault();
         try {
             if (form.id) {
-                await api.patch(`/trips/service-orders/${form.id}/`, form);
+                await api.patch(`/service-orders/${form.id}/`, form);
             } else {
-                await api.post("/trips/service-orders/", form);
+                await api.post("/service-orders/", form);
             }
             setIsModalOpen(false);
             loadOrders();

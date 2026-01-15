@@ -1,16 +1,7 @@
 import React, { useMemo } from "react";
-import { useMediaQuery } from "../../../hooks/useMediaQuery";
-import { Table } from "../../../components/Table";
-import { Button } from "../../../components/Button";
 import "./DriverSchedule.css";
 import { AssignmentPortal, AvailabilityBlockPortal } from "../types";
-import {
-    formatDateLabel,
-    formatPeriod,
-    assignmentStatusLabel,
-    parseDateOnly,
-    formatBlockPeriod,
-} from "../utils";
+import { formatDateLabel, formatPeriod, assignmentStatusLabel, parseDateOnly, formatBlockPeriod } from "../utils";
 
 type DriverScheduleProps = {
     assignments: AssignmentPortal[];
@@ -23,17 +14,34 @@ export const DriverSchedule: React.FC<DriverScheduleProps> = ({
     availabilityBlocks,
     loadAvailabilityBlocks,
 }) => {
-    const { isMobile } = useMediaQuery();
+    // Get current week days
+    const weekDays = useMemo(() => {
+        const days = [];
+        const now = new Date();
+        const start = new Date(now);
+        const weekday = start.getDay();
+        const diff = weekday === 0 ? -6 : 1 - weekday;
+        start.setDate(start.getDate() + diff);
+
+        for (let i = 0; i < 7; i++) {
+            const day = new Date(start);
+            day.setDate(start.getDate() + i);
+            days.push({
+                date: day,
+                dayName: day.toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', ''),
+                dayNumber: day.getDate(),
+                isToday: day.toDateString() === now.toDateString(),
+            });
+        }
+        return days;
+    }, []);
+
+    const [selectedDate, setSelectedDate] = React.useState<Date>(new Date());
 
     const sortedAssignments = useMemo(() => {
         return [...assignments].sort((a, b) => {
             const aDate = parseDateOnly(a.date).getTime();
             const bDate = parseDateOnly(b.date).getTime();
-            if (aDate === bDate) {
-                const aStart = a.period_start ? new Date(a.period_start).getTime() : 0;
-                const bStart = b.period_start ? new Date(b.period_start).getTime() : 0;
-                return aStart - bStart;
-            }
             return aDate - bDate;
         });
     }, [assignments]);
@@ -44,136 +52,156 @@ export const DriverSchedule: React.FC<DriverScheduleProps> = ({
         );
     }, [availabilityBlocks]);
 
-    const thisWeekAssignments = useMemo(() => {
-        const now = new Date();
-        const start = new Date(now);
-        const weekday = start.getDay();
-        const diff = weekday === 0 ? -6 : 1 - weekday;
-        start.setDate(start.getDate() + diff);
-        start.setHours(0, 0, 0, 0);
-        const end = new Date(start);
-        end.setDate(start.getDate() + 6);
-        end.setHours(23, 59, 59, 999);
-        return sortedAssignments.filter((a) => {
-            const dateValue = parseDateOnly(a.date);
-            return dateValue >= start && dateValue <= end;
+    const selectedDayAssignments = useMemo(() => {
+        return sortedAssignments.filter(a => {
+            const assignDate = parseDateOnly(a.date);
+            return assignDate.toDateString() === selectedDate.toDateString();
         });
-    }, [sortedAssignments]);
-
-    const thisMonthAssignments = useMemo(() => {
-        const now = new Date();
-        const month = now.getMonth();
-        const year = now.getFullYear();
-        const monthData = sortedAssignments.filter((a) => {
-            const dateValue = parseDateOnly(a.date);
-            return dateValue.getMonth() === month && dateValue.getFullYear() === year;
-        });
-        return monthData.length ? monthData : sortedAssignments;
-    }, [sortedAssignments]);
+    }, [sortedAssignments, selectedDate]);
 
     return (
-        <section id="escala" className="driver-portal__section driver-portal__section--wide fade-in">
-            {/* Availability Blocks Section */}
-            <div className="driver-portal__section-header">
-                <div>
-                    <span className="eyebrow">Agenda</span>
-                    <h3>Bloqueios e folgas</h3>
-                    <p>Se houver uma folga, férias ou afastamento ativo, novas viagens serão bloqueadas automaticamente.</p>
-                </div>
-                <Button variant="ghost" size="sm" onClick={loadAvailabilityBlocks}>Atualizar</Button>
+        <div className="dp-schedule fade-in">
+            {/* Calendar Strip */}
+            <div className="dp-calendar-strip">
+                {weekDays.map((day, idx) => (
+                    <button
+                        key={idx}
+                        className={`dp-calendar-day ${day.isToday ? 'dp-calendar-day--today' : ''} ${day.date.toDateString() === selectedDate.toDateString() ? 'dp-calendar-day--selected' : ''}`}
+                        onClick={() => setSelectedDate(day.date)}
+                    >
+                        <span className="dp-calendar-day__name">{day.dayName}</span>
+                        <span className="dp-calendar-day__number">{day.dayNumber}</span>
+                        {day.date.toDateString() === selectedDate.toDateString() && (
+                            <span className="dp-calendar-day__dot"></span>
+                        )}
+                    </button>
+                ))}
             </div>
-            {sortedBlocks.length > 0 ? (
-                <div className="driver-portal__blocks-grid">
-                    {sortedBlocks.map((block) => (
-                        <div
-                            key={block.id}
-                            className={`driver-portal__block-card ${block.is_current ? "driver-portal__block-card--active" : ""}`}
-                        >
-                            <div className="driver-portal__block-header">
-                                <strong>{block.type_label}</strong>
-                                <span className={`driver-portal__block-badge ${block.is_current ? "driver-portal__block-badge--active" : "driver-portal__block-badge--scheduled"}`}>
-                                    {block.is_current ? "Em vigor" : "Agendado"}
+
+            {/* Assignments for selected day */}
+            <div style={{ padding: '1rem' }}>
+                <h3 className="dp-section-title" style={{ padding: '0 0 0.75rem' }}>Escalas do Dia</h3>
+
+                {selectedDayAssignments.length === 0 ? (
+                    <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--dp-text-muted)' }}>
+                        <span className="material-symbols-outlined" style={{ fontSize: '3rem', display: 'block', marginBottom: '0.5rem', opacity: 0.5 }}>event_available</span>
+                        <p>Nenhuma escala para este dia</p>
+                    </div>
+                ) : (
+                    <div className="dp-timeline">
+                        {selectedDayAssignments.map((assignment) => (
+                            <div key={assignment.id} className="dp-timeline__item">
+                                <div className="dp-timeline__marker">
+                                    <div className="dp-timeline__icon">
+                                        <span className="material-symbols-outlined">local_shipping</span>
+                                    </div>
+                                </div>
+                                <div className="dp-timeline__content">
+                                    <div className="dp-glass-card" style={{ margin: 0 }}>
+                                        <div className="dp-glass-card__body">
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
+                                                <div>
+                                                    <span className={`dp-timeline__status ${assignment.status === 'CONFIRMED' ? 'dp-timeline__status--confirmed' : ''}`}>
+                                                        {assignmentStatusLabel(assignment.status)}
+                                                    </span>
+                                                    <p style={{ fontSize: '1.25rem', fontWeight: 700, color: 'white', margin: '0.25rem 0 0' }}>
+                                                        {formatPeriod(assignment)}
+                                                    </p>
+                                                </div>
+                                                <div style={{
+                                                    background: 'var(--dp-card-dark)',
+                                                    padding: '0.5rem 0.75rem',
+                                                    borderRadius: 'var(--dp-radius)',
+                                                    fontFamily: 'monospace',
+                                                    fontWeight: 700,
+                                                    fontSize: '0.875rem',
+                                                    border: '1px solid var(--dp-border)'
+                                                }}>
+                                                    {assignment.vehicle.license_plate}
+                                                </div>
+                                            </div>
+                                            <div style={{ marginBottom: '0.75rem' }}>
+                                                <p style={{ fontWeight: 500, color: 'var(--dp-text-muted)' }}>{assignment.route.name}</p>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', color: 'var(--dp-text-muted)', fontSize: '0.875rem', marginTop: '0.25rem' }}>
+                                                    <span className="material-symbols-outlined" style={{ fontSize: '1rem' }}>location_on</span>
+                                                    <span>{assignment.route.code}</span>
+                                                </div>
+                                            </div>
+                                            <button className="dp-btn dp-btn--ghost" style={{ height: '40px', fontSize: '0.875rem' }}>
+                                                Ver Detalhes
+                                                <span className="material-symbols-outlined" style={{ fontSize: '1rem' }}>chevron_right</span>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </div>
+
+            {/* Availability Section */}
+            <div style={{ padding: '0 1rem', marginTop: '1rem' }}>
+                <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '0.5rem' }}>Disponibilidade</h3>
+                <p style={{ color: 'var(--dp-text-muted)', fontSize: '0.875rem', marginBottom: '1rem' }}>
+                    Gerencie seus dias de folga e plantão.
+                </p>
+
+                {sortedBlocks.length > 0 ? (
+                    <div className="dp-updates">
+                        {sortedBlocks.map((block) => (
+                            <div key={block.id} className="dp-update-item">
+                                <div className={`dp-update-item__icon ${block.is_current ? 'dp-update-item__icon--success' : 'dp-update-item__icon--primary'}`}>
+                                    <span className="material-symbols-outlined">{block.is_current ? 'event_busy' : 'schedule'}</span>
+                                </div>
+                                <div className="dp-update-item__content">
+                                    <p className="dp-update-item__title">{block.type_label}</p>
+                                    <p className="dp-update-item__desc">{formatBlockPeriod(block.start_datetime, block.end_datetime)}</p>
+                                </div>
+                                <span style={{
+                                    fontSize: '0.6rem',
+                                    fontWeight: 700,
+                                    padding: '0.25rem 0.5rem',
+                                    borderRadius: '9999px',
+                                    background: block.is_current ? 'rgba(34, 197, 94, 0.15)' : 'rgba(40, 122, 246, 0.15)',
+                                    color: block.is_current ? 'var(--dp-success)' : 'var(--dp-primary)',
+                                    textTransform: 'uppercase',
+                                    letterSpacing: '0.05em'
+                                }}>
+                                    {block.is_current ? 'Ativo' : 'Agendado'}
                                 </span>
                             </div>
-                            <div style={{ color: "var(--muted)" }}>{formatBlockPeriod(block.start_datetime, block.end_datetime)}</div>
-                            {block.reason && <p style={{ color: "var(--muted)", marginTop: "0.35rem", marginBottom: 0 }}>{block.reason}</p>}
+                        ))}
+                    </div>
+                ) : (
+                    <div className="dp-glass-card" style={{ margin: 0, marginBottom: '2rem' }}>
+                        <div className="dp-glass-card__body" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <div>
+                                <p style={{ fontWeight: 700, marginBottom: '0.25rem' }}>Sinalizar Folga</p>
+                                <p style={{ fontSize: '0.875rem', color: 'var(--dp-text-muted)' }}>Nenhum bloqueio ativo</p>
+                            </div>
+                            <button
+                                type="button"
+                                style={{
+                                    width: '48px',
+                                    height: '48px',
+                                    borderRadius: 'var(--dp-radius)',
+                                    background: 'var(--dp-primary)',
+                                    border: 'none',
+                                    color: 'white',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    cursor: 'pointer',
+                                    boxShadow: '0 0 15px rgba(40, 122, 246, 0.5)'
+                                }}
+                            >
+                                <span className="material-symbols-outlined">event_busy</span>
+                            </button>
                         </div>
-                    ))}
-                </div>
-            ) : (
-                <div className="driver-portal__empty">Nenhum bloqueio ativo ou agendado.</div>
-            )}
-
-            {/* Schedule Section */}
-            <div className="driver-portal__section-header" style={{ marginTop: "2rem" }}>
-                <div>
-                    <h3>Escala do planejamento</h3>
-                    <p>Integração com o planejador de viagens para que você veja a rotina da semana e do mês.</p>
-                </div>
+                    </div>
+                )}
             </div>
-            <div className="driver-portal__schedule-grid">
-                <div className="driver-portal__week-panel">
-                    <h4>Semana atual</h4>
-                    {thisWeekAssignments.length === 0 ? (
-                        <div className="driver-portal__empty">Nenhuma escala cadastrada para esta semana.</div>
-                    ) : (
-                        <div className="driver-portal__assignments-list">
-                            {thisWeekAssignments.map((assignment) => (
-                                <div key={assignment.id} className="driver-portal__assignment-card">
-                                    <div className="driver-portal__assignment-card-header">
-                                        <div>
-                                            <div className="driver-portal__assignment-date">{formatDateLabel(assignment.date)}</div>
-                                            <div className="driver-portal__assignment-route">
-                                                {assignment.route.code} · {assignment.route.name}
-                                            </div>
-                                            <div className="driver-portal__assignment-vehicle">
-                                                Veículo {assignment.vehicle.license_plate}
-                                            </div>
-                                            {assignment.route.service_name && (
-                                                <div className="driver-portal__assignment-vehicle">{assignment.route.service_name}</div>
-                                            )}
-                                        </div>
-                                        <div style={{ textAlign: isMobile ? "left" : "right" }}>
-                                            <div className="driver-portal__assignment-time">{formatPeriod(assignment)}</div>
-                                            <span className={`driver-portal__assignment-status ${assignment.status === "CONFIRMED" ? "driver-portal__assignment-status--confirmed" : "driver-portal__assignment-status--draft"}`}>
-                                                {assignmentStatusLabel(assignment.status)}
-                                            </span>
-                                        </div>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                </div>
-                <div className="driver-portal__month-panel">
-                    <h4>Agenda do mês</h4>
-                    {isMobile ? (
-                        <div className="driver-portal__assignments-list">
-                            {thisMonthAssignments.slice(0, 10).map((assignment) => (
-                                <div key={assignment.id} className="driver-portal__assignment-card">
-                                    <div className="driver-portal__assignment-date">{formatDateLabel(assignment.date)}</div>
-                                    <div className="driver-portal__assignment-route">
-                                        {assignment.route.code} — {assignment.route.name}
-                                    </div>
-                                    <div className="driver-portal__assignment-time">{formatPeriod(assignment)}</div>
-                                </div>
-                            ))}
-                        </div>
-                    ) : (
-                        <Table
-                            columns={[
-                                { key: "date", label: "Data", render: (row) => formatDateLabel(row.date) },
-                                { key: "period_start", label: "Horário", render: (row) => formatPeriod(row) },
-                                { key: "route", label: "Rota", render: (row) => `${row.route.code} — ${row.route.name}` },
-                                { key: "service", label: "Serviço", render: (row) => row.route.service_name || "—" },
-                                { key: "vehicle", label: "Veículo", render: (row) => row.vehicle.license_plate },
-                                { key: "status", label: "Status", render: (row) => assignmentStatusLabel(row.status) },
-                            ]}
-                            data={thisMonthAssignments}
-                        />
-                    )}
-                </div>
-            </div>
-        </section>
+        </div>
     );
 };

@@ -5,6 +5,30 @@
   padding-bottom: 3rem;
 }
 
+/* Glassmorphism Utilities */
+.glass-card {
+  background: rgba(21, 28, 39, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 24px;
+  padding: 1.5rem;
+  box-shadow:
+    0 4px 24px -1px rgba(0, 0, 0, 0.2),
+    0 0 0 1px rgba(255, 255, 255, 0.02) inset;
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+}
+
+.glass-card:hover {
+  background: rgba(21, 28, 39, 0.85);
+  border-color: rgba(74, 222, 128, 0.3);
+  box-shadow:
+    0 8px 32px -4px rgba(0, 0, 0, 0.3),
+    0 0 0 1px rgba(74, 222, 128, 0.1) inset,
+    0 0 20px rgba(74, 222, 128, 0.05);
+  transform: translateY(-2px);
+}
+
 /* Header Section */
 .reports-header {
   display: flex;
@@ -12,9 +36,10 @@
   align-items: flex-end;
   flex-wrap: wrap;
   gap: 1.5rem;
-  padding: 1.5rem;
-  background: linear-gradient(135deg, rgba(34, 197, 94, 0.08), rgba(56, 189, 248, 0.05)), var(--card);
-  border: 1px solid rgba(74, 222, 128, 0.15);
+  padding: 2rem;
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.1), rgba(12, 17, 24, 0.8));
+  border: 1px solid rgba(74, 222, 128, 0.2);
+  border-radius: 24px;
   position: relative;
   overflow: hidden;
 }
@@ -25,9 +50,10 @@
   top: 0;
   left: 0;
   width: 100%;
-  height: 4px;
-  background: linear-gradient(90deg, var(--accent), #38bdf8);
-  opacity: 0.6;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+  opacity: 0.8;
+  box-shadow: 0 0 15px var(--accent);
 }
 
 .reports-actions {
@@ -43,7 +69,7 @@
   gap: 0.75rem;
   background: rgba(0, 0, 0, 0.2);
   padding: 0.5rem 1rem;
-  border-radius: 8px;
+  border-radius: 12px;
   border: 1px solid var(--border);
 }
 
@@ -71,44 +97,36 @@
 /* KPI Cards Grid */
 .kpi-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 1rem;
-}
-
-@media (max-width: 1200px) {
-  .kpi-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-@media (max-width: 600px) {
-  .kpi-grid {
-    grid-template-columns: 1fr;
-  }
 }
 
 .insight-card {
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 1.25rem;
+  background: rgba(21, 28, 39, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 24px;
+  padding: 1.5rem;
   display: flex;
   align-items: flex-start;
   gap: 1rem;
-  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+  box-shadow: 0 4px 24px -1px rgba(0, 0, 0, 0.2);
 }
 
 .insight-card:hover {
   transform: translateY(-3px);
-  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.25);
-  border-color: rgba(74, 222, 128, 0.4);
+  background: rgba(21, 28, 39, 0.85);
+  border-color: rgba(74, 222, 128, 0.3);
+  box-shadow: 0 8px 32px -4px rgba(0, 0, 0, 0.3);
 }
 
 .insight-icon {
   padding: 0.75rem;
   background: rgba(74, 222, 128, 0.1);
   color: var(--accent);
-  border-radius: 10px;
+  border-radius: 12px;
   flex-shrink: 0;
 }
 
@@ -130,6 +148,7 @@
 .insight-content p {
   margin: 0;
   font-size: 0.85rem;
+  color: var(--muted);
 }
 
 .insight-content strong {
@@ -137,7 +156,9 @@
   font-weight: 700;
   line-height: 1.2;
   margin: 0.25rem 0;
-  color: var(--text);
+  background: linear-gradient(180deg, #fff, #ccc);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 
 .insight-content .hint {
@@ -180,14 +201,17 @@
   height: 100%;
   display: flex;
   flex-direction: column;
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  background: var(--card);
-  transition: border-color 0.2s ease;
+  background: rgba(21, 28, 39, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 24px;
+  transition: all 0.3s ease;
 }
 
 .chart-card:hover {
   border-color: rgba(74, 222, 128, 0.3);
+  background: rgba(21, 28, 39, 0.85);
 }
 
 .chart-card .card-head {
@@ -196,7 +220,7 @@
 
 .chart-card .card-head h4 {
   margin: 0;
-  font-size: 1rem;
+  font-size: 1.1rem;
   font-weight: 600;
   color: var(--text);
 }
@@ -219,8 +243,8 @@
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
-  padding: 0.75rem;
-  border-radius: 10px;
+  padding: 1rem;
+  border-radius: 16px;
   background: rgba(34, 197, 94, 0.08);
   border: 1px solid rgba(34, 197, 94, 0.25);
 }
@@ -249,7 +273,7 @@
 .budget-form input,
 .budget-form select {
   padding: 0.55rem 0.75rem;
-  border-radius: 10px;
+  border-radius: 12px;
   border: 1px solid var(--border);
   background: rgba(15, 23, 36, 0.7);
   color: var(--text);
@@ -263,9 +287,11 @@
 
 .data-tables-section .card {
   padding: 1.5rem;
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  background: var(--card);
+  background: rgba(21, 28, 39, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 24px;
 }
 
 .data-tables-section .card-head {
@@ -289,14 +315,14 @@
   gap: 0.25rem;
   background: rgba(0, 0, 0, 0.2);
   padding: 0.25rem;
-  border-radius: 8px;
+  border-radius: 12px;
   border: 1px solid var(--border);
 }
 
 .dataset-selector button {
   font-size: 0.85rem;
   padding: 0.4rem 0.8rem;
-  border-radius: 6px;
+  border-radius: 8px;
   transition: all 0.2s ease;
 }
 
@@ -324,10 +350,45 @@
 .status-text {
   font-weight: 500;
   padding: 0.2rem 0.6rem;
-  border-radius: 4px;
+  border-radius: 99px;
   background: rgba(255, 255, 255, 0.05);
   font-size: 0.85rem;
   display: inline-block;
+}
+
+/* Status Pills for Quick Filters */
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.85rem;
+  border-radius: 999px;
+  background: rgba(74, 222, 128, 0.05);
+  border: 1px solid rgba(74, 222, 128, 0.2);
+  color: var(--text);
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.pill:hover {
+  background: rgba(74, 222, 128, 0.15);
+  border-color: var(--accent);
+  color: var(--accent);
+  box-shadow: 0 0 12px rgba(74, 222, 128, 0.1);
+}
+
+.pill.ghost {
+  background: transparent;
+  border-color: var(--border);
+  color: var(--muted);
+}
+
+.pill.ghost:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text);
+  border-color: var(--text);
 }
 
 /* Mobile Responsive */

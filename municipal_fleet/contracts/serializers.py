@@ -10,7 +10,7 @@ class ContractSerializer(serializers.ModelSerializer):
     class Meta:
         model = Contract
         fields = "__all__"
-        read_only_fields = ["id", "created_at", "updated_at"]
+        read_only_fields = ["id", "created_at", "updated_at", "municipality"]
 
     def validate(self, attrs):
         request = self.context.get("request")
@@ -124,6 +124,12 @@ class RentalPeriodSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError("Odômetro final não pode ser menor que o inicial.")
 
         return attrs
+
+    def create(self, validated_data):
+        contract = validated_data.get("contract")
+        if contract and "municipality" not in validated_data:
+            validated_data["municipality"] = contract.municipality
+        return super().create(validated_data)
 
 
 class RentalPeriodCloseSerializer(serializers.ModelSerializer):

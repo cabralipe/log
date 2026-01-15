@@ -90,11 +90,13 @@ export const SchoolsPage = () => {
     try {
       if (editingId) {
         await api.patch(`/students/schools/${editingId}/`, form);
+        load();
       } else {
         await api.post("/students/schools/", form);
+        setPage(1);
+        load(1);
       }
       setIsModalOpen(false);
-      load();
     } catch (err: any) {
       setError(err.response?.data?.detail || "Erro ao salvar escola.");
     }

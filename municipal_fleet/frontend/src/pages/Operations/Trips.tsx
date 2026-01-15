@@ -22,6 +22,8 @@ type PlannedTrip = {
   return_time_expected: string;
   active: boolean;
   notes?: string;
+  vehicle?: number;
+  driver?: number;
 };
 
 type TripExecution = {
@@ -56,6 +58,7 @@ type Trip = {
   category: "PASSENGER" | "OBJECT" | "MIXED";
   passengers_count: number;
   notes?: string;
+  odometer_start?: number;
 };
 
 type ServiceOrder = { id: number; external_id: string };
@@ -98,6 +101,7 @@ export const TripsPage = () => {
   const [tripForm, setTripForm] = useState<Partial<Trip>>({
     status: "PLANNED",
     category: "PASSENGER",
+    passengers_count: 1,
   });
 
   // Resources
@@ -107,9 +111,9 @@ export const TripsPage = () => {
 
   useEffect(() => {
     // Load resources when needed (could optimize to load only on modal open)
-    api.get("/vehicles/vehicles/", { params: { page_size: 1000 } }).then(res => setVehicles((res.data as any).results || res.data));
-    api.get("/drivers/drivers/", { params: { page_size: 1000 } }).then(res => setDrivers((res.data as any).results || res.data));
-    api.get("/trips/service-orders/", { params: { page_size: 1000 } }).then(res => setServiceOrders((res.data as any).results || res.data));
+    api.get("/vehicles/", { params: { page_size: 1000 } }).then(res => setVehicles((res.data as any).results || res.data));
+    api.get("/drivers/", { params: { page_size: 1000 } }).then(res => setDrivers((res.data as any).results || res.data));
+    api.get("/service-orders/", { params: { page_size: 1000 } }).then(res => setServiceOrders((res.data as any).results || res.data));
   }, []);
 
   const moduleLabels: Record<string, string> = {
@@ -129,7 +133,7 @@ export const TripsPage = () => {
   // Loaders
   const loadPlans = (page = pagePlans) => {
     setLoadingPlans(true);
-    api.get<Paginated<PlannedTrip>>("/trips/planned-trips/", { params: { page, page_size: 10 } })
+    api.get<Paginated<PlannedTrip>>("/trips/planned/", { params: { page, page_size: 10 } })
       .then(res => {
         const data = res.data as any;
         setPlans(Array.isArray(data) ? data : data.results);
@@ -153,7 +157,7 @@ export const TripsPage = () => {
 
   const loadTrips = (page = pageTrips) => {
     setLoadingTrips(true);
-    api.get<Paginated<Trip>>("/trips/trips/", { params: { page, page_size: 10 } })
+    api.get<Paginated<Trip>>("/trips/", { params: { page, page_size: 10 } })
       .then(res => {
         const data = res.data as any;
         setTrips(Array.isArray(data) ? data : data.results);
@@ -171,21 +175,35 @@ export const TripsPage = () => {
   const handleSavePlan = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      if (planForm.id) await api.patch(`/trips/planned-trips/${planForm.id}/`, planForm);
-      else await api.post("/trips/planned-trips/", planForm);
+      if (planForm.id) await api.patch(`/trips/planned/${planForm.id}/`, planForm);
+      else await api.post("/trips/planned/", planForm);
       setIsPlanModalOpen(false);
       loadPlans();
-    } catch (err) { alert("Erro ao salvar planejamento."); }
+    } catch (err: any) {
+      const data = err?.response?.data;
+      const detail = data?.detail;
+      const fieldErrors = data && typeof data === "object"
+        ? Object.entries(data).map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(", ") : String(v)}`).join(" | ")
+        : null;
+      alert(detail || fieldErrors || "Erro ao salvar planejamento.");
+    }
   };
 
   const handleSaveTrip = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      if (tripForm.id) await api.patch(`/trips/trips/${tripForm.id}/`, tripForm);
-      else await api.post("/trips/trips/", tripForm);
+      if (tripForm.id) await api.patch(`/trips/${tripForm.id}/`, tripForm);
+      else await api.post("/trips/", tripForm);
       setIsTripModalOpen(false);
       loadTrips();
-    } catch (err) { alert("Erro ao salvar viagem avulsa."); }
+    } catch (err: any) {
+      const data = err?.response?.data;
+      const detail = data?.detail;
+      const fieldErrors = data && typeof data === "object"
+        ? Object.entries(data).map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(", ") : String(v)}`).join(" | ")
+        : null;
+      alert(detail || fieldErrors || "Erro ao salvar viagem avulsa.");
+    }
   };
 
   const openPlanModal = (plan?: PlannedTrip) => {
@@ -298,6 +316,9 @@ export const TripsPage = () => {
             <label>Data Fim <input type="date" value={planForm.end_date || ""} onChange={e => setPlanForm({ ...planForm, end_date: e.target.value })} /></label>
             <label>Hora Saída * <input type="time" required value={planForm.departure_time || ""} onChange={e => setPlanForm({ ...planForm, departure_time: e.target.value })} /></label>
             <label>Hora Retorno * <input type="time" required value={planForm.return_time_expected || ""} onChange={e => setPlanForm({ ...planForm, return_time_expected: e.target.value })} /></label>
+            <label>Veículo <select value={planForm.vehicle || ""} onChange={e => setPlanForm({ ...planForm, vehicle: e.target.value ? Number(e.target.value) : undefined })}><option value="">Selecione</option>{vehicles.map(v => <option key={v.id} value={v.id}>{v.license_plate}</option>)}</select></label>
+            <label>Motorista <select value={planForm.driver || ""} onChange={e => setPlanForm({ ...planForm, driver: e.target.value ? Number(e.target.value) : undefined })}><option value="">Selecione</option>{drivers.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}</select></label>
+            <label className="full-width">Notas <textarea value={planForm.notes || ""} onChange={e => setPlanForm({ ...planForm, notes: e.target.value })} /></label>
             <label className="checkbox-label"><input type="checkbox" checked={planForm.active} onChange={e => setPlanForm({ ...planForm, active: e.target.checked })} /> Ativo</label>
           </div>
           <div className="data-form-actions"><Button type="button" variant="ghost" onClick={() => setIsPlanModalOpen(false)}>Cancelar</Button><Button type="submit">Salvar</Button></div>
@@ -318,6 +339,9 @@ export const TripsPage = () => {
               {serviceOrders.map(os => <option key={os.id} value={os.id}>{os.external_id}</option>)}
             </select></label>
             <label>Categoria <select value={tripForm.category} onChange={e => setTripForm({ ...tripForm, category: e.target.value as any })}><option value="PASSENGER">Passageiro</option><option value="OBJECT">Objeto</option><option value="MIXED">Misto</option></select></label>
+            <label>Passageiros <input type="number" min="0" value={tripForm.passengers_count ?? 0} onChange={e => setTripForm({ ...tripForm, passengers_count: Number(e.target.value) })} /></label>
+            <label>Odômetro Inicial * <input type="number" required value={tripForm.odometer_start ?? ""} onChange={e => setTripForm({ ...tripForm, odometer_start: Number(e.target.value) })} /></label>
+            <label className="full-width">Notas <textarea value={tripForm.notes || ""} onChange={e => setTripForm({ ...tripForm, notes: e.target.value })} /></label>
           </div>
           <div className="data-form-actions"><Button type="button" variant="ghost" onClick={() => setIsTripModalOpen(false)}>Cancelar</Button><Button type="submit">Salvar</Button></div>
         </form>

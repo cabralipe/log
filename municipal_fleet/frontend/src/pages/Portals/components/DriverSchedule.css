@@ -1,153 +1,130 @@
-/* Availability Blocks Grid */
-.driver-portal__blocks-grid {
-    display: grid;
-    gap: 0.75rem;
-    grid-template-columns: 1fr;
+/* DriverSchedule.css */
+
+.dp-schedule {
+    padding-bottom: 2rem;
 }
 
-.driver-portal__block-card {
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 1rem;
-    background: #0b1422;
-}
-
-.driver-portal__block-card--active {
-    background: rgba(239, 68, 68, 0.08);
-    border-color: rgba(239, 68, 68, 0.3);
-}
-
-.driver-portal__block-header {
+/* Calendar Strip */
+.dp-calendar-strip {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 0.5rem;
-    margin-bottom: 0.5rem;
-    flex-wrap: wrap;
-}
-
-.driver-portal__block-badge {
-    padding: 0.25rem 0.6rem;
-    border-radius: 999px;
-    font-size: 0.85rem;
-    white-space: nowrap;
-}
-
-.driver-portal__block-badge--active {
-    background: #7f1d1d;
-    color: #fecaca;
-}
-
-.driver-portal__block-badge--scheduled {
-    background: #1f2937;
-    color: var(--muted);
-}
-
-/* Schedule Section */
-.driver-portal__schedule-grid {
-    display: grid;
-    gap: 1rem;
-    grid-template-columns: 1fr;
-}
-
-.driver-portal__week-panel,
-.driver-portal__month-panel {
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 1rem;
-    background: #0b1422;
-}
-
-.driver-portal__week-panel h4,
-.driver-portal__month-panel h4 {
-    margin: 0 0 0.75rem;
-    font-size: 1rem;
-}
-
-/* Assignment Cards */
-.driver-portal__assignments-list {
-    display: grid;
     gap: 0.75rem;
+    padding: 1rem;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
 }
 
-.driver-portal__assignment-card {
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 0.85rem;
-    background: #0f1a2b;
+.dp-calendar-strip::-webkit-scrollbar {
+    display: none;
 }
 
-.driver-portal__assignment-card-header {
+.dp-calendar-day {
     display: flex;
     flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-width: 64px;
+    height: 80px;
+    padding: 0.5rem;
+    background: rgba(30, 41, 59, 0.5);
+    border: 1px solid var(--dp-border);
+    border-radius: var(--dp-radius);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.dp-calendar-day:hover {
+    background: rgba(40, 122, 246, 0.1);
+    border-color: var(--dp-primary);
+}
+
+.dp-calendar-day--selected {
+    background: var(--dp-primary);
+    border-color: var(--dp-primary);
+    box-shadow: 0 0 15px rgba(40, 122, 246, 0.5);
+}
+
+.dp-calendar-day__name {
+    font-size: 0.7rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    color: var(--dp-text-muted);
+}
+
+.dp-calendar-day--selected .dp-calendar-day__name {
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.dp-calendar-day__number {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: white;
+    margin-top: 0.25rem;
+}
+
+.dp-calendar-day__dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: white;
+    margin-top: 0.25rem;
+}
+
+/* Timeline */
+.dp-timeline {
+    position: relative;
+}
+
+.dp-timeline__item {
+    display: grid;
+    grid-template-columns: 48px 1fr;
     gap: 0.5rem;
+    margin-bottom: 1rem;
 }
 
-.driver-portal__assignment-date {
-    font-weight: 700;
-    font-size: 1rem;
+.dp-timeline__marker {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
 }
 
-.driver-portal__assignment-route {
-    color: var(--muted);
-    font-size: 0.9rem;
+.dp-timeline__icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: rgba(40, 122, 246, 0.2);
+    border: 1px solid rgba(40, 122, 246, 0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--dp-primary);
+    z-index: 1;
+    box-shadow: 0 0 0 4px var(--dp-bg-dark);
 }
 
-.driver-portal__assignment-vehicle {
-    color: var(--muted);
-    font-size: 0.85rem;
+.dp-timeline__icon .material-symbols-outlined {
+    font-size: 1.25rem;
 }
 
-.driver-portal__assignment-time {
-    color: var(--accent);
-    font-weight: 700;
-    font-size: 0.95rem;
-    margin-top: 0.5rem;
+.dp-timeline__content {
+    flex: 1;
 }
 
-.driver-portal__assignment-status {
+.dp-timeline__status {
     display: inline-block;
-    margin-top: 0.5rem;
-    padding: 0.2rem 0.6rem;
-    border-radius: 999px;
-    border: 1px solid var(--border);
-    font-size: 0.85rem;
+    font-size: 0.6rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    padding: 0.25rem 0.5rem;
+    border-radius: 9999px;
+    background: rgba(245, 158, 11, 0.15);
+    color: #f59e0b;
+    border: 1px solid rgba(245, 158, 11, 0.2);
 }
 
-.driver-portal__assignment-status--confirmed {
-    background: #0f5132;
-    color: #c6f6d5;
-    border-color: rgba(34, 197, 94, 0.3);
-}
-
-.driver-portal__assignment-status--draft {
-    background: #2a2438;
-    color: var(--muted);
-}
-
-@media (min-width: 768px) {
-    .driver-portal__blocks-grid {
-        grid-template-columns: repeat(2, 1fr);
-    }
-
-    .driver-portal__schedule-grid {
-        grid-template-columns: 1fr 1fr;
-    }
-
-    .driver-portal__assignment-card-header {
-        flex-direction: row;
-        justify-content: space-between;
-        align-items: flex-start;
-    }
-
-    .driver-portal__assignment-time {
-        margin-top: 0;
-        text-align: right;
-    }
-}
-
-@media (min-width: 1024px) {
-    .driver-portal__blocks-grid {
-        grid-template-columns: repeat(3, 1fr);
-    }
+.dp-timeline__status--confirmed {
+    background: rgba(34, 197, 94, 0.15);
+    color: var(--dp-success);
+    border-color: rgba(34, 197, 94, 0.2);
 }

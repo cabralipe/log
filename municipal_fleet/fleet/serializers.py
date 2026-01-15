@@ -9,6 +9,11 @@ from fleet.models import (
     FuelStation,
     VehicleInspection,
     VehicleInspectionDamagePhoto,
+    FuelProduct,
+    FuelStationLimit,
+    FuelRule,
+    FuelAlert,
+    FuelInvoice,
 )
 
 
@@ -86,6 +91,7 @@ class FuelLogSerializer(serializers.ModelSerializer):
         liters = attrs.get("liters", getattr(self.instance, "liters", 0))
         price_per_liter = attrs.get("price_per_liter", getattr(self.instance, "price_per_liter", None))
         station = attrs.get("fuel_station_ref", getattr(self.instance, "fuel_station_ref", None))
+        odometer = attrs.get("odometer", getattr(self.instance, "odometer", None))
 
         if liters is not None and liters <= 0:
             raise serializers.ValidationError("Quantidade de litros deve ser maior que zero.")
@@ -102,6 +108,8 @@ class FuelLogSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError("Selecione o veículo abastecido.")
             if vehicle.municipality_id != portal_driver.municipality_id:
                 raise serializers.ValidationError("Veículo precisa pertencer à prefeitura do motorista.")
+            if odometer is not None and vehicle.odometer_current and odometer < vehicle.odometer_current:
+                raise serializers.ValidationError("Odômetro informado não pode ser menor que o atual do veículo.")
             if station:
                 if station.municipality_id != portal_driver.municipality_id:
                     raise serializers.ValidationError("Posto precisa pertencer à prefeitura do motorista.")
@@ -135,6 +143,21 @@ class FuelLogSerializer(serializers.ModelSerializer):
             attrs["total_cost"] = price_per_liter * liters
         return attrs
 
+    def create(self, validated_data):
+        # municipality is read_only, so ensure it's set from vehicle
+        vehicle = validated_data.get("vehicle")
+        if vehicle and "municipality" not in validated_data:
+            validated_data["municipality"] = vehicle.municipality
+        fuel_log = super().create(validated_data)
+        odometer = fuel_log.odometer
+        if odometer is not None and vehicle:
+            current = vehicle.odometer_current or 0
+            if odometer > current:
+                vehicle.odometer_current = odometer
+                vehicle.save(update_fields=["odometer_current"])
+        return fuel_log
+
+
     def to_representation(self, instance):
         data = super().to_representation(instance)
         request = self.context.get("request")
@@ -148,7 +171,50 @@ class FuelStationSerializer(serializers.ModelSerializer):
     class Meta:
         model = FuelStation
         fields = "__all__"
+        read_only_fields = ["id", "created_at", "updated_at", "municipality"]
+
+
+class FuelProductSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = FuelProduct
+        fields = "__all__"
+        read_only_fields = ["id", "created_at", "updated_at", "municipality"]
+
+
+class FuelStationLimitSerializer(serializers.ModelSerializer):
+    fuel_station_name = serializers.CharField(source="fuel_station.name", read_only=True)
+    product_name = serializers.CharField(source="product.name", read_only=True)
+
+    class Meta:
+        model = FuelStationLimit
+        fields = "__all__"
         read_only_fields = ["id", "created_at", "updated_at"]
+
+
+class FuelRuleSerializer(serializers.ModelSerializer):
+    vehicle_plate = serializers.CharField(source="vehicle.license_plate", read_only=True)
+    contract_number = serializers.CharField(source="contract.contract_number", read_only=True)
+
+    class Meta:
+        model = FuelRule
+        fields = "__all__"
+        read_only_fields = ["id", "created_at", "updated_at"]
+
+
+class FuelAlertSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = FuelAlert
+        fields = "__all__"
+        read_only_fields = ["id", "created_at"]
+
+
+class FuelInvoiceSerializer(serializers.ModelSerializer):
+    fuel_station_name = serializers.CharField(source="fuel_station.name", read_only=True)
+
+    class Meta:
+        model = FuelInvoice
+        fields = "__all__"
+        read_only_fields = ["id", "created_at", "municipality"]
 
 
 class VehicleInspectionDamagePhotoSerializer(serializers.ModelSerializer):

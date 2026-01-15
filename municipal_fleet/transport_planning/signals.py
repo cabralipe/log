@@ -83,6 +83,11 @@ def create_trip_from_assignment(sender, instance, created, **kwargs):
         destination = last.description
 
     # Create Trip
+    vehicle = instance.vehicle
+    odometer_start = 0
+    if vehicle:
+        odometer_start = vehicle.odometer_current or vehicle.odometer_initial or 0
+
     trip = Trip.objects.create(
         municipality=instance.municipality,
         vehicle=instance.vehicle,
@@ -91,6 +96,7 @@ def create_trip_from_assignment(sender, instance, created, **kwargs):
         destination=destination,
         departure_datetime=departure_dt,
         return_datetime_expected=return_dt,
+        odometer_start=odometer_start,
         status=Trip.Status.PLANNED,
         category=Trip.Category.PASSENGER, # Default
         contract=route.contract,
@@ -100,4 +106,3 @@ def create_trip_from_assignment(sender, instance, created, **kwargs):
     # Link back without triggering recursion (update_fields)
     instance.generated_trip = trip
     instance.save(update_fields=["generated_trip"])
-

@@ -214,6 +214,8 @@ export const TransportPlanningPage = ({ initialTab = "services" }: { initialTab?
   });
   const [stopModal, setStopModal] = useState<{ open: boolean; route: Route | null }>({ open: false, route: null });
   const [stopForm, setStopForm] = useState<Partial<RouteStop>>({ order: 1, stop_type: "WAYPOINT" });
+  const [isRouteModalOpen, setIsRouteModalOpen] = useState(false);
+  const [editingRouteId, setEditingRouteId] = useState<number | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
   const refreshServices = () =>
@@ -280,16 +282,40 @@ export const TransportPlanningPage = ({ initialTab = "services" }: { initialTab?
 
   const saveRoute = async () => {
     try {
-      await api.post("/routes/", {
+      const payload = {
         ...routeForm,
         days_of_week: routeForm.days_of_week || [],
-      });
+      };
+
+      if (editingRouteId) {
+        await api.patch(`/routes/${editingRouteId}/`, payload);
+        setMessage("Rota atualizada.");
+      } else {
+        await api.post("/routes/", payload);
+        setMessage("Rota criada.");
+      }
+
       setRouteForm({ route_type: "URBAN", days_of_week: [0, 1, 2, 3, 4], active: true, planned_capacity: 0 });
+      setEditingRouteId(null);
+      setIsRouteModalOpen(false);
       refreshRoutes();
-      setMessage("Rota criada.");
     } catch (err: any) {
       setMessage(parseError(err));
     }
+  };
+
+  const openRouteModal = (route?: Route) => {
+    if (route) {
+      setEditingRouteId(route.id);
+      setRouteForm({
+        ...route,
+        transport_service: route.transport_service, // Ensure this maps correctly if it's an object in some responses, but here it seems to be ID
+      });
+    } else {
+      setEditingRouteId(null);
+      setRouteForm({ route_type: "URBAN", days_of_week: [0, 1, 2, 3, 4], active: true, planned_capacity: 0 });
+    }
+    setIsRouteModalOpen(true);
   };
 
   const saveUnit = async () => {
@@ -565,141 +591,7 @@ export const TransportPlanningPage = ({ initialTab = "services" }: { initialTab?
               <h3>Rotas formais</h3>
               <p>Horários, capacidade e preferências de veículo/motorista.</p>
             </div>
-            <Button onClick={saveRoute}>Salvar rota</Button>
-          </div>
-          <div className="grid">
-            <label>
-              Serviço
-              <select
-                value={routeForm.transport_service || ""}
-                onChange={(e) => setRouteForm({ ...routeForm, transport_service: Number(e.target.value) })}
-              >
-                <option value="">Selecione</option>
-                {services.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
-              Código
-              <input value={routeForm.code || ""} onChange={(e) => setRouteForm({ ...routeForm, code: e.target.value })} />
-            </label>
-            <label>
-              Nome
-              <input value={routeForm.name || ""} onChange={(e) => setRouteForm({ ...routeForm, name: e.target.value })} />
-            </label>
-            <label>
-              Tipo
-              <select value={routeForm.route_type} onChange={(e) => setRouteForm({ ...routeForm, route_type: e.target.value as any })}>
-                {ROUTE_TYPES.map((opt) => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
-              Janela início
-              <input type="time" value={routeForm.time_window_start || ""} onChange={(e) => setRouteForm({ ...routeForm, time_window_start: e.target.value })} />
-            </label>
-            <label>
-              Janela fim
-              <input type="time" value={routeForm.time_window_end || ""} onChange={(e) => setRouteForm({ ...routeForm, time_window_end: e.target.value })} />
-            </label>
-            <label>
-              Duração estimada (min)
-              <input
-                type="number"
-                value={routeForm.estimated_duration_minutes || 0}
-                onChange={(e) => setRouteForm({ ...routeForm, estimated_duration_minutes: Number(e.target.value) })}
-              />
-            </label>
-            <label>
-              Capacidade planejada
-              <input
-                type="number"
-                value={routeForm.planned_capacity || 0}
-                onChange={(e) => setRouteForm({ ...routeForm, planned_capacity: Number(e.target.value) })}
-              />
-            </label>
-            <label>
-              Contrato (opcional)
-              <select
-                value={routeForm.contract || ""}
-                onChange={(e) => setRouteForm({ ...routeForm, contract: e.target.value ? Number(e.target.value) : undefined })}
-              >
-                <option value="">Nenhum</option>
-                {contracts.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.contract_number} ({c.status})
-                  </option>
-                ))}
-              </select>
-            </label>
-            <div className="chip-group">
-              {DAYS.map((d) => (
-                <button
-                  key={d.value}
-                  type="button"
-                  className={(routeForm.days_of_week || []).includes(d.value) ? "chip active" : "chip"}
-                  onClick={() => setDays(d.value)}
-                >
-                  {d.label}
-                </button>
-              ))}
-            </div>
-            <label>
-              Veículos preferidos
-              <select
-                multiple
-                value={(routeForm.preferred_vehicles as number[] | undefined)?.map(String) || []}
-                onChange={(e) =>
-                  setRouteForm({
-                    ...routeForm,
-                    preferred_vehicles: Array.from(e.target.selectedOptions).map((o) => Number(o.value)),
-                  })
-                }
-              >
-                {vehicles.map((v) => (
-                  <option key={v.id} value={v.id}>
-                    {v.license_plate} ({v.max_passengers})
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
-              Motoristas preferidos
-              <select
-                multiple
-                value={(routeForm.preferred_drivers as number[] | undefined)?.map(String) || []}
-                onChange={(e) =>
-                  setRouteForm({
-                    ...routeForm,
-                    preferred_drivers: Array.from(e.target.selectedOptions).map((o) => Number(o.value)),
-                  })
-                }
-              >
-                {drivers.map((d) => (
-                  <option key={d.id} value={d.id}>
-                    {d.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label>
-              Ativa
-              <input
-                type="checkbox"
-                checked={routeForm.active || false}
-                onChange={(e) => setRouteForm({ ...routeForm, active: e.target.checked })}
-              />
-            </label>
-            <label className="full">
-              Observações
-              <textarea value={routeForm.notes || ""} onChange={(e) => setRouteForm({ ...routeForm, notes: e.target.value })} />
-            </label>
+            <Button onClick={() => openRouteModal()}>+ Nova Rota</Button>
           </div>
 
           <Table
@@ -716,15 +608,184 @@ export const TransportPlanningPage = ({ initialTab = "services" }: { initialTab?
                 render: (r) => (
                   <Button
                     variant="ghost"
+                    size="sm"
                     onClick={() => setStopModal({ open: true, route: r })}
                   >
                     {(r.stops?.length || 0) || "0"} pontos
                   </Button>
                 ),
               },
+              {
+                key: "actions",
+                label: "Ações",
+                render: (r) => (
+                  <Button variant="ghost" size="sm" onClick={() => openRouteModal(r)}>
+                    Editar
+                  </Button>
+                )
+              }
             ]}
             data={routes}
           />
+
+          <Modal
+            open={isRouteModalOpen}
+            onClose={() => setIsRouteModalOpen(false)}
+            title={editingRouteId ? "Editar Rota" : "Nova Rota"}
+          >
+            <div className="data-form-grid">
+              <h4 className="full-width" style={{ marginTop: 0, marginBottom: '0.5rem', color: 'var(--text-secondary)' }}>Informações Básicas</h4>
+              <label>
+                Serviço *
+                <select
+                  value={routeForm.transport_service || ""}
+                  onChange={(e) => setRouteForm({ ...routeForm, transport_service: Number(e.target.value) })}
+                >
+                  <option value="">Selecione</option>
+                  {services.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Código
+                <input value={routeForm.code || ""} onChange={(e) => setRouteForm({ ...routeForm, code: e.target.value })} />
+              </label>
+              <label>
+                Nome *
+                <input value={routeForm.name || ""} onChange={(e) => setRouteForm({ ...routeForm, name: e.target.value })} />
+              </label>
+              <label>
+                Tipo
+                <select value={routeForm.route_type} onChange={(e) => setRouteForm({ ...routeForm, route_type: e.target.value as any })}>
+                  {ROUTE_TYPES.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <h4 className="full-width" style={{ marginTop: '1rem', marginBottom: '0.5rem', color: 'var(--text-secondary)' }}>Horários e Capacidade</h4>
+              <label>
+                Janela início
+                <input type="time" value={routeForm.time_window_start || ""} onChange={(e) => setRouteForm({ ...routeForm, time_window_start: e.target.value })} />
+              </label>
+              <label>
+                Janela fim
+                <input type="time" value={routeForm.time_window_end || ""} onChange={(e) => setRouteForm({ ...routeForm, time_window_end: e.target.value })} />
+              </label>
+              <label>
+                Duração (min)
+                <input
+                  type="number"
+                  value={routeForm.estimated_duration_minutes || 0}
+                  onChange={(e) => setRouteForm({ ...routeForm, estimated_duration_minutes: Number(e.target.value) })}
+                />
+              </label>
+              <label>
+                Capacidade
+                <input
+                  type="number"
+                  value={routeForm.planned_capacity || 0}
+                  onChange={(e) => setRouteForm({ ...routeForm, planned_capacity: Number(e.target.value) })}
+                />
+              </label>
+              <div className="full-width">
+                <label style={{ display: 'block', marginBottom: '0.5rem' }}>Dias da Semana</label>
+                <div className="chip-group">
+                  {DAYS.map((d) => (
+                    <button
+                      key={d.value}
+                      type="button"
+                      className={(routeForm.days_of_week || []).includes(d.value) ? "chip active" : "chip"}
+                      onClick={() => setDays(d.value)}
+                    >
+                      {d.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <h4 className="full-width" style={{ marginTop: '1rem', marginBottom: '0.5rem', color: 'var(--text-secondary)' }}>Recursos e Preferências</h4>
+              <label>
+                Contrato
+                <select
+                  value={routeForm.contract || ""}
+                  onChange={(e) => setRouteForm({ ...routeForm, contract: e.target.value ? Number(e.target.value) : undefined })}
+                >
+                  <option value="">Nenhum</option>
+                  {contracts.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.contract_number} ({c.status})
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Veículos preferidos
+                <select
+                  multiple
+                  className="multi-select"
+                  style={{ height: '100px' }}
+                  value={(routeForm.preferred_vehicles as number[] | undefined)?.map(String) || []}
+                  onChange={(e) =>
+                    setRouteForm({
+                      ...routeForm,
+                      preferred_vehicles: Array.from(e.target.selectedOptions).map((o) => Number(o.value)),
+                    })
+                  }
+                >
+                  {vehicles.map((v) => (
+                    <option key={v.id} value={v.id}>
+                      {v.license_plate} ({v.max_passengers})
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Motoristas preferidos
+                <select
+                  multiple
+                  className="multi-select"
+                  style={{ height: '100px' }}
+                  value={(routeForm.preferred_drivers as number[] | undefined)?.map(String) || []}
+                  onChange={(e) =>
+                    setRouteForm({
+                      ...routeForm,
+                      preferred_drivers: Array.from(e.target.selectedOptions).map((o) => Number(o.value)),
+                    })
+                  }
+                >
+                  {drivers.map((d) => (
+                    <option key={d.id} value={d.id}>
+                      {d.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <h4 className="full-width" style={{ marginTop: '1rem', marginBottom: '0.5rem', color: 'var(--text-secondary)' }}>Outros</h4>
+              <label className="checkbox-label">
+                <input
+                  type="checkbox"
+                  checked={routeForm.active || false}
+                  onChange={(e) => setRouteForm({ ...routeForm, active: e.target.checked })}
+                />
+                Rota Ativa
+              </label>
+              <label className="full-width">
+                Observações
+                <textarea value={routeForm.notes || ""} onChange={(e) => setRouteForm({ ...routeForm, notes: e.target.value })} />
+              </label>
+            </div>
+            <div className="data-form-actions">
+              <Button variant="ghost" onClick={() => setIsRouteModalOpen(false)}>Cancelar</Button>
+              <Button onClick={saveRoute}>Salvar</Button>
+            </div>
+          </Modal>
         </section>
       )}
 

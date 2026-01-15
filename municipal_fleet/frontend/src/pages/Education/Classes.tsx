@@ -62,7 +62,7 @@ export const ClassesPage = () => {
         if (nextSearch) params.search = nextSearch;
 
         api
-            .get<Paginated<ClassGroup>>("/students/classes/", { params })
+            .get<Paginated<ClassGroup>>("/students/class-groups/", { params })
             .then((res) => {
                 const data = res.data as any;
                 if (Array.isArray(data)) {
@@ -92,9 +92,9 @@ export const ClassesPage = () => {
         e.preventDefault();
         try {
             if (editingId) {
-                await api.patch(`/students/classes/${editingId}/`, form);
+                await api.patch(`/students/class-groups/${editingId}/`, form);
             } else {
-                await api.post("/students/classes/", form);
+                await api.post("/students/class-groups/", form);
             }
             setIsModalOpen(false);
             load();
@@ -106,7 +106,7 @@ export const ClassesPage = () => {
     const handleDelete = async (id: number) => {
         if (!confirm("Deseja remover esta turma?")) return;
         try {
-            await api.delete(`/students/classes/${id}/`);
+            await api.delete(`/students/class-groups/${id}/`);
             load();
         } catch (err) {
             setError("Erro ao remover turma.");

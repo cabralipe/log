@@ -8,6 +8,11 @@ from fleet.models import (
     FuelStation,
     VehicleInspection,
     VehicleInspectionDamagePhoto,
+    FuelProduct,
+    FuelStationLimit,
+    FuelRule,
+    FuelAlert,
+    FuelInvoice,
 )
 from fleet.serializers import (
     VehicleSerializer,
@@ -15,6 +20,11 @@ from fleet.serializers import (
     FuelLogSerializer,
     FuelStationSerializer,
     VehicleInspectionSerializer,
+    FuelProductSerializer,
+    FuelStationLimitSerializer,
+    FuelRuleSerializer,
+    FuelAlertSerializer,
+    FuelInvoiceSerializer,
 )
 from tenants.mixins import MunicipalityQuerysetMixin
 from accounts.permissions import IsMunicipalityAdminOrReadOnly
@@ -102,6 +112,57 @@ class FuelStationViewSet(MunicipalityQuerysetMixin, viewsets.ModelViewSet):
             if not municipality:
                 raise ValidationError("Prefeitura é obrigatória para criação por SUPERADMIN.")
             serializer.save(municipality=municipality)
+
+
+class FuelProductViewSet(MunicipalityQuerysetMixin, viewsets.ModelViewSet):
+    queryset = FuelProduct.objects.all()
+    serializer_class = FuelProductSerializer
+    permission_classes = [permissions.IsAuthenticated, IsMunicipalityAdminOrReadOnly]
+    filter_backends = [filters.SearchFilter]
+    search_fields = ["name"]
+
+    def perform_create(self, serializer):
+        user = self.request.user
+        municipality = serializer.validated_data.get("municipality") or user.municipality
+        serializer.save(municipality=municipality)
+
+
+class FuelStationLimitViewSet(MunicipalityQuerysetMixin, viewsets.ModelViewSet):
+    queryset = FuelStationLimit.objects.select_related("fuel_station", "product", "contract", "municipality")
+    serializer_class = FuelStationLimitSerializer
+    permission_classes = [permissions.IsAuthenticated, IsMunicipalityAdminOrReadOnly]
+    filter_backends = [filters.SearchFilter]
+    search_fields = ["fuel_station__name", "product__name"]
+
+
+class FuelRuleViewSet(MunicipalityQuerysetMixin, viewsets.ModelViewSet):
+    queryset = FuelRule.objects.select_related("vehicle", "contract", "municipality")
+    serializer_class = FuelRuleSerializer
+    permission_classes = [permissions.IsAuthenticated, IsMunicipalityAdminOrReadOnly]
+    filter_backends = [filters.SearchFilter]
+    search_fields = ["vehicle__license_plate", "contract__contract_number"]
+
+
+class FuelAlertViewSet(MunicipalityQuerysetMixin, viewsets.ModelViewSet):
+    queryset = FuelAlert.objects.select_related("municipality")
+    serializer_class = FuelAlertSerializer
+    permission_classes = [permissions.IsAuthenticated, IsMunicipalityAdminOrReadOnly]
+    filter_backends = [filters.SearchFilter]
+    search_fields = ["message", "alert_type"]
+
+
+class FuelInvoiceViewSet(MunicipalityQuerysetMixin, viewsets.ModelViewSet):
+    queryset = FuelInvoice.objects.select_related("fuel_station", "municipality")
+    serializer_class = FuelInvoiceSerializer
+    permission_classes = [permissions.IsAuthenticated, IsMunicipalityAdminOrReadOnly]
+    filter_backends = [filters.SearchFilter]
+    search_fields = ["fuel_station__name"]
+    parser_classes = [parsers.MultiPartParser, parsers.FormParser, parsers.JSONParser]
+
+    def perform_create(self, serializer):
+        user = self.request.user
+        municipality = serializer.validated_data.get("municipality") or user.municipality
+        serializer.save(municipality=municipality)
 
 
 class VehicleInspectionViewSet(MunicipalityQuerysetMixin, viewsets.ModelViewSet):

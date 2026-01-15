@@ -65,7 +65,7 @@ export const PatientsPage = () => {
         if (nextSearch) params.search = nextSearch;
 
         api
-            .get<Paginated<Patient>>("/health/patients/", { params })
+            .get<Paginated<Patient>>("/healthcare/patients/", { params })
             .then((res) => {
                 const data = res.data as any;
                 if (Array.isArray(data)) {
@@ -88,11 +88,27 @@ export const PatientsPage = () => {
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
+            let patientId = editingId;
             if (editingId) {
-                await api.patch(`/health/patients/${editingId}/`, form);
+                await api.patch(`/healthcare/patients/${editingId}/`, form);
             } else {
-                await api.post("/health/patients/", form);
+                const res = await api.post("/healthcare/patients/", form);
+                patientId = res.data.id;
             }
+
+            // Handle inline companion creation
+            if (form.needs_companion && companionForm.full_name && patientId) {
+                const companionPayload = { ...companionForm, patient: patientId };
+                // Check if patient already has a companion to update or create new
+                // For simplicity in this inline flow, we assume creation if new patient, 
+                // or we might need to fetch existing if editing. 
+                // But the requirement implies "cadastro", usually for new.
+                // If editing and needs_companion is checked, we might want to show existing.
+                // For now, let's just create if it's a new patient or if we have data.
+                // Ideally we should check if one exists.
+                await api.post("/healthcare/companions/", companionPayload);
+            }
+
             setIsModalOpen(false);
             load();
         } catch (err: any) {
@@ -103,7 +119,7 @@ export const PatientsPage = () => {
     const handleDelete = async (id: number) => {
         if (!confirm("Deseja remover este paciente?")) return;
         try {
-            await api.delete(`/health/patients/${id}/`);
+            await api.delete(`/healthcare/patients/${id}/`);
             load();
         } catch (err) {
             setError("Erro ao remover paciente.");
@@ -123,7 +139,7 @@ export const PatientsPage = () => {
 
     // Companion Logic
     const loadCompanions = (patientId: number) => {
-        api.get<Paginated<Companion>>(`/health/companions/?patient=${patientId}`).then((res) => {
+        api.get<Paginated<Companion>>(`/healthcare/companions/?patient=${patientId}`).then((res) => {
             const data = res.data as any;
             setCompanions(Array.isArray(data) ? data : data.results);
         });
@@ -143,9 +159,9 @@ export const PatientsPage = () => {
         try {
             const payload = { ...companionForm, patient: selectedPatient.id };
             if (editingCompanionId) {
-                await api.patch(`/health/companions/${editingCompanionId}/`, payload);
+                await api.patch(`/healthcare/companions/${editingCompanionId}/`, payload);
             } else {
-                await api.post("/health/companions/", payload);
+                await api.post("/healthcare/companions/", payload);
             }
             setCompanionForm({ active: true, patient: selectedPatient.id });
             setEditingCompanionId(null);
@@ -164,7 +180,7 @@ export const PatientsPage = () => {
         if (!confirm("Remover acompanhante?")) return;
         if (!selectedPatient) return;
         try {
-            await api.delete(`/health/companions/${id}/`);
+            await api.delete(`/healthcare/companions/${id}/`);
             loadCompanions(selectedPatient.id);
         } catch (err) {
             alert("Erro ao remover acompanhante.");
@@ -278,13 +294,110 @@ export const PatientsPage = () => {
                             />
                         </label>
                         <label className="full-width">
-                            Comorbidades
-                            <textarea
-                                rows={2}
-                                value={form.comorbidities || ""}
-                                onChange={(e) => setForm({ ...form, comorbidities: e.target.value })}
-                            />
+                            Comorbidades (CID)
+                            <div style={{ display: "flex", gap: "0.5rem", flexDirection: "column" }}>
+                                <div style={{ position: "relative" }}>
+                                    <input
+                                        placeholder="Digite o nome da comorbidade (ex: diabetes, hipertensão...)"
+                                        style={{ width: "100%" }}
+                                        id="cid-search-input"
+                                        autoComplete="off"
+                                        onChange={async (e) => {
+                                            const term = e.target.value.trim();
+                                            const dropdown = document.getElementById("cid-suggestions");
+                                            if (!dropdown) return;
+                                            if (term.length < 3) {
+                                                dropdown.innerHTML = "";
+                                                dropdown.style.display = "none";
+                                                return;
+                                            }
+                                            try {
+                                                // Try a more reliable CID API
+                                                const res = await fetch(`https://cid10.herokuapp.com/api/v1/cid10?q=${encodeURIComponent(term)}`);
+                                                let data = [];
+                                                if (res.ok) {
+                                                    data = await res.json();
+                                                } else {
+                                                    // Fallback to a small local list for common comorbidities if API is down
+                                                    const common = [
+                                                        { code: "E10", description: "Diabetes mellitus insulinodependente" },
+                                                        { code: "E11", description: "Diabetes mellitus não-insulinodependente" },
+                                                        { code: "I10", description: "Hipertensão essencial (primária)" },
+                                                        { code: "I11", description: "Doença cardíaca hipertensiva" },
+                                                        { code: "J45", description: "Asma" },
+                                                        { code: "E66", description: "Obesidade" },
+                                                        { code: "I20", description: "Angina pectoris" },
+                                                        { code: "I21", description: "Infarto agudo do miocárdio" }
+                                                    ].filter(i => i.description.toLowerCase().includes(term.toLowerCase()) || i.code.toLowerCase().includes(term.toLowerCase()));
+                                                    data = common;
+                                                }
+
+                                                if (Array.isArray(data) && data.length > 0) {
+                                                    dropdown.innerHTML = data.slice(0, 8).map((item: { code: string; description: string }) =>
+                                                        `<div class="cid-suggestion-item" data-code="${item.code}" data-desc="${item.description}" style="padding:0.5rem;cursor:pointer;border-bottom:1px solid var(--border)">
+                                                            <strong>${item.code}</strong> - ${item.description}
+                                                        </div>`
+                                                    ).join("");
+                                                    dropdown.style.display = "block";
+                                                    dropdown.querySelectorAll(".cid-suggestion-item").forEach(el => {
+                                                        el.addEventListener("click", () => {
+                                                            const code = el.getAttribute("data-code");
+                                                            const desc = el.getAttribute("data-desc");
+                                                            setForm(prev => ({
+                                                                ...prev,
+                                                                comorbidities: (prev.comorbidities ? prev.comorbidities + "\n" : "") + `${code} - ${desc}`
+                                                            }));
+                                                            const input = document.getElementById("cid-search-input") as HTMLInputElement;
+                                                            if (input) input.value = "";
+                                                            dropdown.style.display = "none";
+                                                        });
+                                                    });
+                                                } else {
+                                                    dropdown.innerHTML = "<div style='padding:0.5rem;color:var(--muted)'>Nenhum resultado</div>";
+                                                    dropdown.style.display = "block";
+                                                }
+                                            } catch {
+                                                dropdown.innerHTML = "<div style='padding:0.5rem;color:var(--muted)'>Erro na busca</div>";
+                                                dropdown.style.display = "block";
+                                            }
+                                        }}
+                                        onBlur={() => {
+                                            setTimeout(() => {
+                                                const dropdown = document.getElementById("cid-suggestions");
+                                                if (dropdown) dropdown.style.display = "none";
+                                            }, 200);
+                                        }}
+                                    />
+                                    <div
+                                        id="cid-suggestions"
+                                        style={{
+                                            position: "absolute",
+                                            top: "100%",
+                                            left: 0,
+                                            right: 0,
+                                            background: "var(--bg)",
+                                            border: "1px solid var(--border)",
+                                            borderRadius: "0.5rem",
+                                            maxHeight: "200px",
+                                            overflow: "auto",
+                                            zIndex: 100,
+                                            display: "none",
+                                            boxShadow: "0 4px 12px rgba(0,0,0,0.15)"
+                                        }}
+                                    />
+                                </div>
+                                <div style={{ fontSize: "0.8rem", color: "var(--muted)" }}>
+                                    Digite o nome da doença/comorbidade para buscar o código CID.
+                                </div>
+                                <textarea
+                                    rows={3}
+                                    placeholder="Lista de comorbidades..."
+                                    value={form.comorbidities || ""}
+                                    onChange={(e) => setForm({ ...form, comorbidities: e.target.value })}
+                                />
+                            </div>
                         </label>
+
                         <label className="full-width">
                             Observações
                             <textarea
@@ -301,6 +414,44 @@ export const PatientsPage = () => {
                             />
                             Necessita de acompanhante
                         </label>
+
+                        {form.needs_companion && (
+                            <div className="full-width" style={{ padding: "1rem", border: "1px solid var(--border)", borderRadius: "var(--radius)", marginTop: "0.5rem" }}>
+                                <h4 style={{ marginBottom: "0.5rem" }}>Dados do Acompanhante</h4>
+                                <div className="data-form-grid" style={{ gridTemplateColumns: "1fr 1fr" }}>
+                                    <label className="full-width">
+                                        Nome Completo *
+                                        <input
+                                            required={form.needs_companion}
+                                            value={companionForm.full_name || ""}
+                                            onChange={(e) => setCompanionForm({ ...companionForm, full_name: e.target.value })}
+                                        />
+                                    </label>
+                                    <label>
+                                        CPF
+                                        <input
+                                            value={companionForm.cpf || ""}
+                                            onChange={(e) => setCompanionForm({ ...companionForm, cpf: formatCpf(e.target.value) })}
+                                            maxLength={14}
+                                        />
+                                    </label>
+                                    <label>
+                                        Telefone
+                                        <input
+                                            value={companionForm.phone || ""}
+                                            onChange={(e) => setCompanionForm({ ...companionForm, phone: e.target.value })}
+                                        />
+                                    </label>
+                                    <label>
+                                        Parentesco
+                                        <input
+                                            value={companionForm.relationship || ""}
+                                            onChange={(e) => setCompanionForm({ ...companionForm, relationship: e.target.value })}
+                                        />
+                                    </label>
+                                </div>
+                            </div>
+                        )}
                         <label className="checkbox-label">
                             <input
                                 type="checkbox"

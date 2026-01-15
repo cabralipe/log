@@ -1,10 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
-import { useMediaQuery } from "../../../hooks/useMediaQuery";
-import { Table } from "../../../components/Table";
-import { Button } from "../../../components/Button";
 import "./DriverInspection.css";
-import { InspectionPortal, InspectionChecklistItem, PortalVehicle } from "../types";
-import { formatDateLabel, inspectionStatusLabel, toInputDate } from "../utils";
+import { InspectionPortal, InspectionChecklistItem } from "../types";
 
 type DriverInspectionProps = {
     inspections: InspectionPortal[];
@@ -41,7 +37,6 @@ export const DriverInspection: React.FC<DriverInspectionProps> = ({
     handleInspectionSubmit,
     availableVehicles,
 }) => {
-    const { isMobile } = useMediaQuery();
     const signatureCanvasRef = useRef<HTMLCanvasElement | null>(null);
     const signatureDrawingRef = useRef(false);
     const signatureLastPosRef = useRef<{ x: number; y: number } | null>(null);
@@ -57,9 +52,9 @@ export const DriverInspection: React.FC<DriverInspectionProps> = ({
         const ctx = canvas.getContext("2d");
         if (ctx) {
             ctx.scale(ratio, ratio);
-            ctx.lineWidth = 2.2;
+            ctx.lineWidth = 2.5;
             ctx.lineCap = "round";
-            ctx.strokeStyle = "#e2e8f0";
+            ctx.strokeStyle = "#f1f5f9";
         }
     };
 
@@ -75,36 +70,29 @@ export const DriverInspection: React.FC<DriverInspectionProps> = ({
     const saveSignature = () => {
         const canvas = signatureCanvasRef.current;
         if (!canvas) return;
-        const dataUrl = canvas.toDataURL("image/png");
-        setSignatureDataUrl(dataUrl);
+        setSignatureDataUrl(canvas.toDataURL("image/png"));
     };
 
     useEffect(() => {
         resizeSignatureCanvas();
-        const handleResize = () => resizeSignatureCanvas();
-        window.addEventListener("resize", handleResize);
-        return () => window.removeEventListener("resize", handleResize);
+        window.addEventListener("resize", resizeSignatureCanvas);
+        return () => window.removeEventListener("resize", resizeSignatureCanvas);
     }, []);
 
     const getCanvasPoint = (event: React.PointerEvent<HTMLCanvasElement>) => {
-        const canvas = event.currentTarget;
-        const rect = canvas.getBoundingClientRect();
+        const rect = event.currentTarget.getBoundingClientRect();
         return { x: event.clientX - rect.left, y: event.clientY - rect.top };
     };
 
-    const handleSignaturePointerDown = (event: React.PointerEvent<HTMLCanvasElement>) => {
-        const canvas = event.currentTarget;
-        const ctx = canvas.getContext("2d");
-        if (!ctx) return;
+    const handlePointerDown = (event: React.PointerEvent<HTMLCanvasElement>) => {
         signatureDrawingRef.current = true;
         signatureLastPosRef.current = getCanvasPoint(event);
-        canvas.setPointerCapture(event.pointerId);
+        event.currentTarget.setPointerCapture(event.pointerId);
     };
 
-    const handleSignaturePointerMove = (event: React.PointerEvent<HTMLCanvasElement>) => {
+    const handlePointerMove = (event: React.PointerEvent<HTMLCanvasElement>) => {
         if (!signatureDrawingRef.current) return;
-        const canvas = event.currentTarget;
-        const ctx = canvas.getContext("2d");
+        const ctx = event.currentTarget.getContext("2d");
         if (!ctx) return;
         const current = getCanvasPoint(event);
         const last = signatureLastPosRef.current || current;
@@ -115,7 +103,7 @@ export const DriverInspection: React.FC<DriverInspectionProps> = ({
         signatureLastPosRef.current = current;
     };
 
-    const handleSignaturePointerUp = (event: React.PointerEvent<HTMLCanvasElement>) => {
+    const handlePointerUp = (event: React.PointerEvent<HTMLCanvasElement>) => {
         if (!signatureDrawingRef.current) return;
         signatureDrawingRef.current = false;
         signatureLastPosRef.current = null;
@@ -125,181 +113,183 @@ export const DriverInspection: React.FC<DriverInspectionProps> = ({
 
     const onSubmit = (e: React.FormEvent) => {
         handleInspectionSubmit(e, signatureDataUrl);
-        if (signatureDataUrl) {
-            clearSignature();
-        }
+        if (signatureDataUrl) clearSignature();
     };
 
-    const renderInspectionCards = () => (
-        <div className="driver-portal__inspection-cards">
-            {inspections.map((inspection) => (
-                <div key={inspection.id} className="driver-portal__inspection-card">
-                    <div className="driver-portal__inspection-card-header">
-                        <div>
-                            <div className="driver-portal__inspection-card-title">{inspection.vehicle_plate || "Veículo"}</div>
-                            <div className="driver-portal__inspection-card-meta">
-                                {formatDateLabel(inspection.inspection_date)} · {inspectionStatusLabel(inspection.condition_status)}
-                            </div>
-                        </div>
-                        <span className={`driver-portal__inspection-pill ${inspection.condition_status === "ATTENTION" ? "danger" : ""}`}>
-                            {inspectionStatusLabel(inspection.condition_status)}
-                        </span>
-                    </div>
-                    {inspection.notes && <div className="driver-portal__inspection-card-notes">{inspection.notes}</div>}
-                    <div className="driver-portal__inspection-card-links">
-                        {inspection.signature_image && (
-                            <a href={inspection.signature_image} target="_blank" rel="noopener noreferrer">Assinatura</a>
-                        )}
-                        {inspection.damage_photos?.length > 0 && (
-                            <span>{inspection.damage_photos.length} avaria(s)</span>
-                        )}
-                    </div>
-                </div>
-            ))}
-            {inspections.length === 0 && (
-                <div className="driver-portal__empty">Nenhum checklist registrado.</div>
-            )}
-        </div>
-    );
+    // Group checklist items by category
+    const categories = [
+        { key: 'exterior', label: 'Exterior', icon: 'directions_car' },
+        { key: 'mecanica', label: 'Mecânica', icon: 'engineering' },
+        { key: 'seguranca', label: 'Segurança', icon: 'gpp_good' },
+    ];
 
     return (
-        <section id="inspecao" className="driver-portal__section fade-in">
-            <div className="driver-portal__section-header">
-                <h3>Checklist diário do veículo</h3>
-            </div>
-            <form className="driver-portal__inspection-form" onSubmit={onSubmit}>
-                <select
-                    value={inspectionForm.vehicle}
-                    onChange={(e) => setInspectionForm((prev) => ({ ...prev, vehicle: Number(e.target.value) }))}
-                    required
-                >
-                    <option value="">Veículo</option>
-                    {availableVehicles.map((v) => (
-                        <option key={v.id} value={v.id}>{v.plate}</option>
-                    ))}
-                </select>
-                <label>
-                    Data da inspeção
-                    <input
-                        type="date"
-                        value={inspectionForm.inspection_date}
-                        onChange={(e) => setInspectionForm((prev) => ({ ...prev, inspection_date: e.target.value }))}
-                        required
-                    />
-                </label>
-                <label>
-                    Odômetro atual (opcional)
-                    <input
-                        type="number"
-                        placeholder="0"
-                        value={inspectionForm.odometer}
-                        onChange={(e) => setInspectionForm((prev) => ({ ...prev, odometer: e.target.value }))}
-                    />
-                </label>
-                <div className="driver-portal__inspection-checklist full-width">
-                    <h4>Checklist</h4>
-                    {inspectionChecklist.map((item) => (
-                        <div key={item.key} className="driver-portal__inspection-item">
-                            <span>{item.label}</span>
+        <div className="dp-inspection fade-in">
+            <form onSubmit={onSubmit}>
+                {/* Vehicle & Odometer Card */}
+                <div className="dp-glass-card" style={{ margin: '1rem' }}>
+                    <div className="dp-glass-card__body">
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                            <div>
+                                <span style={{ fontSize: '0.6rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.15em', color: 'var(--dp-text-muted)' }}>Veículo Selecionado</span>
+                                <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--dp-primary)', margin: '0.25rem 0 0' }}>
+                                    {inspectionForm.vehicle ? availableVehicles.find(v => v.id === inspectionForm.vehicle)?.plate || 'Selecione' : 'Selecione o veículo'}
+                                </h3>
+                            </div>
+                            <div style={{ background: 'rgba(40, 122, 246, 0.2)', padding: '0.75rem', borderRadius: 'var(--dp-radius)' }}>
+                                <span className="material-symbols-outlined" style={{ fontSize: '2rem', color: 'var(--dp-primary)' }}>local_shipping</span>
+                            </div>
+                        </div>
+
+                        <div className="dp-form-group" style={{ marginBottom: '1rem' }}>
                             <select
-                                value={item.status}
-                                onChange={(e) => updateChecklistStatus(item.key, e.target.value as "OK" | "ISSUE")}
+                                className="dp-select"
+                                value={inspectionForm.vehicle}
+                                onChange={(e) => setInspectionForm((prev) => ({ ...prev, vehicle: Number(e.target.value) }))}
+                                required
                             >
-                                <option value="OK">Ok</option>
-                                <option value="ISSUE">Problema</option>
+                                <option value="">Selecionar Veículo</option>
+                                {availableVehicles.map((v) => (
+                                    <option key={v.id} value={v.id}>{v.plate}</option>
+                                ))}
                             </select>
-                            {item.status === "ISSUE" && (
+                        </div>
+
+                        <div className="dp-form-group" style={{ marginBottom: 0 }}>
+                            <label className="dp-form-label">Odômetro Atual (km)</label>
+                            <div style={{ position: 'relative' }}>
                                 <input
-                                    type="text"
-                                    placeholder="Descreva o problema"
-                                    value={item.note || ""}
-                                    onChange={(e) => updateChecklistNote(item.key, e.target.value)}
+                                    type="number"
+                                    className="dp-input dp-input--large"
+                                    placeholder="000.000"
+                                    value={inspectionForm.odometer}
+                                    onChange={(e) => setInspectionForm((prev) => ({ ...prev, odometer: e.target.value }))}
                                 />
+                                <span style={{ position: 'absolute', right: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--dp-text-muted)', fontWeight: 700 }}>KM</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Checklist Sections */}
+                {categories.map((category) => {
+                    const items = inspectionChecklist.filter(item =>
+                        item.key.toLowerCase().includes(category.key) ||
+                        (category.key === 'exterior' && ['pneus', 'farois', 'luzes', 'lataria', 'vidros'].some(k => item.key.toLowerCase().includes(k))) ||
+                        (category.key === 'mecanica' && ['oleo', 'freios', 'motor', 'arla'].some(k => item.key.toLowerCase().includes(k))) ||
+                        (category.key === 'seguranca' && ['extintor', 'epi', 'cinto', 'triangulo'].some(k => item.key.toLowerCase().includes(k)))
+                    );
+
+                    // If no specific items match, just show all remaining
+                    const displayItems = items.length > 0 ? items :
+                        category.key === 'exterior' ? inspectionChecklist.slice(0, Math.ceil(inspectionChecklist.length / 3)) :
+                            category.key === 'mecanica' ? inspectionChecklist.slice(Math.ceil(inspectionChecklist.length / 3), Math.ceil(inspectionChecklist.length * 2 / 3)) :
+                                inspectionChecklist.slice(Math.ceil(inspectionChecklist.length * 2 / 3));
+
+                    return (
+                        <div key={category.key} className="dp-checklist-section">
+                            <div className="dp-checklist-section__header">
+                                <span className="material-symbols-outlined">{category.icon}</span>
+                                <h4 className="dp-checklist-section__title">{category.label}</h4>
+                            </div>
+
+                            {displayItems.map((item) => (
+                                <div
+                                    key={item.key}
+                                    className={`dp-checklist-item ${item.status === 'ISSUE' ? 'dp-checklist-item--issue' : ''}`}
+                                >
+                                    <div className="dp-checklist-item__header">
+                                        <span className="dp-checklist-item__name">{item.label}</span>
+                                        {item.status === 'ISSUE' && (
+                                            <div className="dp-checklist-item__actions">
+                                                <button type="button" className="dp-checklist-item__action-btn">
+                                                    <span className="material-symbols-outlined">add_a_photo</span>
+                                                </button>
+                                                <button type="button" className="dp-checklist-item__action-btn">
+                                                    <span className="material-symbols-outlined">edit_note</span>
+                                                </button>
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div className="dp-checklist-item__buttons">
+                                        <button
+                                            type="button"
+                                            className={`dp-checklist-btn ${item.status === 'OK' ? 'dp-checklist-btn--ok' : 'dp-checklist-btn--ok-inactive'}`}
+                                            onClick={() => updateChecklistStatus(item.key, 'OK')}
+                                        >
+                                            <span className="material-symbols-outlined">check_circle</span>
+                                            OK
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className={`dp-checklist-btn ${item.status === 'ISSUE' ? 'dp-checklist-btn--issue' : 'dp-checklist-btn--issue-inactive'}`}
+                                            onClick={() => updateChecklistStatus(item.key, 'ISSUE')}
+                                        >
+                                            <span className="material-symbols-outlined">cancel</span>
+                                            Problema
+                                        </button>
+                                    </div>
+                                    {item.status === 'ISSUE' && (
+                                        <input
+                                            type="text"
+                                            className="dp-input"
+                                            style={{ marginTop: '0.75rem', height: '48px' }}
+                                            placeholder="Descreva o problema..."
+                                            value={item.note || ''}
+                                            onChange={(e) => updateChecklistNote(item.key, e.target.value)}
+                                        />
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    );
+                })}
+
+                {/* Signature Section */}
+                <div style={{ padding: '0 1rem', marginTop: '1.5rem' }}>
+                    <div className="dp-form-group">
+                        <label className="dp-form-label">Nome (Assinatura)</label>
+                        <input
+                            type="text"
+                            className="dp-input"
+                            placeholder="Seu nome completo"
+                            value={inspectionForm.signature_name}
+                            onChange={(e) => setInspectionForm((prev) => ({ ...prev, signature_name: e.target.value }))}
+                            required
+                        />
+                    </div>
+
+                    <div className="dp-signature-pad">
+                        <div className="dp-signature-pad__header">
+                            <span style={{ fontSize: '0.875rem', fontWeight: 600 }}>Assinatura Digital</span>
+                            <button type="button" className="dp-signature-pad__clear" onClick={clearSignature}>
+                                <span className="material-symbols-outlined">refresh</span>
+                                Limpar
+                            </button>
+                        </div>
+                        <div className="dp-signature-pad__canvas-container">
+                            <canvas
+                                ref={signatureCanvasRef}
+                                onPointerDown={handlePointerDown}
+                                onPointerMove={handlePointerMove}
+                                onPointerUp={handlePointerUp}
+                                onPointerLeave={handlePointerUp}
+                            />
+                            {!signatureDataUrl && (
+                                <span className="dp-signature-pad__hint">Assine aqui com o dedo</span>
                             )}
                         </div>
-                    ))}
-                </div>
-                <label className="full-width">
-                    Observações gerais
-                    <textarea
-                        placeholder="Observações adicionais"
-                        value={inspectionForm.notes}
-                        onChange={(e) => setInspectionForm((prev) => ({ ...prev, notes: e.target.value }))}
-                        rows={2}
-                    />
-                </label>
-                <label>
-                    Registro fotográfico de avarias
-                    <input
-                        type="file"
-                        accept="image/*"
-                        multiple
-                        onChange={(e) =>
-                            setInspectionForm((prev) => ({ ...prev, damage_photos: Array.from(e.target.files || []) }))
-                        }
-                    />
-                </label>
-                <label>
-                    Nome (assinatura)
-                    <input
-                        type="text"
-                        placeholder="Seu nome"
-                        value={inspectionForm.signature_name}
-                        onChange={(e) => setInspectionForm((prev) => ({ ...prev, signature_name: e.target.value }))}
-                        required
-                    />
-                </label>
-                <div className="driver-portal__signature">
-                    <div className="driver-portal__signature-header">
-                        <span>Assinatura digital</span>
-                        <Button type="button" variant="ghost" size="sm" onClick={clearSignature}>
-                            Limpar
-                        </Button>
-                    </div>
-                    <div className="driver-portal__signature-pad">
-                        <canvas
-                            ref={signatureCanvasRef}
-                            onPointerDown={handleSignaturePointerDown}
-                            onPointerMove={handleSignaturePointerMove}
-                            onPointerUp={handleSignaturePointerUp}
-                            onPointerLeave={handleSignaturePointerUp}
-                        />
-                        {!signatureDataUrl && <span className="driver-portal__signature-hint">Assine aqui com o dedo</span>}
                     </div>
                 </div>
-                <Button type="submit" fullWidth>Registrar checklist</Button>
-            </form>
 
-            <div className="driver-portal__inspection-history">
-                <h4>Histórico de condições</h4>
-                {isMobile ? (
-                    renderInspectionCards()
-                ) : (
-                    <Table
-                        columns={[
-                            { key: "inspection_date", label: "Data", render: (row) => formatDateLabel(row.inspection_date) },
-                            { key: "vehicle_plate", label: "Veículo" },
-                            { key: "condition_status", label: "Status", render: (row) => inspectionStatusLabel(row.condition_status) },
-                            { key: "odometer", label: "Odômetro", render: (row) => (row.odometer ? `${row.odometer} km` : "—") },
-                            { key: "signature_name", label: "Assinatura" },
-                            {
-                                key: "damage_photos",
-                                label: "Avarias",
-                                render: (row) => (row.damage_photos?.length ? `${row.damage_photos.length} foto(s)` : "—"),
-                            },
-                            {
-                                key: "signature_image",
-                                label: "Arquivo",
-                                render: (row) =>
-                                    row.signature_image ? (
-                                        <a href={row.signature_image} target="_blank" rel="noopener noreferrer">Ver</a>
-                                    ) : "—",
-                            },
-                        ]}
-                        data={inspections}
-                    />
-                )}
-            </div>
-        </section>
+                {/* Submit Button */}
+                <div className="dp-bottom-action">
+                    <button type="submit" className="dp-btn dp-btn--success dp-btn--xl">
+                        <span className="material-symbols-outlined" style={{ fontSize: '2rem' }}>draw</span>
+                        Assinar e Enviar
+                    </button>
+                </div>
+            </form>
+        </div>
     );
 };

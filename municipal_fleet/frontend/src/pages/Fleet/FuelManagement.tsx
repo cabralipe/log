@@ -89,10 +89,10 @@ export const FuelManagementPage = () => {
 
     useEffect(() => {
         // Load common resources
-        api.get("/vehicles/vehicles/", { params: { page_size: 1000 } }).then(res => setVehicles((res.data as any).results || res.data));
-        api.get("/drivers/drivers/", { params: { page_size: 1000 } }).then(res => setDrivers((res.data as any).results || res.data));
+        api.get("/vehicles/", { params: { page_size: 1000 } }).then(res => setVehicles((res.data as any).results || res.data));
+        api.get("/drivers/", { params: { page_size: 1000 } }).then(res => setDrivers((res.data as any).results || res.data));
         api.get("/vehicles/fuel_stations/", { params: { page_size: 1000 } }).then(res => setStations((res.data as any).results || res.data));
-        api.get("/fleet/fuel-products/", { params: { page_size: 1000 } }).then(res => setProducts((res.data as any).results || res.data));
+        api.get("/vehicles/fuel_products/", { params: { page_size: 1000 } }).then(res => setProducts((res.data as any).results || res.data));
     }, []);
 
     return (
@@ -142,7 +142,7 @@ const FuelLogsTab = ({ vehicles, drivers, stations, products }: any) => {
     const [form, setForm] = useState<Partial<FuelLog>>({});
 
     const load = (p = page) => {
-        api.get<Paginated<FuelLog>>("/fleet/fuel-logs/", { params: { page: p } }).then(res => {
+        api.get<Paginated<FuelLog>>("/vehicles/fuel_logs/", { params: { page: p } }).then(res => {
             const d = res.data as any;
             setData(Array.isArray(d) ? d : d.results);
             setTotal(Array.isArray(d) ? d.length : d.count);
@@ -153,8 +153,8 @@ const FuelLogsTab = ({ vehicles, drivers, stations, products }: any) => {
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
-            if (form.id) await api.patch(`/fleet/fuel-logs/${form.id}/`, form);
-            else await api.post("/fleet/fuel-logs/", form);
+            if (form.id) await api.patch(`/vehicles/fuel_logs/${form.id}/`, form);
+            else await api.post("/vehicles/fuel_logs/", form);
             setIsModalOpen(false);
             load();
         } catch (err) { alert("Erro ao salvar."); }
@@ -186,7 +186,7 @@ const FuelLogsTab = ({ vehicles, drivers, stations, products }: any) => {
                         <label className="full-width">Data * <input type="date" required value={form.filled_at || ""} onChange={e => setForm({ ...form, filled_at: e.target.value })} /></label>
                         <label>Veículo * <select required value={form.vehicle || ""} onChange={e => setForm({ ...form, vehicle: Number(e.target.value) })}>{vehicles.map((v: any) => <option key={v.id} value={v.id}>{v.license_plate}</option>)}</select></label>
                         <label>Motorista * <select required value={form.driver || ""} onChange={e => setForm({ ...form, driver: Number(e.target.value) })}>{drivers.map((d: any) => <option key={d.id} value={d.id}>{d.name}</option>)}</select></label>
-                        <label className="full-width">Posto <input value={form.fuel_station || ""} onChange={e => setForm({ ...form, fuel_station: e.target.value })} /></label>
+                        <label className="full-width">Posto <select value={form.fuel_station || ""} onChange={e => setForm({ ...form, fuel_station: e.target.value })}><option value="">Selecione</option>{stations.map((s: any) => <option key={s.id} value={s.name}>{s.name}</option>)}</select></label>
                         <label>Produto <select value={form.product || ""} onChange={e => setForm({ ...form, product: Number(e.target.value) })}>{products.map((p: any) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
                         <label>Litros * <input type="number" step="0.01" required value={form.liters || ""} onChange={e => setForm({ ...form, liters: e.target.value })} /></label>
                         <label>Preço/L * <input type="number" step="0.01" required value={form.price_per_liter || ""} onChange={e => setForm({ ...form, price_per_liter: e.target.value })} /></label>
@@ -204,15 +204,15 @@ const FuelProductsTab = () => {
     const [form, setForm] = useState<Partial<FuelProduct>>({ active: true, unit: "LITER" });
 
     const load = () => {
-        api.get("/fleet/fuel-products/").then(res => setData((res.data as any).results || res.data));
+        api.get("/vehicles/fuel_products/").then(res => setData((res.data as any).results || res.data));
     };
     useEffect(() => { load(); }, []);
 
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
-            if (form.id) await api.patch(`/fleet/fuel-products/${form.id}/`, form);
-            else await api.post("/fleet/fuel-products/", form);
+            if (form.id) await api.patch(`/vehicles/fuel_products/${form.id}/`, form);
+            else await api.post("/vehicles/fuel_products/", form);
             setIsModalOpen(false);
             load();
         } catch (err) { alert("Erro ao salvar."); }
@@ -252,15 +252,15 @@ const FuelRulesTab = ({ vehicles }: any) => {
     const [form, setForm] = useState<Partial<FuelRule>>({ active: true, scope: "MUNICIPALITY", allowed_weekdays: [] });
 
     const load = () => {
-        api.get("/fleet/fuel-rules/").then(res => setData((res.data as any).results || res.data));
+        api.get("/vehicles/fuel_rules/").then(res => setData((res.data as any).results || res.data));
     };
     useEffect(() => { load(); }, []);
 
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
-            if (form.id) await api.patch(`/fleet/fuel-rules/${form.id}/`, form);
-            else await api.post("/fleet/fuel-rules/", form);
+            if (form.id) await api.patch(`/vehicles/fuel_rules/${form.id}/`, form);
+            else await api.post("/vehicles/fuel_rules/", form);
             setIsModalOpen(false);
             load();
         } catch (err) { alert("Erro ao salvar."); }
@@ -305,15 +305,15 @@ const FuelLimitsTab = ({ stations, products }: any) => {
     const [form, setForm] = useState<Partial<FuelLimit>>({ period: "MONTHLY" });
 
     const load = () => {
-        api.get("/fleet/fuel-station-limits/").then(res => setData((res.data as any).results || res.data));
+        api.get("/vehicles/fuel_station_limits/").then(res => setData((res.data as any).results || res.data));
     };
     useEffect(() => { load(); }, []);
 
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
-            if (form.id) await api.patch(`/fleet/fuel-station-limits/${form.id}/`, form);
-            else await api.post("/fleet/fuel-station-limits/", form);
+            if (form.id) await api.patch(`/vehicles/fuel_station_limits/${form.id}/`, form);
+            else await api.post("/vehicles/fuel_station_limits/", form);
             setIsModalOpen(false);
             load();
         } catch (err) { alert("Erro ao salvar."); }
@@ -355,7 +355,7 @@ const FuelInvoicesTab = ({ stations }: any) => {
     const [form, setForm] = useState<Partial<FuelInvoice>>({});
 
     const load = () => {
-        api.get("/fleet/fuel-invoices/").then(res => setData((res.data as any).results || res.data));
+        api.get("/vehicles/fuel_invoices/").then(res => setData((res.data as any).results || res.data));
     };
     useEffect(() => { load(); }, []);
 
@@ -369,8 +369,8 @@ const FuelInvoicesTab = ({ stations }: any) => {
             if (form.total_value) fd.append("total_value", form.total_value);
             // File upload would need a file input handling
 
-            if (form.id) await api.patch(`/fleet/fuel-invoices/${form.id}/`, form); // JSON for patch if no file
-            else await api.post("/fleet/fuel-invoices/", form); // JSON for now
+            if (form.id) await api.patch(`/vehicles/fuel_invoices/${form.id}/`, form); // JSON for patch if no file
+            else await api.post("/vehicles/fuel_invoices/", form); // JSON for now
             setIsModalOpen(false);
             load();
         } catch (err) { alert("Erro ao salvar."); }
@@ -409,7 +409,7 @@ const FuelInvoicesTab = ({ stations }: any) => {
 const FuelAlertsTab = () => {
     const [data, setData] = useState<FuelAlert[]>([]);
     const load = () => {
-        api.get("/fleet/fuel-alerts/").then(res => setData((res.data as any).results || res.data));
+        api.get("/vehicles/fuel_alerts/").then(res => setData((res.data as any).results || res.data));
     };
     useEffect(() => { load(); }, []);
 

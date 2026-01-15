@@ -6,13 +6,13 @@ class PatientSerializer(serializers.ModelSerializer):
     class Meta:
         model = Patient
         fields = "__all__"
-        read_only_fields = ["id", "created_at", "updated_at"]
-        extra_kwargs = {"municipality": {"read_only": True}}
+        read_only_fields = ["id", "created_at", "updated_at", "municipality"]
+        extra_kwargs = {}
 
 
 class CompanionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Companion
         fields = "__all__"
-        read_only_fields = ["id", "created_at", "updated_at"]
-        extra_kwargs = {"municipality": {"read_only": True}}
+        read_only_fields = ["id", "created_at", "updated_at", "municipality"]
+        extra_kwargs = {}

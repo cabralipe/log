@@ -19,7 +19,7 @@ class InventoryPartSerializer(serializers.ModelSerializer):
     class Meta:
         model = InventoryPart
         fields = "__all__"
-        read_only_fields = ["id", "created_at", "updated_at", "average_cost"]
+        read_only_fields = ["id", "created_at", "updated_at", "average_cost", "municipality"]
 
 
 class InventoryMovementSerializer(serializers.ModelSerializer):
@@ -92,10 +92,13 @@ class ServiceOrderSerializer(serializers.ModelSerializer):
         labor_data = validated_data.pop("labor", [])
         user = self.context["request"].user
         vehicle = validated_data["vehicle"]
-        validated_data.setdefault("municipality", vehicle.municipality)
+        # municipality is read_only, so set it explicitly from vehicle
+        validated_data["municipality"] = vehicle.municipality
         validated_data["opened_by"] = user if user.is_authenticated else None
-        validated_data.setdefault("opened_at", timezone.now())
-        validated_data.setdefault("vehicle_odometer_open", vehicle.odometer_current)
+        if "opened_at" not in validated_data:
+            validated_data["opened_at"] = timezone.now()
+        if "vehicle_odometer_open" not in validated_data:
+            validated_data["vehicle_odometer_open"] = vehicle.odometer_current
         order = super().create(validated_data)
         self._sync_items(order, items_data)
         self._sync_labor(order, labor_data)
@@ -133,7 +136,7 @@ class MaintenancePlanSerializer(serializers.ModelSerializer):
     class Meta:
         model = MaintenancePlan
         fields = "__all__"
-        read_only_fields = ["id", "created_at", "updated_at"]
+        read_only_fields = ["id", "created_at", "updated_at", "municipality"]
 
     def create(self, validated_data):
         user = self.context["request"].user
@@ -154,7 +157,7 @@ class TireSerializer(serializers.ModelSerializer):
     class Meta:
         model = Tire
         fields = "__all__"
-        read_only_fields = ["id", "created_at", "updated_at", "total_km", "km_since_last_retread", "retread_count"]
+        read_only_fields = ["id", "created_at", "updated_at", "total_km", "km_since_last_retread", "retread_count", "municipality"]
 
     def create(self, validated_data):
         user = self.context["request"].user
@@ -170,7 +173,7 @@ class VehicleTireSerializer(serializers.ModelSerializer):
     class Meta:
         model = VehicleTire
         fields = "__all__"
-        read_only_fields = ["id", "created_at", "updated_at", "tire_code", "vehicle_plate"]
+        read_only_fields = ["id", "created_at", "updated_at", "tire_code", "vehicle_plate", "municipality"]
 
     def validate(self, attrs):
         user = self.context["request"].user
@@ -187,4 +190,5 @@ class VehicleTireSerializer(serializers.ModelSerializer):
         user = self.context["request"].user
         if user.role != User.Roles.SUPERADMIN:
             validated_data.setdefault("installed_odometer", validated_data["vehicle"].odometer_current)
+            validated_data["municipality"] = user.municipality
         return super().create(validated_data)
