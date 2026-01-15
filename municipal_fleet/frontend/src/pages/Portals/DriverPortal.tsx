@@ -332,6 +332,48 @@ export const DriverPortalPage = () => {
   // Computed values
   const activeTrip = trips.find(t => t.status === "IN_PROGRESS");
   const plannedTripsCount = trips.filter(t => t.status === "PLANNED").length;
+  const handleSosClick = () => {
+    if (!activeTrip) {
+      setError("Sem viagem ativa para solicitar SOS.");
+      return;
+    }
+    setIncidentError(null);
+    setIncidentText("SOS - emergência.");
+    setIncidentTrip(activeTrip);
+    setShowPassengersModal(false);
+  };
+  const renderBottomNav = () => (
+    <nav className="dp-bottom-nav">
+      <button
+        className={`dp-bottom-nav__item ${activeSection === "home" ? "dp-bottom-nav__item--active" : ""}`}
+        onClick={() => setActiveSection("home")}
+      >
+        <span className="material-symbols-outlined">home</span>
+        <span className="dp-bottom-nav__label">Início</span>
+      </button>
+      <button
+        className={`dp-bottom-nav__item ${activeSection === "viagens" ? "dp-bottom-nav__item--active" : ""}`}
+        onClick={() => setActiveSection("viagens")}
+      >
+        <span className="material-symbols-outlined">route</span>
+        <span className="dp-bottom-nav__label">Viagens</span>
+      </button>
+      <button className="dp-bottom-nav__sos" aria-label="Emergência" onClick={handleSosClick}>
+        <span className="material-symbols-outlined">emergency_home</span>
+      </button>
+      <button
+        className={`dp-bottom-nav__item ${activeSection === "agenda" ? "dp-bottom-nav__item--active" : ""}`}
+        onClick={() => setActiveSection("agenda")}
+      >
+        <span className="material-symbols-outlined">calendar_month</span>
+        <span className="dp-bottom-nav__label">Agenda</span>
+      </button>
+      <button className="dp-bottom-nav__item" onClick={logout}>
+        <span className="material-symbols-outlined">logout</span>
+        <span className="dp-bottom-nav__label">Sair</span>
+      </button>
+    </nav>
+  );
 
   // --- Login Screen ---
   if (!token) {
@@ -462,7 +504,7 @@ export const DriverPortalPage = () => {
                 <div className="dp-action-card__icon dp-action-card__icon--purple">
                   <span className="material-symbols-outlined">calendar_month</span>
                 </div>
-                <span className="dp-action-card__label">Escala</span>
+                <span className="dp-action-card__label">Agenda</span>
                 {assignments.length > 0 && (
                   <span className="dp-action-card__badge dp-action-card__badge--count">{assignments.length}</span>
                 )}
@@ -505,28 +547,6 @@ export const DriverPortalPage = () => {
             )}
           </main>
 
-          {/* Bottom Navigation */}
-          <nav className="dp-bottom-nav">
-            <button className="dp-bottom-nav__item dp-bottom-nav__item--active">
-              <span className="material-symbols-outlined">home</span>
-              <span className="dp-bottom-nav__label">Início</span>
-            </button>
-            <button className="dp-bottom-nav__item" onClick={() => setActiveSection("viagens")}>
-              <span className="material-symbols-outlined">directions_bus</span>
-              <span className="dp-bottom-nav__label">Viagens</span>
-            </button>
-            <button className="dp-bottom-nav__sos">
-              <span className="material-symbols-outlined">emergency_home</span>
-            </button>
-            <button className="dp-bottom-nav__item" onClick={() => setActiveSection("agenda")}>
-              <span className="material-symbols-outlined">history</span>
-              <span className="dp-bottom-nav__label">Histórico</span>
-            </button>
-            <button className="dp-bottom-nav__item" onClick={logout}>
-              <span className="material-symbols-outlined">account_circle</span>
-              <span className="dp-bottom-nav__label">Perfil</span>
-            </button>
-          </nav>
         </>
       )}
 
@@ -630,6 +650,7 @@ export const DriverPortalPage = () => {
         onClose={() => setShowPassengersModal(false)}
         trips={trips}
       />
+      {renderBottomNav()}
     </div>
   );
 };
