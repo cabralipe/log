@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { api, driverPortalApi } from "../../lib/api";
 import { InstallPrompt } from "../../components/InstallPrompt";
-import "../../styles/login.css";
 import "./DriverPortal.css";
 
 import {
@@ -332,6 +331,9 @@ export const DriverPortalPage = () => {
   // Computed values
   const activeTrip = trips.find(t => t.status === "IN_PROGRESS");
   const plannedTripsCount = trips.filter(t => t.status === "PLANNED").length;
+  const firstName = driverName?.split(" ")[0] || "Motorista";
+  const todayLabel = new Date().toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long" });
+  const activeTripLabel = activeTrip ? `${activeTrip.origin} → ${activeTrip.destination}` : "Sem viagem ativa";
   const handleSosClick = () => {
     if (!activeTrip) {
       setError("Sem viagem ativa para solicitar SOS.");
@@ -378,28 +380,69 @@ export const DriverPortalPage = () => {
   // --- Login Screen ---
   if (!token) {
     return (
-      <div className="driver-portal" style={{ justifyContent: 'center', alignItems: 'center', padding: '2rem' }}>
-        <div className="dp-glass-card" style={{ maxWidth: '400px', width: '100%' }}>
-          <div className="dp-glass-card__body" style={{ textAlign: 'center' }}>
-            <span className="material-symbols-outlined" style={{ fontSize: '4rem', color: 'var(--dp-primary)', marginBottom: '1rem' }}>local_shipping</span>
-            <h1 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: '0.5rem' }}>Portal do Motorista</h1>
-            <p style={{ color: 'var(--dp-text-muted)', marginBottom: '2rem' }}>Digite seu código de acesso</p>
-            <form onSubmit={handleLogin}>
-              <input
-                className="dp-input dp-input--large"
-                value={code}
-                onChange={(e) => setCode(e.target.value.toUpperCase())}
-                placeholder="CÓDIGO"
-                required
-                style={{ marginBottom: '1rem', letterSpacing: '0.2em' }}
-              />
-              <button type="submit" className="dp-btn dp-btn--primary dp-btn--xl">
-                <span className="material-symbols-outlined">login</span>
-                ENTRAR
-              </button>
-              {error && <div className="dp-alert dp-alert--error" style={{ marginTop: '1rem' }}>{error}</div>}
-            </form>
-          </div>
+      <div className="driver-portal">
+        <div className="dp-login-shell">
+          <section className="dp-login-hero dp-reveal dp-reveal--1">
+            <div className="dp-login-mark">
+              <span className="material-symbols-outlined">local_shipping</span>
+            </div>
+            <p className="dp-chip">Operacao municipal</p>
+            <h1>Portal do Motorista</h1>
+            <p className="dp-login-lead">
+              Tudo o que voce precisa para iniciar o turno, registrar viagens e manter o controle do veiculo.
+            </p>
+            <div className="dp-login-points">
+              <div className="dp-login-point">
+                <span className="material-symbols-outlined">route</span>
+                <div>
+                  <strong>Rotas organizadas</strong>
+                  <span>Veja sua agenda e itinerario em segundos.</span>
+                </div>
+              </div>
+              <div className="dp-login-point">
+                <span className="material-symbols-outlined">fact_check</span>
+                <div>
+                  <strong>Checklist rapido</strong>
+                  <span>Inspecao do veiculo antes da saida.</span>
+                </div>
+              </div>
+              <div className="dp-login-point">
+                <span className="material-symbols-outlined">bolt</span>
+                <div>
+                  <strong>Alertas e suporte</strong>
+                  <span>Acione o SOS e registre incidentes.</span>
+                </div>
+              </div>
+            </div>
+          </section>
+          <section className="dp-login-panel dp-reveal dp-reveal--2">
+            <div className="dp-login-card">
+              <div className="dp-login-card__header">
+                <h2>Acesso rapido</h2>
+                <p>Informe seu codigo para liberar o painel.</p>
+              </div>
+              <form className="dp-login-form" onSubmit={handleLogin}>
+                <label className="dp-form-label" htmlFor="driver-code">Codigo de acesso</label>
+                <input
+                  id="driver-code"
+                  className="dp-input dp-input--xl dp-input--code"
+                  value={code}
+                  onChange={(e) => setCode(e.target.value.toUpperCase())}
+                  placeholder="C O D I G O"
+                  required
+                />
+                <button type="submit" className="dp-btn dp-btn--primary dp-btn--xl">
+                  <span className="material-symbols-outlined">login</span>
+                  Entrar no portal
+                </button>
+                {error && <div className="dp-alert dp-alert--error">{error}</div>}
+              </form>
+              <div className="dp-login-card__footer">
+                <span className="material-symbols-outlined">shield_lock</span>
+                <p>Se precisar de ajuda, contate a central de operacoes.</p>
+              </div>
+            </div>
+          </section>
         </div>
       </div>
     );
@@ -413,226 +456,309 @@ export const DriverPortalPage = () => {
       {/* HOME VIEW */}
       {activeSection === "home" && (
         <>
-          {/* Header */}
-          <header className="dp-header">
-            <div className="dp-header__profile">
-              <div className="dp-header__avatar">
-                <span className="material-symbols-outlined">account_circle</span>
-              </div>
-              <div className="dp-header__info">
-                <span className="dp-header__welcome">Bem-vindo</span>
-                <h2 className="dp-header__name">Olá, {driverName?.split(" ")[0] || "Motorista"}</h2>
-              </div>
-            </div>
-            <button className="dp-header__btn" onClick={logout}>
-              <span className="material-symbols-outlined">logout</span>
-            </button>
-          </header>
-
-          <main className="driver-portal__main">
-            {/* Alerts */}
-            {error && <div className="dp-alert dp-alert--error">{error}</div>}
-            {info && <div className="dp-alert dp-alert--success">{info}</div>}
-
-            {/* Active Trip Banner */}
-            {activeTrip && (
-              <div className="dp-status-banner fade-in">
-                <div className="dp-status-banner__header">
-                  <div>
-                    <div className="dp-status-banner__indicator">
-                      <div className="dp-status-banner__pulse"></div>
-                      <span className="dp-status-banner__status-text">Status: Ativo</span>
-                    </div>
-                    <h3 className="dp-status-banner__title">Viagem em curso</h3>
-                    <p className="dp-status-banner__subtitle">{activeTrip.origin} → {activeTrip.destination}</p>
-                  </div>
-                  <div className="dp-status-banner__icon">
-                    <span className="material-symbols-outlined">local_shipping</span>
-                  </div>
-                </div>
-                <div className="dp-status-banner__footer">
-                  <div>
-                    <span className="dp-status-banner__meta-label">Veículo</span>
-                    <span className="dp-status-banner__meta-value">{activeTrip.vehicle__license_plate}</span>
-                  </div>
-                  <button className="dp-status-banner__action" onClick={() => setActiveSection("viagens")}>
-                    DETALHES
-                    <span className="material-symbols-outlined">arrow_forward</span>
+          <div className="dp-shell">
+            <header className="dp-header dp-reveal dp-reveal--1">
+              <div className="dp-header__brand">
+                <p className="dp-chip">Portal do motorista</p>
+                <h1>Bem-vindo, {firstName}.</h1>
+                <p className="dp-header__lead">Seu painel do turno em tempo real, com foco nas tarefas que importam agora.</p>
+                <div className="dp-header__actions">
+                  <button className="dp-btn dp-btn--ghost" onClick={logout}>
+                    <span className="material-symbols-outlined">logout</span>
+                    Sair
+                  </button>
+                  <button className="dp-btn dp-btn--danger" onClick={handleSosClick}>
+                    <span className="material-symbols-outlined">emergency_home</span>
+                    SOS
                   </button>
                 </div>
               </div>
-            )}
+              <div className="dp-header__meta">
+                <div className="dp-meta-card">
+                  <span>Data</span>
+                  <strong>{todayLabel}</strong>
+                  <small>Horario local</small>
+                </div>
+                <div className={`dp-meta-card ${activeTrip ? "dp-meta-card--active" : ""}`}>
+                  <span>Status da rota</span>
+                  <strong>{activeTrip ? "Viagem em andamento" : "Sem viagem ativa"}</strong>
+                  <small>{activeTripLabel}</small>
+                </div>
+                <div className="dp-meta-card">
+                  <span>GPS</span>
+                  <strong>{trackingEnabled ? "Ativo" : "Desligado"}</strong>
+                  <small>{trackingLastPing ? `Ultimo ping: ${trackingLastPing}` : "Sem envio recente"}</small>
+                  <button className="dp-link" onClick={() => setTrackingEnabled(!trackingEnabled)}>
+                    {trackingEnabled ? "Desativar GPS" : "Ativar GPS"}
+                  </button>
+                </div>
+              </div>
+            </header>
 
-            {/* Action Grid */}
-            <h3 className="dp-section-title">Ações Principais</h3>
-            <div className="dp-action-grid fade-in">
-              <button className="dp-action-card" onClick={() => setActiveSection("viagens")}>
-                <div className="dp-action-card__icon dp-action-card__icon--blue">
+            {error && <div className="dp-alert dp-alert--error">{error}</div>}
+            {info && <div className="dp-alert dp-alert--success">{info}</div>}
+
+            <section className="dp-hero dp-reveal dp-reveal--2">
+              <div className="dp-hero__main">
+                <div className="dp-hero__eyebrow">
+                  <span className="material-symbols-outlined">directions_bus</span>
+                  Viagem em destaque
+                </div>
+                {activeTrip ? (
+                  <>
+                    <h2>{activeTrip.origin} → {activeTrip.destination}</h2>
+                    <p className="dp-hero__text">
+                      Veiculo {activeTrip.vehicle__license_plate}. Mantenha o acompanhamento e registre qualquer incidente.
+                    </p>
+                    <div className="dp-hero__actions">
+                      <button className="dp-btn dp-btn--primary" onClick={() => setActiveSection("viagens")}>
+                        Ver detalhes
+                      </button>
+                      <button className="dp-btn dp-btn--ghost" onClick={() => setShowPassengersModal(true)}>
+                        Passageiros
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <h2>Nenhuma viagem em andamento</h2>
+                    <p className="dp-hero__text">Revise a agenda ou inicie uma viagem livre quando necessario.</p>
+                    <div className="dp-hero__actions">
+                      <button className="dp-btn dp-btn--primary" onClick={() => setActiveSection("agenda")}>
+                        Ver agenda
+                      </button>
+                      <button className="dp-btn dp-btn--ghost" onClick={() => setActiveSection("viagem-livre")}>
+                        Iniciar viagem livre
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+              <div className="dp-hero__side">
+                <div className="dp-status-card">
+                  <div className="dp-status-card__title">GPS e seguranca</div>
+                  <p className="dp-status-card__lead">{trackingEnabled ? "Monitoramento ativo." : "Monitoramento desligado."}</p>
+                  {trackingInfo && <div className="dp-status-card__meta">{trackingInfo}</div>}
+                  {trackingError && <div className="dp-status-card__meta">{trackingError}</div>}
+                  <button className="dp-btn dp-btn--primary" onClick={() => setTrackingEnabled(!trackingEnabled)}>
+                    {trackingEnabled ? "Desativar GPS" : "Ativar GPS"}
+                  </button>
+                </div>
+                <div className="dp-status-card dp-status-card--accent">
+                  <div className="dp-status-card__title">Resumo rapido</div>
+                  <div className="dp-metric-list">
+                    <div>
+                      <span>Viagens planejadas</span>
+                      <strong>{plannedTripsCount}</strong>
+                    </div>
+                    <div>
+                      <span>Compromissos</span>
+                      <strong>{assignments.length}</strong>
+                    </div>
+                    <div>
+                      <span>Viagem livre</span>
+                      <strong>{freeTrips?.open_trip ? "Ativa" : "Nao"}</strong>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <section className="dp-actions-board dp-reveal dp-reveal--3">
+              <div className="dp-actions-board__header">
+                <h3>Acoes rapidas</h3>
+                <p>Atalhos para as rotinas mais usadas.</p>
+              </div>
+              <div className="dp-actions-grid">
+                <button className="dp-action-card" onClick={() => setActiveSection("viagens")}>
                   <span className="material-symbols-outlined">route</span>
-                </div>
-                <span className="dp-action-card__label">Viagens</span>
-                {plannedTripsCount > 0 && (
-                  <span className="dp-action-card__badge dp-action-card__badge--count">{plannedTripsCount}</span>
-                )}
-              </button>
-
-              <button className="dp-action-card" onClick={() => setActiveSection("viagem-livre")}>
-                <div className="dp-action-card__icon dp-action-card__icon--green">
-                  <span className="material-symbols-outlined">add_task</span>
-                </div>
-                <span className="dp-action-card__label">Viagem Livre</span>
-                {freeTrips?.open_trip && (
-                  <span className="dp-action-card__badge dp-action-card__badge--new">ATIVA</span>
-                )}
-              </button>
-
-              <button className="dp-action-card" onClick={() => setActiveSection("abastecimento")}>
-                <div className="dp-action-card__icon dp-action-card__icon--orange">
-                  <span className="material-symbols-outlined">local_gas_station</span>
-                </div>
-                <span className="dp-action-card__label">Abastecer</span>
-              </button>
-
-              <button className="dp-action-card" onClick={() => setActiveSection("inspecao")}>
-                <div className="dp-action-card__icon dp-action-card__icon--yellow">
-                  <span className="material-symbols-outlined">fact_check</span>
-                </div>
-                <span className="dp-action-card__label">Checklist</span>
-              </button>
-
-              <button className="dp-action-card" onClick={() => setActiveSection("agenda")}>
-                <div className="dp-action-card__icon dp-action-card__icon--purple">
+                  <div>
+                    <strong>Viagens</strong>
+                    <span>{plannedTripsCount} planejada(s)</span>
+                  </div>
+                </button>
+                <button className="dp-action-card" onClick={() => setActiveSection("agenda")}>
                   <span className="material-symbols-outlined">calendar_month</span>
-                </div>
-                <span className="dp-action-card__label">Agenda</span>
-                {assignments.length > 0 && (
-                  <span className="dp-action-card__badge dp-action-card__badge--count">{assignments.length}</span>
-                )}
-              </button>
+                  <div>
+                    <strong>Agenda</strong>
+                    <span>{assignments.length} compromisso(s)</span>
+                  </div>
+                </button>
+                <button className="dp-action-card" onClick={() => setActiveSection("abastecimento")}>
+                  <span className="material-symbols-outlined">local_gas_station</span>
+                  <div>
+                    <strong>Abastecer</strong>
+                    <span>Registrar combustivel</span>
+                  </div>
+                </button>
+                <button className="dp-action-card" onClick={() => setActiveSection("inspecao")}>
+                  <span className="material-symbols-outlined">fact_check</span>
+                  <div>
+                    <strong>Checklist</strong>
+                    <span>Inspecao do veiculo</span>
+                  </div>
+                </button>
+                <button className="dp-action-card" onClick={() => setActiveSection("viagem-livre")}>
+                  <span className="material-symbols-outlined">add_task</span>
+                  <div>
+                    <strong>Viagem livre</strong>
+                    <span>{freeTrips?.open_trip ? "Em andamento" : "Iniciar"}</span>
+                  </div>
+                </button>
+              </div>
+            </section>
 
-              <button
-                className="dp-action-card"
-                onClick={() => setTrackingEnabled(!trackingEnabled)}
-              >
-                <div className={`dp-action-card__icon ${trackingEnabled ? 'dp-action-card__icon--green' : 'dp-action-card__icon--cyan'}`}>
-                  <span className="material-symbols-outlined">{trackingEnabled ? 'gps_fixed' : 'explore'}</span>
+            <section className="dp-split dp-reveal dp-reveal--4">
+              <div className="dp-panel">
+                <div className="dp-panel__header">
+                  <h3>Indicadores do turno</h3>
+                  <p>O que esta acontecendo agora.</p>
                 </div>
-                <span className="dp-action-card__label">{trackingEnabled ? 'GPS Ativo' : 'GPS'}</span>
-              </button>
-            </div>
-
-            {/* Recent Updates */}
-            {notifications.length > 0 && (
-              <>
-                <h3 className="dp-section-title">Atualizações Recentes</h3>
-                <div className="dp-updates fade-in">
-                  {notifications.slice(0, 3).map((notif, idx) => (
-                    <div key={idx} className="dp-update-item">
-                      <div className={`dp-update-item__icon dp-update-item__icon--${notif.type === 'success' ? 'success' : 'primary'}`}>
-                        <span className="material-symbols-outlined">
-                          {notif.type === 'success' ? 'check_circle' : 'message'}
+                <div className="dp-kpi-grid">
+                  <div className="dp-kpi-card">
+                    <span>Viagens planejadas</span>
+                    <strong>{plannedTripsCount}</strong>
+                  </div>
+                  <div className="dp-kpi-card">
+                    <span>Escalas na agenda</span>
+                    <strong>{assignments.length}</strong>
+                  </div>
+                  <div className="dp-kpi-card">
+                    <span>Viagem livre</span>
+                    <strong>{freeTrips?.open_trip ? "Ativa" : "Nao"}</strong>
+                  </div>
+                </div>
+              </div>
+              <div className="dp-panel">
+                <div className="dp-panel__header">
+                  <h3>Comunicados recentes</h3>
+                  <p>Atualizacoes das ultimas horas.</p>
+                </div>
+                {notifications.length > 0 ? (
+                  <div className="dp-updates">
+                    {notifications.slice(0, 3).map((notif, idx) => (
+                      <div key={idx} className="dp-update-item">
+                        <div className={`dp-update-item__icon ${notif.type === "success" ? "dp-update-item__icon--success" : ""}`}>
+                          <span className="material-symbols-outlined">
+                            {notif.type === "success" ? "check_circle" : "message"}
+                          </span>
+                        </div>
+                        <div className="dp-update-item__content">
+                          <p className="dp-update-item__title">{notif.title}</p>
+                          <p className="dp-update-item__desc">{notif.message}</p>
+                        </div>
+                        <span className="dp-update-item__time">
+                          {new Date(notif.created_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
                         </span>
                       </div>
-                      <div className="dp-update-item__content">
-                        <p className="dp-update-item__title">{notif.title}</p>
-                        <p className="dp-update-item__desc">{notif.message}</p>
-                      </div>
-                      <span className="dp-update-item__time">
-                        {new Date(notif.created_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </>
-            )}
-          </main>
-
+                    ))}
+                  </div>
+                ) : (
+                  <p className="dp-panel__empty">Sem novas atualizacoes.</p>
+                )}
+              </div>
+            </section>
+          </div>
         </>
       )}
 
       {/* SUB-PAGES */}
       {activeSection !== "home" && (
         <>
-          {/* Sub-page Header */}
-          <header className="dp-subheader">
-            <button className="dp-subheader__back" onClick={() => setActiveSection("home")}>
-              <span className="material-symbols-outlined">chevron_left</span>
-            </button>
-            <h2 className="dp-subheader__title">
-              {activeSection === "viagens" && "Minhas Viagens"}
-              {activeSection === "viagem-livre" && "Viagem Livre"}
-              {activeSection === "abastecimento" && "Abastecer"}
-              {activeSection === "inspecao" && "Inspeção"}
-              {activeSection === "agenda" && "Minha Agenda"}
-            </h2>
-            <div className="dp-subheader__spacer"></div>
-          </header>
+          <div className="dp-shell">
+            <header className="dp-section-head dp-reveal dp-reveal--1">
+              <button className="dp-back" onClick={() => setActiveSection("home")}>
+                <span className="material-symbols-outlined">chevron_left</span>
+                Inicio
+              </button>
+              <div className="dp-section-head__title">
+                <p className="dp-chip">Portal do motorista</p>
+                <h2>
+                  {activeSection === "viagens" && "Minhas viagens"}
+                  {activeSection === "viagem-livre" && "Viagem livre"}
+                  {activeSection === "abastecimento" && "Abastecer"}
+                  {activeSection === "inspecao" && "Inspecao do veiculo"}
+                  {activeSection === "agenda" && "Minha agenda"}
+                </h2>
+                <p>Gestao rapida para o turno de hoje.</p>
+              </div>
+              <div className="dp-section-head__actions">
+                <button className="dp-btn dp-btn--ghost" onClick={logout}>
+                  <span className="material-symbols-outlined">logout</span>
+                  Sair
+                </button>
+                <button className="dp-btn dp-btn--danger" onClick={handleSosClick}>
+                  <span className="material-symbols-outlined">emergency_home</span>
+                  SOS
+                </button>
+              </div>
+            </header>
 
-          <main className="driver-portal__main fade-in">
-            {/* Alerts */}
-            {error && <div className="dp-alert dp-alert--error">{error}</div>}
-            {info && <div className="dp-alert dp-alert--success">{info}</div>}
+            <main className="dp-section-body fade-in">
+              {error && <div className="dp-alert dp-alert--error">{error}</div>}
+              {info && <div className="dp-alert dp-alert--success">{info}</div>}
 
-            {activeSection === "viagens" && (
-              <DriverTrips
-                trips={trips}
-                handleStartTrip={handleStartTrip}
-                handleCompleteTrip={handleCompleteTrip}
-                openIncidentModal={openIncidentModal}
-                setShowPassengersModal={setShowPassengersModal}
-                completingTripIds={completingTripIds}
-              />
-            )}
+              {activeSection === "viagens" && (
+                <DriverTrips
+                  trips={trips}
+                  handleStartTrip={handleStartTrip}
+                  handleCompleteTrip={handleCompleteTrip}
+                  openIncidentModal={openIncidentModal}
+                  setShowPassengersModal={setShowPassengersModal}
+                  completingTripIds={completingTripIds}
+                />
+              )}
 
-            {activeSection === "viagem-livre" && (
-              <DriverFreeTrips
-                freeTrips={freeTrips}
-                freeTripVehicles={freeTripVehicles}
-                freeTripStart={freeTripStart}
-                setFreeTripStart={setFreeTripStart}
-                startFreeTrip={startFreeTrip}
-                freeTripClose={freeTripClose}
-                setFreeTripClose={setFreeTripClose}
-                closeFreeTrip={closeFreeTrip}
-                reportFreeTripIncident={reportFreeTripIncident}
-                freeTripError={freeTripError}
-                loadFreeTrips={loadFreeTrips}
-                loadPortalVehicles={loadPortalVehicles}
-              />
-            )}
+              {activeSection === "viagem-livre" && (
+                <DriverFreeTrips
+                  freeTrips={freeTrips}
+                  freeTripVehicles={freeTripVehicles}
+                  freeTripStart={freeTripStart}
+                  setFreeTripStart={setFreeTripStart}
+                  startFreeTrip={startFreeTrip}
+                  freeTripClose={freeTripClose}
+                  setFreeTripClose={setFreeTripClose}
+                  closeFreeTrip={closeFreeTrip}
+                  reportFreeTripIncident={reportFreeTripIncident}
+                  freeTripError={freeTripError}
+                  loadFreeTrips={loadFreeTrips}
+                  loadPortalVehicles={loadPortalVehicles}
+                />
+              )}
 
-            {activeSection === "abastecimento" && (
-              <DriverFuel
-                fuelLogs={fuelLogs}
-                fuelForm={fuelForm}
-                setFuelForm={setFuelForm}
-                handleFuelSubmit={handleFuelSubmit}
-                availableVehicles={availableVehicles}
-                stations={stations}
-              />
-            )}
+              {activeSection === "abastecimento" && (
+                <DriverFuel
+                  fuelLogs={fuelLogs}
+                  fuelForm={fuelForm}
+                  setFuelForm={setFuelForm}
+                  handleFuelSubmit={handleFuelSubmit}
+                  availableVehicles={availableVehicles}
+                  stations={stations}
+                />
+              )}
 
-            {activeSection === "inspecao" && (
-              <DriverInspection
-                inspections={inspections}
-                inspectionForm={inspectionForm}
-                setInspectionForm={setInspectionForm}
-                inspectionChecklist={inspectionChecklist}
-                updateChecklistStatus={updateChecklistStatus}
-                updateChecklistNote={updateChecklistNote}
-                handleInspectionSubmit={handleInspectionSubmit}
-                availableVehicles={availableVehicles}
-              />
-            )}
+              {activeSection === "inspecao" && (
+                <DriverInspection
+                  inspections={inspections}
+                  inspectionForm={inspectionForm}
+                  setInspectionForm={setInspectionForm}
+                  inspectionChecklist={inspectionChecklist}
+                  updateChecklistStatus={updateChecklistStatus}
+                  updateChecklistNote={updateChecklistNote}
+                  handleInspectionSubmit={handleInspectionSubmit}
+                  availableVehicles={availableVehicles}
+                />
+              )}
 
-            {activeSection === "agenda" && (
-              <DriverSchedule
-                assignments={assignments}
-                availabilityBlocks={availabilityBlocks}
-                loadAvailabilityBlocks={loadAvailabilityBlocks}
-              />
-            )}
-          </main>
+              {activeSection === "agenda" && (
+                <DriverSchedule
+                  assignments={assignments}
+                  availabilityBlocks={availabilityBlocks}
+                  loadAvailabilityBlocks={loadAvailabilityBlocks}
+                />
+              )}
+            </main>
+          </div>
         </>
       )}
 
