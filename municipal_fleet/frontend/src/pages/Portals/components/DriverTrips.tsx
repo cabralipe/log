@@ -37,97 +37,82 @@ export const DriverTrips: React.FC<DriverTripsProps> = ({
         <div className="dp-trips fade-in">
             {/* Active Trip Section */}
             {activeTrip && (
-                <>
-                    <div style={{ padding: '0 1rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                        <h3 style={{ fontSize: '1.1rem', fontWeight: 700 }}>Viagem Ativa</h3>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+                <div className="dp-trip-section">
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
+                        <h3 style={{ fontSize: '1.25rem', fontWeight: 700 }}>Viagem Ativa</h3>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                             <span className="dp-trips__live-dot"></span>
-                            <span style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--dp-success)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Ao Vivo</span>
+                            <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--dp-accent)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Ao Vivo</span>
                         </div>
                     </div>
 
-                    <div className="dp-trip-card" style={{ borderColor: 'rgba(34, 197, 94, 0.3)' }}>
-                        <div className="dp-trip-card__body">
-                            <div className="dp-trip-card__route">
-                                <span>{activeTrip.origin}</span>
-                                <span className="material-symbols-outlined">trending_flat</span>
-                                <span>{activeTrip.destination}</span>
+                    <div className="dp-trip-card" style={{ borderLeft: '4px solid var(--dp-accent)' }}>
+                        <div className="dp-trip-card__route">
+                            <span>{activeTrip.origin}</span>
+                            <span className="material-symbols-outlined" style={{ color: 'var(--dp-accent)' }}>trending_flat</span>
+                            <span>{activeTrip.destination}</span>
+                        </div>
+                        <div className="dp-trip-card__meta">
+                            <div className="dp-trip-card__meta-item">
+                                <span className="material-symbols-outlined">local_shipping</span>
+                                <span>{activeTrip.vehicle__license_plate}</span>
                             </div>
-                            <div className="dp-trip-card__meta">
-                                <div className="dp-trip-card__meta-item">
-                                    <span className="material-symbols-outlined" style={{ fontSize: '1rem' }}>local_shipping</span>
-                                    <span>{activeTrip.vehicle__license_plate}</span>
-                                </div>
-                                <div className="dp-trip-card__meta-item">
-                                    <span className="material-symbols-outlined" style={{ fontSize: '1rem' }}>schedule</span>
-                                    <span>{formatDateTime(activeTrip.departure_datetime)}</span>
-                                </div>
-                            </div>
-                            <div className="dp-trip-card__actions">
-                                <button
-                                    className="dp-btn dp-btn--primary"
-                                    onClick={() => handleCompleteTrip(activeTrip.id)}
-                                    disabled={completingTripIds.includes(activeTrip.id)}
-                                >
-                                    <span className="material-symbols-outlined">check_circle</span>
-                                    {completingTripIds.includes(activeTrip.id) ? "Finalizando..." : "Finalizar Viagem"}
-                                </button>
-                                <button
-                                    className="dp-btn dp-btn--danger"
-                                    onClick={() => openIncidentModal(activeTrip)}
-                                >
-                                    <span className="material-symbols-outlined">report_problem</span>
-                                    Incidente
-                                </button>
+                            <div className="dp-trip-card__meta-item">
+                                <span className="material-symbols-outlined">schedule</span>
+                                <span>{formatDateTime(activeTrip.departure_datetime)}</span>
                             </div>
                         </div>
+                        <div className="dp-trip-card__actions">
+                            <button
+                                className="dp-btn dp-btn--primary"
+                                onClick={() => handleCompleteTrip(activeTrip.id)}
+                                disabled={completingTripIds.includes(activeTrip.id)}
+                                style={{ flex: 1 }}
+                            >
+                                <span className="material-symbols-outlined">check_circle</span>
+                                {completingTripIds.includes(activeTrip.id) ? "Finalizando..." : "Finalizar"}
+                            </button>
+                            <button
+                                className="dp-btn dp-btn--danger"
+                                onClick={() => openIncidentModal(activeTrip)}
+                            >
+                                <span className="material-symbols-outlined">report_problem</span>
+                                Incidente
+                            </button>
+                        </div>
                     </div>
-                </>
+                </div>
             )}
 
             {/* Planned Trips Section */}
             {plannedTrips.length > 0 && (
-                <>
-                    <div style={{ padding: '1.5rem 1rem 0.5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <h3 style={{ fontSize: '1.1rem', fontWeight: 700 }}>Próximas Viagens</h3>
-                        <span style={{
-                            fontSize: '0.65rem',
-                            fontWeight: 700,
-                            background: 'var(--dp-card-dark)',
-                            padding: '0.25rem 0.5rem',
-                            borderRadius: '9999px',
-                            textTransform: 'uppercase',
-                            letterSpacing: '0.1em',
-                            color: 'var(--dp-text-muted)'
-                        }}>
-                            {plannedTrips.length} restante{plannedTrips.length > 1 ? 's' : ''}
-                        </span>
+                <div className="dp-trip-section">
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
+                        <h3 style={{ fontSize: '1.25rem', fontWeight: 700 }}>Próximas Viagens</h3>
+                        <span className="dp-chip">{plannedTrips.length} restante{plannedTrips.length > 1 ? 's' : ''}</span>
                     </div>
 
-                    {plannedTrips.map((trip) => (
-                        <div key={trip.id} className="dp-trip-card">
-                            <div className="dp-trip-card__body">
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
-                                    <div>
-                                        <div className="dp-trip-card__route" style={{ marginBottom: '0.5rem' }}>
-                                            <span>{trip.origin}</span>
-                                            <span className="material-symbols-outlined" style={{ color: 'var(--dp-text-muted)' }}>arrow_forward</span>
-                                            <span>{trip.destination}</span>
-                                        </div>
-                                        <div className="dp-trip-card__meta">
-                                            <div className="dp-trip-card__meta-item">
-                                                <span>{trip.vehicle__license_plate}</span>
-                                                <span style={{ width: '4px', height: '4px', borderRadius: '50%', background: 'var(--dp-text-muted)' }}></span>
-                                                <span>{formatDateTime(trip.departure_datetime)}</span>
-                                            </div>
-                                        </div>
+                    <div style={{ display: 'grid', gap: '1rem' }}>
+                        {plannedTrips.map((trip) => (
+                            <div key={trip.id} className="dp-trip-card">
+                                <div className="dp-trip-card__route">
+                                    <span>{trip.origin}</span>
+                                    <span className="material-symbols-outlined" style={{ color: 'var(--dp-muted)' }}>arrow_forward</span>
+                                    <span>{trip.destination}</span>
+                                </div>
+                                <div className="dp-trip-card__meta">
+                                    <div className="dp-trip-card__meta-item">
+                                        <span className="material-symbols-outlined">local_shipping</span>
+                                        <span>{trip.vehicle__license_plate}</span>
                                     </div>
-                                    <div style={{ background: 'var(--dp-card-glass)', padding: '0.5rem', borderRadius: 'var(--dp-radius)' }}>
-                                        <span className="material-symbols-outlined" style={{ color: 'var(--dp-text-muted)' }}>calendar_month</span>
+                                    <div className="dp-trip-card__meta-item">
+                                        <span className="material-symbols-outlined">schedule</span>
+                                        <span>{formatDateTime(trip.departure_datetime)}</span>
                                     </div>
                                 </div>
                                 <button
-                                    className="dp-btn dp-btn--success"
+                                    className="dp-btn dp-btn--ghost"
+                                    style={{ width: '100%', justifyContent: 'center' }}
                                     onClick={() => handleStartTrip(trip.id)}
                                     disabled={completingTripIds.includes(trip.id)}
                                 >
@@ -135,17 +120,17 @@ export const DriverTrips: React.FC<DriverTripsProps> = ({
                                     {completingTripIds.includes(trip.id) ? "Iniciando..." : "Iniciar Viagem"}
                                 </button>
                             </div>
-                        </div>
-                    ))}
-                </>
+                        ))}
+                    </div>
+                </div>
             )}
 
             {/* Empty State */}
             {sortedTrips.length === 0 && (
-                <div style={{ textAlign: 'center', padding: '3rem 1rem', color: 'var(--dp-text-muted)' }}>
-                    <span className="material-symbols-outlined" style={{ fontSize: '4rem', marginBottom: '1rem', display: 'block', opacity: 0.5 }}>route</span>
-                    <p style={{ fontSize: '1.1rem', fontWeight: 600 }}>Nenhuma viagem encontrada</p>
-                    <p style={{ fontSize: '0.875rem' }}>Suas viagens aparecerão aqui</p>
+                <div style={{ textAlign: 'center', padding: '4rem 2rem', color: 'var(--dp-muted)' }}>
+                    <span className="material-symbols-outlined" style={{ fontSize: '4rem', marginBottom: '1rem', opacity: 0.3 }}>route</span>
+                    <h3 style={{ marginBottom: '0.5rem' }}>Nenhuma viagem encontrada</h3>
+                    <p>Suas viagens planejadas aparecerão aqui.</p>
                 </div>
             )}
         </div>

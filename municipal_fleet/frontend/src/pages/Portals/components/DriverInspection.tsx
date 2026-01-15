@@ -127,46 +127,45 @@ export const DriverInspection: React.FC<DriverInspectionProps> = ({
         <div className="dp-inspection fade-in">
             <form onSubmit={onSubmit}>
                 {/* Vehicle & Odometer Card */}
-                <div className="dp-glass-card" style={{ margin: '1rem' }}>
-                    <div className="dp-glass-card__body">
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                            <div>
-                                <span style={{ fontSize: '0.6rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.15em', color: 'var(--dp-text-muted)' }}>Veículo Selecionado</span>
-                                <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--dp-primary)', margin: '0.25rem 0 0' }}>
-                                    {inspectionForm.vehicle ? availableVehicles.find(v => v.id === inspectionForm.vehicle)?.plate || 'Selecione' : 'Selecione o veículo'}
-                                </h3>
-                            </div>
-                            <div style={{ background: 'rgba(40, 122, 246, 0.2)', padding: '0.75rem', borderRadius: 'var(--dp-radius)' }}>
-                                <span className="material-symbols-outlined" style={{ fontSize: '2rem', color: 'var(--dp-primary)' }}>local_shipping</span>
-                            </div>
+                <div className="dp-glass-card">
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                        <div>
+                            <p style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--dp-muted)', textTransform: 'uppercase', margin: 0 }}>Veículo</p>
+                            <h3 style={{ fontSize: '1.5rem', fontWeight: 700, color: 'var(--dp-accent)', margin: 0 }}>
+                                {inspectionForm.vehicle ? availableVehicles.find(v => v.id === inspectionForm.vehicle)?.plate || 'Selecione' : 'Selecione'}
+                            </h3>
                         </div>
-
-                        <div className="dp-form-group" style={{ marginBottom: '1rem' }}>
-                            <select
-                                className="dp-select"
-                                value={inspectionForm.vehicle}
-                                onChange={(e) => setInspectionForm((prev) => ({ ...prev, vehicle: Number(e.target.value) }))}
-                                required
-                            >
-                                <option value="">Selecionar Veículo</option>
-                                {availableVehicles.map((v) => (
-                                    <option key={v.id} value={v.id}>{v.plate}</option>
-                                ))}
-                            </select>
+                        <div style={{ background: 'rgba(74, 222, 128, 0.1)', padding: '0.75rem', borderRadius: '12px' }}>
+                            <span className="material-symbols-outlined" style={{ fontSize: '2rem', color: 'var(--dp-accent)' }}>local_shipping</span>
                         </div>
+                    </div>
 
-                        <div className="dp-form-group" style={{ marginBottom: 0 }}>
-                            <label className="dp-form-label">Odômetro Atual (km)</label>
-                            <div style={{ position: 'relative' }}>
-                                <input
-                                    type="number"
-                                    className="dp-input dp-input--large"
-                                    placeholder="000.000"
-                                    value={inspectionForm.odometer}
-                                    onChange={(e) => setInspectionForm((prev) => ({ ...prev, odometer: e.target.value }))}
-                                />
-                                <span style={{ position: 'absolute', right: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--dp-text-muted)', fontWeight: 700 }}>KM</span>
-                            </div>
+                    <div className="dp-form-group">
+                        <select
+                            className="dp-input"
+                            value={inspectionForm.vehicle}
+                            onChange={(e) => setInspectionForm((prev) => ({ ...prev, vehicle: Number(e.target.value) }))}
+                            required
+                        >
+                            <option value="">Trocar Veículo</option>
+                            {availableVehicles.map((v) => (
+                                <option key={v.id} value={v.id}>{v.plate}</option>
+                            ))}
+                        </select>
+                    </div>
+
+                    <div className="dp-form-group" style={{ marginTop: '1rem' }}>
+                        <label className="dp-form-label">Odômetro Atual (km)</label>
+                        <div style={{ position: 'relative' }}>
+                            <input
+                                type="number"
+                                className="dp-input"
+                                style={{ fontSize: '1.25rem' }}
+                                placeholder="000.000"
+                                value={inspectionForm.odometer}
+                                onChange={(e) => setInspectionForm((prev) => ({ ...prev, odometer: e.target.value }))}
+                            />
+                            <span style={{ position: 'absolute', right: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--dp-muted)', fontWeight: 700 }}>KM</span>
                         </div>
                     </div>
                 </div>
@@ -180,7 +179,6 @@ export const DriverInspection: React.FC<DriverInspectionProps> = ({
                         (category.key === 'seguranca' && ['extintor', 'epi', 'cinto', 'triangulo'].some(k => item.key.toLowerCase().includes(k)))
                     );
 
-                    // If no specific items match, just show all remaining
                     const displayItems = items.length > 0 ? items :
                         category.key === 'exterior' ? inspectionChecklist.slice(0, Math.ceil(inspectionChecklist.length / 3)) :
                             category.key === 'mecanica' ? inspectionChecklist.slice(Math.ceil(inspectionChecklist.length / 3), Math.ceil(inspectionChecklist.length * 2 / 3)) :
@@ -189,7 +187,7 @@ export const DriverInspection: React.FC<DriverInspectionProps> = ({
                     return (
                         <div key={category.key} className="dp-checklist-section">
                             <div className="dp-checklist-section__header">
-                                <span className="material-symbols-outlined">{category.icon}</span>
+                                <span className="material-symbols-outlined" style={{ color: 'var(--dp-accent)' }}>{category.icon}</span>
                                 <h4 className="dp-checklist-section__title">{category.label}</h4>
                             </div>
 
@@ -201,13 +199,8 @@ export const DriverInspection: React.FC<DriverInspectionProps> = ({
                                     <div className="dp-checklist-item__header">
                                         <span className="dp-checklist-item__name">{item.label}</span>
                                         {item.status === 'ISSUE' && (
-                                            <div className="dp-checklist-item__actions">
-                                                <button type="button" className="dp-checklist-item__action-btn">
-                                                    <span className="material-symbols-outlined">add_a_photo</span>
-                                                </button>
-                                                <button type="button" className="dp-checklist-item__action-btn">
-                                                    <span className="material-symbols-outlined">edit_note</span>
-                                                </button>
+                                            <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                                <span className="material-symbols-outlined" style={{ color: 'var(--dp-danger)', fontSize: '1.25rem' }}>warning</span>
                                             </div>
                                         )}
                                     </div>
@@ -233,7 +226,7 @@ export const DriverInspection: React.FC<DriverInspectionProps> = ({
                                         <input
                                             type="text"
                                             className="dp-input"
-                                            style={{ marginTop: '0.75rem', height: '48px' }}
+                                            style={{ marginTop: '1rem' }}
                                             placeholder="Descreva o problema..."
                                             value={item.note || ''}
                                             onChange={(e) => updateChecklistNote(item.key, e.target.value)}
@@ -246,13 +239,13 @@ export const DriverInspection: React.FC<DriverInspectionProps> = ({
                 })}
 
                 {/* Signature Section */}
-                <div style={{ padding: '0 1rem', marginTop: '1.5rem' }}>
+                <div className="dp-glass-card">
                     <div className="dp-form-group">
-                        <label className="dp-form-label">Nome (Assinatura)</label>
+                        <label className="dp-form-label">Nome Completo</label>
                         <input
                             type="text"
                             className="dp-input"
-                            placeholder="Seu nome completo"
+                            placeholder="Nome do motorista"
                             value={inspectionForm.signature_name}
                             onChange={(e) => setInspectionForm((prev) => ({ ...prev, signature_name: e.target.value }))}
                             required
@@ -262,8 +255,8 @@ export const DriverInspection: React.FC<DriverInspectionProps> = ({
                     <div className="dp-signature-pad">
                         <div className="dp-signature-pad__header">
                             <span style={{ fontSize: '0.875rem', fontWeight: 600 }}>Assinatura Digital</span>
-                            <button type="button" className="dp-signature-pad__clear" onClick={clearSignature}>
-                                <span className="material-symbols-outlined">refresh</span>
+                            <button type="button" className="dp-btn dp-btn--ghost" style={{ padding: '0.25rem 0.75rem', fontSize: '0.75rem' }} onClick={clearSignature}>
+                                <span className="material-symbols-outlined" style={{ fontSize: '1rem' }}>refresh</span>
                                 Limpar
                             </button>
                         </div>
@@ -284,9 +277,9 @@ export const DriverInspection: React.FC<DriverInspectionProps> = ({
 
                 {/* Submit Button */}
                 <div className="dp-bottom-action">
-                    <button type="submit" className="dp-btn dp-btn--success dp-btn--xl">
-                        <span className="material-symbols-outlined" style={{ fontSize: '2rem' }}>draw</span>
-                        Assinar e Enviar
+                    <button type="submit" className="dp-btn dp-btn--primary" style={{ width: '100%', padding: '1.25rem', fontSize: '1.1rem' }}>
+                        <span className="material-symbols-outlined">draw</span>
+                        ENVIAR INSPEÇÃO
                     </button>
                 </div>
             </form>

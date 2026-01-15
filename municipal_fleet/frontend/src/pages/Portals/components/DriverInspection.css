@@ -1,15 +1,102 @@
-/* DriverInspection.css */
-
 .dp-inspection {
+    display: grid;
+    gap: 1.5rem;
     padding-bottom: 6rem;
 }
 
-/* Signature Pad */
-.dp-signature-pad {
-    background: var(--dp-card-dark);
+.dp-checklist-section {
+    margin-bottom: 2rem;
+}
+
+.dp-checklist-section__header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+    padding: 0 0.5rem;
+}
+
+.dp-checklist-section__title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin: 0;
+}
+
+.dp-checklist-item {
+    background: var(--dp-card);
+    backdrop-filter: blur(12px);
     border: 1px solid var(--dp-border);
-    border-radius: var(--dp-radius-xl);
+    border-radius: var(--dp-radius);
+    padding: 1.25rem;
+    margin-bottom: 1rem;
+    transition: all 0.2s ease;
+}
+
+.dp-checklist-item--issue {
+    border-color: rgba(239, 68, 68, 0.3);
+}
+
+.dp-checklist-item__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.dp-checklist-item__name {
+    font-weight: 600;
+    font-size: 1rem;
+}
+
+.dp-checklist-item__buttons {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+}
+
+.dp-checklist-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.75rem;
+    border-radius: 12px;
+    font-weight: 600;
+    font-size: 0.9rem;
+    transition: all 0.2s ease;
+    border: 1px solid transparent;
+}
+
+.dp-checklist-btn--ok {
+    background: rgba(74, 222, 128, 0.1);
+    color: var(--dp-accent);
+    border-color: rgba(74, 222, 128, 0.2);
+}
+
+.dp-checklist-btn--ok-inactive {
+    background: rgba(255, 255, 255, 0.03);
+    color: var(--dp-muted);
+}
+
+.dp-checklist-btn--issue {
+    background: rgba(239, 68, 68, 0.1);
+    color: var(--dp-danger);
+    border-color: rgba(239, 68, 68, 0.2);
+}
+
+.dp-checklist-btn--issue-inactive {
+    background: rgba(255, 255, 255, 0.03);
+    color: var(--dp-muted);
+}
+
+.dp-signature-pad {
+    background: var(--dp-card);
+    border: 1px solid var(--dp-border);
+    border-radius: var(--dp-radius);
     overflow: hidden;
+    margin-top: 1rem;
 }
 
 .dp-signature-pad__header {
@@ -20,33 +107,16 @@
     border-bottom: 1px solid var(--dp-border);
 }
 
-.dp-signature-pad__clear {
-    display: flex;
-    align-items: center;
-    gap: 0.25rem;
-    background: none;
-    border: none;
-    color: var(--dp-primary);
-    font-size: 0.75rem;
-    font-weight: 600;
-    cursor: pointer;
-}
-
-.dp-signature-pad__clear .material-symbols-outlined {
-    font-size: 1rem;
-}
-
 .dp-signature-pad__canvas-container {
     position: relative;
-    height: 150px;
-    background: rgba(0, 0, 0, 0.3);
+    height: 180px;
+    background: rgba(0, 0, 0, 0.2);
 }
 
 .dp-signature-pad__canvas-container canvas {
     width: 100%;
     height: 100%;
     touch-action: none;
-    cursor: crosshair;
 }
 
 .dp-signature-pad__hint {
@@ -54,7 +124,8 @@
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    color: var(--dp-text-muted);
-    font-size: 0.875rem;
+    color: var(--dp-muted);
+    font-size: 0.9rem;
     pointer-events: none;
+    opacity: 0.5;
 }

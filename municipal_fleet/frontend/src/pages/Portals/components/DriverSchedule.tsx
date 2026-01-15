@@ -79,13 +79,13 @@ export const DriverSchedule: React.FC<DriverScheduleProps> = ({
             </div>
 
             {/* Assignments for selected day */}
-            <div style={{ padding: '1rem' }}>
-                <h3 className="dp-section-title" style={{ padding: '0 0 0.75rem' }}>Escalas do Dia</h3>
+            <div style={{ padding: '0 1rem' }}>
+                <h3 className="dp-section-title" style={{ padding: '0 0 1rem' }}>Escalas do Dia</h3>
 
                 {selectedDayAssignments.length === 0 ? (
-                    <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--dp-text-muted)' }}>
-                        <span className="material-symbols-outlined" style={{ fontSize: '3rem', display: 'block', marginBottom: '0.5rem', opacity: 0.5 }}>event_available</span>
-                        <p>Nenhuma escala para este dia</p>
+                    <div className="dp-glass-card" style={{ textAlign: 'center', padding: '3rem 1rem' }}>
+                        <span className="material-symbols-outlined" style={{ fontSize: '3rem', color: 'var(--dp-muted)', marginBottom: '1rem', display: 'block' }}>event_available</span>
+                        <p style={{ color: 'var(--dp-muted)', fontWeight: 500 }}>Nenhuma escala para este dia</p>
                     </div>
                 ) : (
                     <div className="dp-timeline">
@@ -97,41 +97,40 @@ export const DriverSchedule: React.FC<DriverScheduleProps> = ({
                                     </div>
                                 </div>
                                 <div className="dp-timeline__content">
-                                    <div className="dp-glass-card" style={{ margin: 0 }}>
-                                        <div className="dp-glass-card__body">
-                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
-                                                <div>
-                                                    <span className={`dp-timeline__status ${assignment.status === 'CONFIRMED' ? 'dp-timeline__status--confirmed' : ''}`}>
-                                                        {assignmentStatusLabel(assignment.status)}
-                                                    </span>
-                                                    <p style={{ fontSize: '1.25rem', fontWeight: 700, color: 'white', margin: '0.25rem 0 0' }}>
-                                                        {formatPeriod(assignment)}
-                                                    </p>
-                                                </div>
-                                                <div style={{
-                                                    background: 'var(--dp-card-dark)',
-                                                    padding: '0.5rem 0.75rem',
-                                                    borderRadius: 'var(--dp-radius)',
-                                                    fontFamily: 'monospace',
-                                                    fontWeight: 700,
-                                                    fontSize: '0.875rem',
-                                                    border: '1px solid var(--dp-border)'
-                                                }}>
-                                                    {assignment.vehicle.license_plate}
-                                                </div>
+                                    <div className="dp-glass-card" style={{ padding: '1.25rem' }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
+                                            <div>
+                                                <span className={`dp-timeline__status ${assignment.status === 'CONFIRMED' ? 'dp-timeline__status--confirmed' : ''}`}>
+                                                    {assignmentStatusLabel(assignment.status)}
+                                                </span>
+                                                <p style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--dp-text)', margin: '0.5rem 0 0' }}>
+                                                    {formatPeriod(assignment)}
+                                                </p>
                                             </div>
-                                            <div style={{ marginBottom: '0.75rem' }}>
-                                                <p style={{ fontWeight: 500, color: 'var(--dp-text-muted)' }}>{assignment.route.name}</p>
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', color: 'var(--dp-text-muted)', fontSize: '0.875rem', marginTop: '0.25rem' }}>
-                                                    <span className="material-symbols-outlined" style={{ fontSize: '1rem' }}>location_on</span>
-                                                    <span>{assignment.route.code}</span>
-                                                </div>
+                                            <div style={{
+                                                background: 'rgba(255, 255, 255, 0.05)',
+                                                padding: '0.4rem 0.75rem',
+                                                borderRadius: '8px',
+                                                fontFamily: 'monospace',
+                                                fontWeight: 700,
+                                                fontSize: '0.9rem',
+                                                border: '1px solid rgba(255, 255, 255, 0.1)',
+                                                color: 'var(--dp-accent)'
+                                            }}>
+                                                {assignment.vehicle.license_plate}
                                             </div>
-                                            <button className="dp-btn dp-btn--ghost" style={{ height: '40px', fontSize: '0.875rem' }}>
-                                                Ver Detalhes
-                                                <span className="material-symbols-outlined" style={{ fontSize: '1rem' }}>chevron_right</span>
-                                            </button>
                                         </div>
+                                        <div style={{ marginBottom: '1rem' }}>
+                                            <p style={{ fontWeight: 600, color: 'var(--dp-text)', fontSize: '1rem', margin: 0 }}>{assignment.route.name}</p>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--dp-muted)', fontSize: '0.85rem', marginTop: '0.4rem' }}>
+                                                <span className="material-symbols-outlined" style={{ fontSize: '1.1rem' }}>location_on</span>
+                                                <span>{assignment.route.code}</span>
+                                            </div>
+                                        </div>
+                                        <button className="dp-btn dp-btn--ghost" style={{ width: '100%', justifyContent: 'center' }}>
+                                            Ver Detalhes
+                                            <span className="material-symbols-outlined">chevron_right</span>
+                                        </button>
                                     </div>
                                 </div>
                             </div>
@@ -141,32 +140,45 @@ export const DriverSchedule: React.FC<DriverScheduleProps> = ({
             </div>
 
             {/* Availability Section */}
-            <div style={{ padding: '0 1rem', marginTop: '1rem' }}>
-                <h3 style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: '0.5rem' }}>Disponibilidade</h3>
-                <p style={{ color: 'var(--dp-text-muted)', fontSize: '0.875rem', marginBottom: '1rem' }}>
-                    Gerencie seus dias de folga e plantão.
-                </p>
+            <div style={{ padding: '0 1rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                    <h3 className="dp-section-title" style={{ padding: 0 }}>Disponibilidade</h3>
+                    <button className="dp-btn dp-btn--ghost" style={{ padding: '0.5rem' }}>
+                        <span className="material-symbols-outlined" style={{ margin: 0 }}>add</span>
+                    </button>
+                </div>
 
                 {sortedBlocks.length > 0 ? (
-                    <div className="dp-updates">
+                    <div style={{ display: 'grid', gap: '0.75rem' }}>
                         {sortedBlocks.map((block) => (
-                            <div key={block.id} className="dp-update-item">
-                                <div className={`dp-update-item__icon ${block.is_current ? 'dp-update-item__icon--success' : 'dp-update-item__icon--primary'}`}>
+                            <div key={block.id} className="dp-glass-card" style={{ padding: '1rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                                <div style={{
+                                    width: '44px',
+                                    height: '44px',
+                                    borderRadius: '12px',
+                                    background: block.is_current ? 'rgba(74, 222, 128, 0.1)' : 'rgba(255, 255, 255, 0.05)',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    color: block.is_current ? 'var(--dp-accent)' : 'var(--dp-muted)',
+                                    border: '1px solid rgba(255, 255, 255, 0.05)'
+                                }}>
                                     <span className="material-symbols-outlined">{block.is_current ? 'event_busy' : 'schedule'}</span>
                                 </div>
-                                <div className="dp-update-item__content">
-                                    <p className="dp-update-item__title">{block.type_label}</p>
-                                    <p className="dp-update-item__desc">{formatBlockPeriod(block.start_datetime, block.end_datetime)}</p>
+                                <div style={{ flex: 1 }}>
+                                    <p style={{ fontWeight: 700, margin: 0, fontSize: '0.95rem' }}>{block.type_label}</p>
+                                    <p style={{ fontSize: '0.8rem', color: 'var(--dp-muted)', margin: '0.2rem 0 0' }}>{formatBlockPeriod(block.start_datetime, block.end_datetime)}</p>
                                 </div>
                                 <span style={{
-                                    fontSize: '0.6rem',
-                                    fontWeight: 700,
-                                    padding: '0.25rem 0.5rem',
-                                    borderRadius: '9999px',
-                                    background: block.is_current ? 'rgba(34, 197, 94, 0.15)' : 'rgba(40, 122, 246, 0.15)',
-                                    color: block.is_current ? 'var(--dp-success)' : 'var(--dp-primary)',
+                                    fontSize: '0.65rem',
+                                    fontWeight: 800,
+                                    padding: '0.25rem 0.6rem',
+                                    borderRadius: '6px',
+                                    background: block.is_current ? 'rgba(74, 222, 128, 0.1)' : 'rgba(255, 255, 255, 0.05)',
+                                    color: block.is_current ? 'var(--dp-accent)' : 'var(--dp-muted)',
                                     textTransform: 'uppercase',
-                                    letterSpacing: '0.05em'
+                                    letterSpacing: '0.05em',
+                                    border: '1px solid rgba(255, 255, 255, 0.05)'
                                 }}>
                                     {block.is_current ? 'Ativo' : 'Agendado'}
                                 </span>
@@ -174,31 +186,18 @@ export const DriverSchedule: React.FC<DriverScheduleProps> = ({
                         ))}
                     </div>
                 ) : (
-                    <div className="dp-glass-card" style={{ margin: 0, marginBottom: '2rem' }}>
-                        <div className="dp-glass-card__body" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                            <div>
-                                <p style={{ fontWeight: 700, marginBottom: '0.25rem' }}>Sinalizar Folga</p>
-                                <p style={{ fontSize: '0.875rem', color: 'var(--dp-text-muted)' }}>Nenhum bloqueio ativo</p>
-                            </div>
-                            <button
-                                type="button"
-                                style={{
-                                    width: '48px',
-                                    height: '48px',
-                                    borderRadius: 'var(--dp-radius)',
-                                    background: 'var(--dp-primary)',
-                                    border: 'none',
-                                    color: 'white',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    cursor: 'pointer',
-                                    boxShadow: '0 0 15px rgba(40, 122, 246, 0.5)'
-                                }}
-                            >
-                                <span className="material-symbols-outlined">event_busy</span>
-                            </button>
+                    <div className="dp-glass-card" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1.25rem' }}>
+                        <div>
+                            <p style={{ fontWeight: 700, margin: 0, fontSize: '1rem' }}>Sinalizar Folga</p>
+                            <p style={{ fontSize: '0.85rem', color: 'var(--dp-muted)', margin: '0.25rem 0 0' }}>Nenhum bloqueio ativo</p>
                         </div>
+                        <button
+                            type="button"
+                            className="dp-btn dp-btn--primary"
+                            style={{ width: '48px', height: '48px', padding: 0, borderRadius: '14px' }}
+                        >
+                            <span className="material-symbols-outlined" style={{ margin: 0 }}>event_busy</span>
+                        </button>
                     </div>
                 )}
             </div>

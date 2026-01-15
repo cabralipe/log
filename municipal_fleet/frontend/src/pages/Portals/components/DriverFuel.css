@@ -1,5 +1,75 @@
-/* DriverFuel.css */
-
 .dp-fuel {
+    display: grid;
+    gap: 1.5rem;
     padding-bottom: 6rem;
+}
+
+.dp-fuel-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+
+.dp-fuel-history {
+    margin-top: 2rem;
+}
+
+.dp-fuel-history__title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    margin-bottom: 1rem;
+}
+
+.dp-fuel-item {
+    background: var(--dp-card);
+    backdrop-filter: blur(12px);
+    border: 1px solid var(--dp-border);
+    border-radius: var(--dp-radius);
+    padding: 1rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.dp-fuel-item__info {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.dp-fuel-item__icon {
+    background: rgba(74, 222, 128, 0.1);
+    color: var(--dp-accent);
+    padding: 0.75rem;
+    border-radius: 12px;
+}
+
+.dp-fuel-item__details p {
+    margin: 0;
+}
+
+.dp-fuel-item__details .station {
+    font-weight: 700;
+}
+
+.dp-fuel-item__details .meta {
+    font-size: 0.85rem;
+    color: var(--dp-muted);
+}
+
+.dp-fuel-item__value {
+    text-align: right;
+}
+
+.dp-fuel-item__value .liters {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--dp-accent);
+    display: block;
+}
+
+.dp-fuel-item__value .price {
+    font-size: 0.85rem;
+    color: var(--dp-muted);
 }

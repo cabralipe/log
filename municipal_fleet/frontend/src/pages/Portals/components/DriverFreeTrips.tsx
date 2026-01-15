@@ -65,79 +65,69 @@ export const DriverFreeTrips: React.FC<DriverFreeTripsProps> = ({
                 {freeTripError && <div className="dp-alert dp-alert--error">{freeTripError}</div>}
 
                 {/* Vehicle Info Card */}
-                <div className="dp-glass-card" style={{ margin: '0 1rem 1rem' }}>
-                    <div className="dp-glass-card__header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                            <div style={{ background: 'var(--dp-card-dark)', padding: '0.5rem', borderRadius: 'var(--dp-radius)' }}>
-                                <span className="material-symbols-outlined" style={{ color: 'var(--dp-primary)' }}>local_shipping</span>
+                <div className="dp-glass-card">
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                            <div style={{ background: 'rgba(74, 222, 128, 0.1)', padding: '0.75rem', borderRadius: '12px' }}>
+                                <span className="material-symbols-outlined" style={{ color: 'var(--dp-accent)' }}>local_shipping</span>
                             </div>
                             <div>
-                                <p style={{ fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--dp-text-muted)' }}>Veículo</p>
-                                <p style={{ fontSize: '1.25rem', fontWeight: 800, letterSpacing: '0.05em' }}>{freeTrips.open_trip.vehicle_plate}</p>
+                                <p style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--dp-muted)', textTransform: 'uppercase', margin: 0 }}>Veículo</p>
+                                <p style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0 }}>{freeTrips.open_trip.vehicle_plate}</p>
                             </div>
                         </div>
                         <div style={{ textAlign: 'right' }}>
-                            <p style={{ fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase', color: 'var(--dp-text-muted)' }}>KM Inicial</p>
-                            <p style={{ fontSize: '1.1rem', fontWeight: 700, fontFamily: 'monospace' }}>{freeTrips.open_trip.odometer_start}</p>
+                            <p style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--dp-muted)', textTransform: 'uppercase', margin: 0 }}>KM Inicial</p>
+                            <p style={{ fontSize: '1.25rem', fontWeight: 700, margin: 0, fontFamily: 'monospace' }}>{freeTrips.open_trip.odometer_start}</p>
                         </div>
                     </div>
                 </div>
 
                 {/* Odometer Input */}
-                <div className="dp-glass-card" style={{ margin: '0 1rem 1rem' }}>
-                    <div className="dp-glass-card__body">
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
-                            <span className="material-symbols-outlined" style={{ color: 'var(--dp-primary)' }}>speed</span>
-                            <h3 style={{ fontSize: '1.1rem', fontWeight: 700, textTransform: 'uppercase' }}>Hodômetro</h3>
-                        </div>
-
-                        <div className="dp-form-group">
-                            <label className="dp-form-label">KM Atual / Final</label>
-                            <div style={{ position: 'relative' }}>
-                                <input
-                                    type="number"
-                                    className="dp-input dp-input--large"
-                                    placeholder="000.000"
-                                    value={freeTripClose.odometer_end}
-                                    onChange={(e) => setFreeTripClose((f) => ({ ...f, odometer_end: e.target.value }))}
-                                />
-                                <span style={{
-                                    position: 'absolute',
-                                    right: '1rem',
-                                    top: '50%',
-                                    transform: 'translateY(-50%)',
-                                    color: 'var(--dp-text-muted)',
-                                    fontWeight: 700
-                                }}>KM</span>
-                            </div>
-                            <p style={{ marginTop: '0.75rem', fontSize: '0.875rem', color: 'var(--dp-text-muted)' }}>
-                                Insira o valor atual do odômetro para finalizar.
-                            </p>
+                <div className="dp-glass-card">
+                    <div className="dp-form-group">
+                        <label className="dp-form-label">KM Atual / Final</label>
+                        <div style={{ position: 'relative' }}>
+                            <input
+                                type="number"
+                                className="dp-input"
+                                style={{ fontSize: '1.5rem', padding: '1rem' }}
+                                placeholder="000.000"
+                                value={freeTripClose.odometer_end}
+                                onChange={(e) => setFreeTripClose((f) => ({ ...f, odometer_end: e.target.value }))}
+                            />
+                            <span style={{
+                                position: 'absolute',
+                                right: '1rem',
+                                top: '50%',
+                                transform: 'translateY(-50%)',
+                                color: 'var(--dp-muted)',
+                                fontWeight: 700
+                            }}>KM</span>
                         </div>
                     </div>
                 </div>
 
                 {/* Report Incident Button */}
-                <div style={{ padding: '0 1rem', marginBottom: '1rem' }}>
-                    <button
-                        className="dp-btn dp-btn--danger"
-                        onClick={reportFreeTripIncident}
-                        disabled={!freeTripClose.incident.trim()}
-                    >
-                        <span className="material-symbols-outlined">report_problem</span>
-                        Reportar Sinistro / Incidente
-                    </button>
-                </div>
+                <button
+                    className="dp-btn dp-btn--ghost"
+                    style={{ width: '100%', color: 'var(--dp-danger)' }}
+                    onClick={reportFreeTripIncident}
+                >
+                    <span className="material-symbols-outlined">report_problem</span>
+                    Reportar Incidente
+                </button>
 
                 {/* Fixed Bottom Action */}
                 <div className="dp-bottom-action">
                     <button
-                        className="dp-btn dp-btn--success dp-btn--xl"
+                        className="dp-btn dp-btn--primary"
+                        style={{ width: '100%', padding: '1.25rem', fontSize: '1.1rem' }}
                         onClick={closeFreeTrip}
                         disabled={!freeTripClose.odometer_end}
                     >
-                        <span className="material-symbols-outlined" style={{ fontSize: '2rem' }}>check_circle</span>
-                        FINALIZAR VIAGEM
+                        <span className="material-symbols-outlined">check_circle</span>
+                        FINALIZAR VIAGEM AVULSA
                     </button>
                 </div>
             </div>
@@ -150,55 +140,53 @@ export const DriverFreeTrips: React.FC<DriverFreeTripsProps> = ({
             {freeTripError && <div className="dp-alert dp-alert--error">{freeTripError}</div>}
 
             {/* Vehicle Selection Card */}
-            <div className="dp-glass-card" style={{ margin: '1rem' }}>
-                <div className="dp-glass-card__body">
-                    <div className="dp-form-group">
-                        <label className="dp-form-label">Veículo</label>
-                        <select
-                            className="dp-select"
-                            value={freeTripStart.vehicle_id}
-                            onChange={(e) => {
-                                const value = e.target.value;
-                                const vehicleId = value ? Number(value) : "";
-                                const selectedVehicle = typeof vehicleId === "number" ? freeTripVehicles.find((v) => v.id === vehicleId) : undefined;
-                                const initialOdometer = selectedVehicle
-                                    ? selectedVehicle.odometer_current ?? selectedVehicle.odometer_initial ?? ""
-                                    : "";
-                                setFreeTripStart((f) => ({
-                                    ...f,
-                                    vehicle_id: vehicleId,
-                                    odometer_start: initialOdometer === "" ? "" : String(initialOdometer),
-                                }));
-                            }}
-                        >
-                            <option value="">Selecionar Veículo</option>
-                            {freeTripVehicles.map((v) => (
-                                <option key={v.id} value={v.id}>
-                                    {v.license_plate} {v.brand || v.model ? `— ${v.brand || ""} ${v.model || ""}` : ""}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
-
-                    {freeTripStart.vehicle_id && (
-                        <div className="dp-form-group">
-                            <label className="dp-form-label">Odômetro Inicial (Km)</label>
-                            <input
-                                type="text"
-                                className="dp-input dp-input--large"
-                                value={freeTripStart.odometer_start}
-                                readOnly
-                                style={{ background: 'rgba(40, 122, 246, 0.1)', borderColor: 'var(--dp-primary)' }}
-                            />
-                        </div>
-                    )}
+            <div className="dp-glass-card">
+                <div className="dp-form-group">
+                    <label className="dp-form-label">Veículo</label>
+                    <select
+                        className="dp-input"
+                        value={freeTripStart.vehicle_id}
+                        onChange={(e) => {
+                            const value = e.target.value;
+                            const vehicleId = value ? Number(value) : "";
+                            const selectedVehicle = typeof vehicleId === "number" ? freeTripVehicles.find((v) => v.id === vehicleId) : undefined;
+                            const initialOdometer = selectedVehicle
+                                ? selectedVehicle.odometer_current ?? selectedVehicle.odometer_initial ?? ""
+                                : "";
+                            setFreeTripStart((f) => ({
+                                ...f,
+                                vehicle_id: vehicleId,
+                                odometer_start: initialOdometer === "" ? "" : String(initialOdometer),
+                            }));
+                        }}
+                    >
+                        <option value="">Selecionar Veículo</option>
+                        {freeTripVehicles.map((v) => (
+                            <option key={v.id} value={v.id}>
+                                {v.license_plate} {v.brand || v.model ? `— ${v.brand || ""} ${v.model || ""}` : ""}
+                            </option>
+                        ))}
+                    </select>
                 </div>
+
+                {freeTripStart.vehicle_id && (
+                    <div className="dp-form-group" style={{ marginTop: '1rem' }}>
+                        <label className="dp-form-label">Odômetro Inicial (Km)</label>
+                        <input
+                            type="text"
+                            className="dp-input"
+                            value={freeTripStart.odometer_start}
+                            readOnly
+                            style={{ background: 'rgba(255,255,255,0.05)', color: 'var(--dp-accent)' }}
+                        />
+                    </div>
+                )}
             </div>
 
             {/* Photo Upload */}
-            <div style={{ padding: '0 1rem', marginBottom: '1rem' }}>
-                <label className="dp-form-label" style={{ marginLeft: '0.25rem' }}>Foto do Painel (opcional)</label>
-                <label className="dp-file-upload">
+            <div className="dp-glass-card">
+                <label className="dp-form-label">Foto do Painel (opcional)</label>
+                <label className="dp-file-upload" style={{ marginTop: '0.5rem' }}>
                     <div className="dp-file-upload__icon">
                         <span className="material-symbols-outlined">add_a_photo</span>
                     </div>
@@ -223,30 +211,38 @@ export const DriverFreeTrips: React.FC<DriverFreeTripsProps> = ({
             {/* Fixed Bottom Action */}
             <div className="dp-bottom-action">
                 <button
-                    className="dp-btn dp-btn--success dp-btn--xl"
+                    className="dp-btn dp-btn--primary"
+                    style={{ width: '100%', padding: '1.25rem', fontSize: '1.1rem' }}
                     onClick={startFreeTrip}
                     disabled={!freeTripStart.vehicle_id || freeTripStart.odometer_start === ""}
                 >
-                    <span className="material-symbols-outlined" style={{ fontSize: '2rem' }}>play_arrow</span>
-                    INICIAR VIAGEM
+                    <span className="material-symbols-outlined">play_arrow</span>
+                    INICIAR VIAGEM AVULSA
                 </button>
             </div>
 
             {/* Recent Closed Trips */}
             {freeTrips?.recent_closed?.length ? (
-                <div style={{ padding: '1rem', marginTop: '2rem' }}>
-                    <h3 className="dp-section-title" style={{ padding: '0 0 0.75rem' }}>Últimas Encerradas</h3>
-                    <div className="dp-updates">
+                <div style={{ marginTop: '1rem' }}>
+                    <h3 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '1rem' }}>Últimas Encerradas</h3>
+                    <div style={{ display: 'grid', gap: '1rem' }}>
                         {freeTrips.recent_closed.map((ft) => (
-                            <div key={ft.id} className="dp-update-item">
-                                <div className="dp-update-item__icon dp-update-item__icon--success">
-                                    <span className="material-symbols-outlined">check_circle</span>
+                            <div key={ft.id} className="dp-glass-card" style={{ padding: '1rem' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                                        <div style={{ color: 'var(--dp-accent)' }}>
+                                            <span className="material-symbols-outlined">check_circle</span>
+                                        </div>
+                                        <div>
+                                            <p style={{ fontWeight: 700, margin: 0 }}>{ft.vehicle_plate}</p>
+                                            <p style={{ fontSize: '0.85rem', color: 'var(--dp-muted)', margin: 0 }}>{ft.odometer_start} → {ft.odometer_end ?? "—"} km</p>
+                                        </div>
+                                    </div>
+                                    <div style={{ textAlign: 'right' }}>
+                                        <p style={{ fontWeight: 700, color: 'var(--dp-accent)', margin: 0 }}>{ft.distance ?? "—"} km</p>
+                                        <p style={{ fontSize: '0.75rem', color: 'var(--dp-muted)', margin: 0 }}>Percorrido</p>
+                                    </div>
                                 </div>
-                                <div className="dp-update-item__content">
-                                    <p className="dp-update-item__title">{ft.vehicle_plate}</p>
-                                    <p className="dp-update-item__desc">{ft.odometer_start} → {ft.odometer_end ?? "—"} km</p>
-                                </div>
-                                <span className="dp-update-item__time">{ft.distance ?? "—"} km</span>
                             </div>
                         ))}
                     </div>
