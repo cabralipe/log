@@ -22,8 +22,14 @@ class UserSerializer(serializers.ModelSerializer):
         read_only_fields = ["id", "date_joined"]
 
     def validate(self, attrs):
+        request = self.context.get("request")
+        request_user = getattr(request, "user", None)
         role = attrs.get("role", getattr(self.instance, "role", None))
         municipality = attrs.get("municipality", getattr(self.instance, "municipality", None))
+        if role != User.Roles.SUPERADMIN and not municipality:
+            if request_user and request_user.is_authenticated and request_user.role != User.Roles.SUPERADMIN:
+                municipality = request_user.municipality
+                attrs["municipality"] = municipality
         if role != User.Roles.SUPERADMIN and not municipality:
             raise serializers.ValidationError("Usuários não superadmin precisam de uma prefeitura.")
         if role == User.Roles.SUPERADMIN:

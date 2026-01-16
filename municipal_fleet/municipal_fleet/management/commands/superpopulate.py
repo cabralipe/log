@@ -167,23 +167,26 @@ class Command(BaseCommand):
             self.stdout.write(self.style.SUCCESS(f"Municipio pronto: {muni.name}"))
 
             user_roles = {}
-            for role, email_prefix in [
-                (User.Roles.ADMIN_MUNICIPALITY, f"admin{m}@demo.gov"),
-                (User.Roles.OPERATOR, f"operador{m}@demo.gov"),
-                (User.Roles.VIEWER, f"viewer{m}@demo.gov"),
+            admin_user = None
+            for label, email_prefix in [
+                ("Admin", f"admin{m}@demo.gov"),
+                ("Operador", f"operador{m}@demo.gov"),
+                ("Viewer", f"viewer{m}@demo.gov"),
             ]:
-                user, _ = UserModel.objects.get_or_create(
+                user, _ = UserModel.objects.update_or_create(
                     email=email_prefix,
                     defaults={
-                        "role": role,
+                        "role": User.Roles.ADMIN_MUNICIPALITY,
                         "municipality": muni,
-                        "first_name": role.title(),
+                        "first_name": label,
                         "last_name": f"Demo {m}",
                     },
                 )
                 user.set_password("pass123")
                 user.save()
-                user_roles[role] = user
+                if admin_user is None:
+                    admin_user = user
+            user_roles[User.Roles.ADMIN_MUNICIPALITY] = admin_user
 
             destinations = []
             for idx, dest_type in enumerate(

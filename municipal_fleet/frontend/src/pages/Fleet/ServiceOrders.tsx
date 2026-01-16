@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { api, type Paginated } from "../../lib/api";
 import { Table } from "../../components/Table";
 import { Button } from "../../components/Button";
@@ -7,32 +6,29 @@ import { StatusBadge } from "../../components/StatusBadge";
 import { Pagination } from "../../components/Pagination";
 import { Modal } from "../../components/Modal";
 import { SearchableSelect } from "../../components/SearchableSelect";
-import { useMediaQuery } from "../../hooks/useMediaQuery";
 import "../../styles/DataPage.css";
+
+type ServiceOrderStatus = "OPEN" | "IN_PROGRESS" | "WAITING_PARTS" | "COMPLETED" | "CANCELLED";
+type ServiceOrderType = "CORRECTIVE" | "PREVENTIVE" | "TIRE";
+type ServiceOrderPriority = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
 
 type ServiceOrder = {
     id: number;
-    external_id: string;
-    service_type: string;
     vehicle: number;
-    vehicle_plate?: string;
-    driver: number;
-    driver_name?: string;
-    planned_start?: string;
-    planned_end?: string;
-    executed_start?: string;
-    executed_end?: string;
-    status: "PLANNED" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
-    raw_payload?: any;
-    created_at: string;
+    vehicle_license_plate?: string;
+    type: ServiceOrderType;
+    priority: ServiceOrderPriority;
+    status: ServiceOrderStatus;
+    description: string;
+    provider_name?: string;
+    opened_at: string;
+    completed_at?: string;
+    total_cost?: string | number;
 };
 
-type Vehicle = { id: number; license_plate: string; model: string };
-type Driver = { id: number; name: string };
+type Vehicle = { id: number; license_plate: string; model: string; brand?: string };
 
 export const ServiceOrdersPage = () => {
-    const navigate = useNavigate();
-    const { isMobile } = useMediaQuery();
     const [orders, setOrders] = useState<ServiceOrder[]>([]);
     const [total, setTotal] = useState(0);
     const [page, setPage] = useState(1);
@@ -41,11 +37,12 @@ export const ServiceOrdersPage = () => {
 
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [form, setForm] = useState<Partial<ServiceOrder>>({
-        status: "PLANNED",
+        status: "OPEN",
+        type: "CORRECTIVE",
+        priority: "MEDIUM",
     });
 
     const [vehicles, setVehicles] = useState<Vehicle[]>([]);
-    const [drivers, setDrivers] = useState<Driver[]>([]);
 
     const loadOrders = (p = page, s = search) => {
         setLoading(true);
@@ -65,19 +62,23 @@ export const ServiceOrdersPage = () => {
             const data = res.data as any;
             setVehicles(Array.isArray(data) ? data : data.results);
         });
-        api.get("/drivers/", { params: { page_size: 1000 } }).then(res => {
-            const data = res.data as any;
-            setDrivers(Array.isArray(data) ? data : data.results);
-        });
     }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
         try {
+            const payload = {
+                vehicle: form.vehicle ? Number(form.vehicle) : undefined,
+                type: form.type,
+                priority: form.priority,
+                status: form.status,
+                description: form.description?.trim(),
+                provider_name: form.provider_name?.trim() || undefined,
+            };
             if (form.id) {
-                await api.patch(`/service-orders/${form.id}/`, form);
+                await api.patch(`/service-orders/${form.id}/`, payload);
             } else {
-                await api.post("/service-orders/", form);
+                await api.post("/service-orders/", payload);
             }
             setIsModalOpen(false);
             loadOrders();
@@ -88,15 +89,29 @@ export const ServiceOrdersPage = () => {
 
     const openModal = (order?: ServiceOrder) => {
         if (order) setForm(order);
-        else setForm({ status: "PLANNED" });
+        else setForm({ status: "OPEN", type: "CORRECTIVE", priority: "MEDIUM" });
         setIsModalOpen(true);
     };
 
-    const statusLabels: Record<string, string> = {
-        PLANNED: "Planejada",
+    const statusLabels: Record<ServiceOrderStatus, string> = {
+        OPEN: "Aberta",
         IN_PROGRESS: "Em andamento",
+        WAITING_PARTS: "Aguardando peças",
         COMPLETED: "Concluída",
         CANCELLED: "Cancelada",
+    };
+
+    const typeLabels: Record<ServiceOrderType, string> = {
+        CORRECTIVE: "Corretiva",
+        PREVENTIVE: "Preventiva",
+        TIRE: "Pneus",
+    };
+
+    const priorityLabels: Record<ServiceOrderPriority, string> = {
+        LOW: "Baixa",
+        MEDIUM: "Média",
+        HIGH: "Alta",
+        CRITICAL: "Crítica",
     };
 
     return (
@@ -114,7 +129,7 @@ export const ServiceOrdersPage = () => {
             <div className="data-filters">
                 <input
                     type="text"
-                    placeholder="Buscar por ID Externo ou Placa"
+                    placeholder="Buscar por descrição, placa ou prestador"
                     value={search}
                     onChange={(e) => {
                         setSearch(e.target.value);
@@ -129,11 +144,11 @@ export const ServiceOrdersPage = () => {
                 <>
                     <Table
                         columns={[
-                            { label: "ID Externo", key: "external_id" },
-                            { label: "Tipo", key: "service_type" },
-                            { label: "Veículo", key: "vehicle_plate", render: (d) => d.vehicle_plate || "—" },
-                            { label: "Motorista", key: "driver_name", render: (d) => d.driver_name || "—" },
-                            { label: "Início Planejado", key: "planned_start", render: (d) => d.planned_start ? new Date(d.planned_start).toLocaleString("pt-BR") : "—" },
+                            { label: "ID", key: "id" },
+                            { label: "Veículo", key: "vehicle_license_plate", render: (d) => d.vehicle_license_plate || "—" },
+                            { label: "Tipo", key: "type", render: (d) => <StatusBadge status={d.type} /> },
+                            { label: "Prioridade", key: "priority", render: (d) => <StatusBadge status={d.priority} /> },
+                            { label: "Aberta em", key: "opened_at", render: (d) => d.opened_at ? new Date(d.opened_at).toLocaleString("pt-BR") : "—" },
                             { label: "Status", key: "status", render: (d) => <StatusBadge status={d.status} /> },
                             {
                                 label: "Ações",
@@ -162,47 +177,53 @@ export const ServiceOrdersPage = () => {
                 <form onSubmit={handleSave} className="data-form">
                     <div className="data-form-grid">
                         <label>
-                            ID Externo *
-                            <input required value={form.external_id || ""} onChange={e => setForm({ ...form, external_id: e.target.value })} />
-                        </label>
-                        <label>
-                            Tipo de Serviço
-                            <input value={form.service_type || ""} onChange={e => setForm({ ...form, service_type: e.target.value })} />
-                        </label>
-
-                        <label>
                             Veículo *
                             <SearchableSelect
                                 required
                                 value={form.vehicle}
                                 onChange={(val) => setForm({ ...form, vehicle: Number(val) })}
-                                options={vehicles.map(v => ({ value: v.id, label: `${v.model} - ${v.license_plate}` }))}
+                                options={vehicles.map(v => ({
+                                    value: v.id,
+                                    label: `${v.license_plate} - ${(v.brand || "").trim()} ${(v.model || "").trim()}`.trim()
+                                }))}
                                 placeholder="Selecione o veículo"
                             />
                         </label>
                         <label>
-                            Motorista *
-                            <SearchableSelect
+                            Tipo *
+                            <select
                                 required
-                                value={form.driver}
-                                onChange={(val) => setForm({ ...form, driver: Number(val) })}
-                                options={drivers.map(d => ({ value: d.id, label: d.name }))}
-                                placeholder="Selecione o motorista"
+                                value={form.type}
+                                onChange={e => setForm({ ...form, type: e.target.value as ServiceOrderType })}
+                            >
+                                {Object.entries(typeLabels).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                            </select>
+                        </label>
+                        <label>
+                            Prioridade *
+                            <select
+                                required
+                                value={form.priority}
+                                onChange={e => setForm({ ...form, priority: e.target.value as ServiceOrderPriority })}
+                            >
+                                {Object.entries(priorityLabels).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                            </select>
+                        </label>
+                        <label className="full-width">
+                            Descrição *
+                            <textarea
+                                required
+                                value={form.description || ""}
+                                onChange={e => setForm({ ...form, description: e.target.value })}
                             />
                         </label>
-
                         <label>
-                            Início Planejado
-                            <input type="datetime-local" value={form.planned_start ? form.planned_start.slice(0, 16) : ""} onChange={e => setForm({ ...form, planned_start: e.target.value })} />
+                            Prestador (opcional)
+                            <input value={form.provider_name || ""} onChange={e => setForm({ ...form, provider_name: e.target.value })} />
                         </label>
                         <label>
-                            Fim Planejado
-                            <input type="datetime-local" value={form.planned_end ? form.planned_end.slice(0, 16) : ""} onChange={e => setForm({ ...form, planned_end: e.target.value })} />
-                        </label>
-
-                        <label className="full-width">
                             Status
-                            <select value={form.status} onChange={e => setForm({ ...form, status: e.target.value as any })}>
+                            <select value={form.status} onChange={e => setForm({ ...form, status: e.target.value as ServiceOrderStatus })}>
                                 {Object.entries(statusLabels).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
                             </select>
                         </label>
