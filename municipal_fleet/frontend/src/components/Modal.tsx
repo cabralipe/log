@@ -1,4 +1,5 @@
 import { useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import "./Modal.css";
 
 type ModalProps = {
@@ -58,7 +59,7 @@ export const Modal = ({ open, title, onClose, children, id }: ModalProps) => {
 
   if (!open) return null;
 
-  return (
+  return createPortal(
     <>
       <div className={`modal-overlay ${open ? "open" : ""}`} aria-hidden="true" onClick={onClose} />
       <div className="modal-container">
@@ -84,6 +85,7 @@ export const Modal = ({ open, title, onClose, children, id }: ModalProps) => {
           <div className="modal-body">{children}</div>
         </div>
       </div>
-    </>
+    </>,
+    document.body
   );
 };
