@@ -41,7 +41,7 @@ type ContractVehicle = {
   municipality: number;
 };
 
-type Vehicle = { id: number; license_plate: string; brand: string; model: string };
+type Vehicle = { id: number; license_plate: string; brand: string; model: string; municipality?: number };
 type Municipality = { id: number; name: string };
 
 const CONTRACT_TYPES = [
@@ -71,6 +71,7 @@ export const ContractsPage = () => {
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [municipalities, setMunicipalities] = useState<Municipality[]>([]);
   const [contractVehicles, setContractVehicles] = useState<ContractVehicle[]>([]);
+  const [selectedVehicleIds, setSelectedVehicleIds] = useState<number[]>([]);
 
   const [form, setForm] = useState<Partial<Contract>>({
     type: "RENTAL",
@@ -96,6 +97,12 @@ export const ContractsPage = () => {
     vehicles.forEach((v) => map.set(v.id, `${v.license_plate} - ${v.brand} ${v.model}`));
     return map;
   }, [vehicles]);
+
+  const availableVehicles = useMemo(() => {
+    const muni = form.municipality ?? current?.municipality;
+    if (!muni) return vehicles;
+    return vehicles.filter((v) => v.municipality === muni);
+  }, [vehicles, form.municipality, current?.municipality]);
 
   const municipalityName = useMemo(() => {
     const map = new Map<number, string>();
@@ -172,15 +179,30 @@ export const ContractsPage = () => {
     setLinkForm((prev) => ({ ...prev, contract: editingId ?? undefined }));
   }, [editingId]);
 
+  useEffect(() => {
+    if (editingId) {
+      setSelectedVehicleIds(contractVehicles.map((link) => link.vehicle));
+    } else {
+      setSelectedVehicleIds([]);
+    }
+  }, [editingId, contractVehicles]);
+
+  useEffect(() => {
+    const muni = form.municipality ?? current?.municipality;
+    if (!muni) return;
+    setSelectedVehicleIds((prev) => prev.filter((id) => availableVehicles.some((v) => v.id === id)));
+  }, [form.municipality, current?.municipality, availableVehicles]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const payload = { ...form };
+    const payload = { ...form, vehicle_ids: selectedVehicleIds };
     if (editingId) {
       await api.patch(`/contracts/${editingId}/`, payload);
     } else {
       await api.post("/contracts/", payload);
     }
     setForm({ type: "RENTAL", billing_model: "FIXED", status: "ACTIVE" });
+    setSelectedVehicleIds([]);
     setEditingId(null);
     loadContracts();
   };
@@ -382,21 +404,61 @@ export const ContractsPage = () => {
                     onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
                     rows={3}
                   />
+              <div>
+                <label style={{ display: "block", marginBottom: "0.3rem" }}>Prefeitura</label>
+                <select
+                  disabled={disableMunicipalitySelect}
+                  value={form.municipality ?? current?.municipality ?? ""}
+                  onChange={(e) => setForm((f) => ({ ...f, municipality: Number(e.target.value) }))}
+                >
+                  <option value="">Selecione</option>
+                  {municipalities.map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.name}
+                    </option>
+                  ))}
+                </select>
+                {form.municipality && <p style={{ color: "var(--muted)", marginTop: "0.3rem" }}>{municipalityName.get(form.municipality)}</p>}
+              </div>
+              <div>
+                <label style={{ display: "block", marginBottom: "0.3rem" }}>Veículos vinculados</label>
+                <select
+                  multiple
+                  size={Math.min(6, Math.max(3, availableVehicles.length))}
+                  value={selectedVehicleIds.map(String)}
+                  onChange={(e) =>
+                    setSelectedVehicleIds(Array.from(e.target.selectedOptions, (opt) => Number(opt.value)))
+                  }
+                >
+                  {availableVehicles.map((v) => (
+                    <option key={v.id} value={v.id}>
+                      {vehicleLabel.get(v.id)}
+                    </option>
+                  ))}
+                </select>
+                <p style={{ color: "var(--muted)", marginTop: "0.3rem", fontSize: "0.85rem" }}>
+                  Selecione um ou mais veículos para vincular no cadastro.
+                </p>
+              </div>
                   <div>
-                    <label style={{ display: "block", marginBottom: "0.3rem" }}>Prefeitura</label>
+                    <label style={{ display: "block", marginBottom: "0.3rem" }}>Veículos vinculados</label>
                     <select
-                      disabled={disableMunicipalitySelect}
-                      value={form.municipality ?? current?.municipality ?? ""}
-                      onChange={(e) => setForm((f) => ({ ...f, municipality: Number(e.target.value) }))}
+                      multiple
+                      size={Math.min(6, Math.max(3, availableVehicles.length))}
+                      value={selectedVehicleIds.map(String)}
+                      onChange={(e) =>
+                        setSelectedVehicleIds(Array.from(e.target.selectedOptions, (opt) => Number(opt.value)))
+                      }
                     >
-                      <option value="">Selecione</option>
-                      {municipalities.map((m) => (
-                        <option key={m.id} value={m.id}>
-                          {m.name}
+                      {availableVehicles.map((v) => (
+                        <option key={v.id} value={v.id}>
+                          {vehicleLabel.get(v.id)}
                         </option>
                       ))}
                     </select>
-                    {form.municipality && <p style={{ color: "var(--muted)", marginTop: "0.3rem" }}>{municipalityName.get(form.municipality)}</p>}
+                    <p style={{ color: "var(--muted)", marginTop: "0.3rem", fontSize: "0.85rem" }}>
+                      Selecione um ou mais veículos para vincular no cadastro.
+                    </p>
                   </div>
                   <div className="grid" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "0.5rem" }}>
                     <Button type="submit">{editingId ? "Atualizar" : "Salvar"}</Button>

@@ -30,6 +30,27 @@ class InventoryMovementSerializer(serializers.ModelSerializer):
         fields = "__all__"
         read_only_fields = ["id", "created_at", "updated_at"]
 
+    def validate(self, attrs):
+        movement_type = attrs.get("type", getattr(self.instance, "type", None))
+        quantity = attrs.get("quantity", getattr(self.instance, "quantity", None))
+        unit_cost = attrs.get("unit_cost", getattr(self.instance, "unit_cost", None))
+        responsible_name = attrs.get("responsible_name", getattr(self.instance, "responsible_name", None))
+        expected_return_date = attrs.get("expected_return_date", getattr(self.instance, "expected_return_date", None))
+
+        if quantity is None or quantity <= 0:
+            raise serializers.ValidationError({"quantity": "Quantidade deve ser maior que zero."})
+
+        if movement_type in (InventoryMovement.MovementType.OUT, InventoryMovement.MovementType.LOAN):
+            if not responsible_name:
+                raise serializers.ValidationError({"responsible_name": "Responsável é obrigatório para saídas."})
+            if movement_type == InventoryMovement.MovementType.LOAN and not expected_return_date:
+                raise serializers.ValidationError({"expected_return_date": "Data de devolução é obrigatória para empréstimos."})
+
+        if movement_type == InventoryMovement.MovementType.IN and unit_cost is None:
+            raise serializers.ValidationError({"unit_cost": "Custo unitário é obrigatório para entradas."})
+
+        return attrs
+
     def create(self, validated_data):
         user = self.context["request"].user
         part = validated_data.get("part")
@@ -37,6 +58,8 @@ class InventoryMovementSerializer(serializers.ModelSerializer):
             validated_data["municipality"] = user.municipality
         elif "municipality" not in validated_data and part:
             validated_data["municipality"] = part.municipality
+        if user.is_authenticated and "performed_by" not in validated_data:
+            validated_data["performed_by"] = user
         return super().create(validated_data)
 
 

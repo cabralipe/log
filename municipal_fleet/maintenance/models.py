@@ -40,6 +40,7 @@ class InventoryMovement(TimestampedModel):
     class MovementType(models.TextChoices):
         IN = "IN", "Entrada"
         OUT = "OUT", "Saída"
+        LOAN = "LOAN", "Empréstimo"
 
     municipality = models.ForeignKey(
         "tenants.Municipality", on_delete=models.CASCADE, related_name="inventory_movements"
@@ -49,6 +50,9 @@ class InventoryMovement(TimestampedModel):
     quantity = models.DecimalField(max_digits=12, decimal_places=2)
     unit_cost = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     reference = models.CharField(max_length=255, blank=True)
+    responsible_name = models.CharField(max_length=255, blank=True)
+    expected_return_date = models.DateField(null=True, blank=True)
+    notes = models.TextField(blank=True)
     performed_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="inventory_movements"
     )

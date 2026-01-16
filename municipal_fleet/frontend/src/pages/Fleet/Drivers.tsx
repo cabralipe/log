@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { api, type Paginated } from "../../lib/api";
 import { useAuth } from "../../hooks/useAuth";
-import { Table } from "../../components/Table";
 import { Button } from "../../components/Button";
 import { StatusBadge } from "../../components/StatusBadge";
 import { Pagination } from "../../components/Pagination";
@@ -359,11 +358,18 @@ export const DriversPage = () => {
             </div>
             <div className="drivers-gallery-grid">
               {drivers.map((driver) => (
-                <button
+                <div
                   key={driver.id}
-                  type="button"
                   className="drivers-gallery-card"
+                  role="button"
+                  tabIndex={0}
                   onClick={() => setDetailsDriver(driver)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      setDetailsDriver(driver);
+                    }
+                  }}
                   aria-label={`Abrir detalhes de ${driver.name}`}
                 >
                   <div className="drivers-gallery-photo">
@@ -376,35 +382,27 @@ export const DriversPage = () => {
                   <div className="drivers-gallery-info">
                     <strong>{driver.name}</strong>
                     <StatusBadge status={driver.status} />
+                    <div className="drivers-gallery-details">
+                      <div><span>CPF</span><span>{driver.cpf || "—"}</span></div>
+                      <div><span>Telefone</span><span>{driver.phone || "—"}</span></div>
+                      <div><span>CNH</span><span>{driver.cnh_number || "—"}</span></div>
+                      <div><span>Categoria</span><span>{driver.cnh_category || "—"}</span></div>
+                      <div><span>Validade</span><span>{driver.cnh_expiration_date || "—"}</span></div>
+                      <div><span>Código</span><span>{driver.access_code || "—"}</span></div>
+                    </div>
                   </div>
-                </button>
-              ))}
-            </div>
-          </div>
-          <Table
-            columns={[
-              { key: "name", label: "Nome" },
-              { key: "cpf", label: "CPF" },
-              { key: "phone", label: "Telefone" },
-              { key: "access_code", label: "Código" },
-              { key: "status", label: "Status", render: (row) => <StatusBadge status={row.status} /> },
-              {
-                key: "actions",
-                label: "Ações",
-                render: (row) => (
-                  <div className="drivers-actions">
-                    <Button variant="ghost" onClick={() => handleEdit(row)}>
+                  <div className="drivers-gallery-actions" onClick={(e) => e.stopPropagation()}>
+                    <Button variant="ghost" size="sm" onClick={() => handleEdit(driver)}>
                       Editar
                     </Button>
-                    <Button variant="ghost" onClick={() => handleDelete(row.id)}>
+                    <Button variant="ghost" size="sm" onClick={() => handleDelete(driver.id)}>
                       Excluir
                     </Button>
                   </div>
-                ),
-              },
-            ]}
-            data={drivers}
-          />
+                </div>
+              ))}
+            </div>
+          </div>
           <div className="drivers-pagination">
             <Pagination
               page={page}

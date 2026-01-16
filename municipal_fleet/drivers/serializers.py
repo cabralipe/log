@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from accounts.models import User
 from drivers.models import Driver, DriverGeofence
 
 
@@ -29,6 +30,22 @@ class DriverSerializer(serializers.ModelSerializer):
         elif user and getattr(user, "role", None) == "SUPERADMIN" and not municipality:
             raise serializers.ValidationError({"municipality": "Prefeitura é obrigatória."})
         return attrs
+
+    def create(self, validated_data):
+        request = self.context.get("request")
+        user = getattr(request, "user", None)
+        if user and user.role != User.Roles.SUPERADMIN:
+            if not getattr(user, "municipality", None):
+                raise serializers.ValidationError({"municipality": "Usuário precisa estar vinculado a uma prefeitura."})
+            validated_data["municipality"] = user.municipality
+        return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        request = self.context.get("request")
+        user = getattr(request, "user", None)
+        if user and user.role != User.Roles.SUPERADMIN and "municipality" in validated_data:
+            validated_data.pop("municipality")
+        return super().update(instance, validated_data)
 
     def to_representation(self, instance):
         data = super().to_representation(instance)

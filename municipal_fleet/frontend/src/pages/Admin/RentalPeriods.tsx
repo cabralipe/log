@@ -25,6 +25,7 @@ type RentalPeriod = {
 
 type Contract = { id: number; contract_number: string; provider_name: string };
 type Vehicle = { id: number; license_plate: string; brand: string; model: string };
+type ContractVehicleLink = { id: number; vehicle: number; start_date: string; end_date: string | null };
 
 const STATUS_OPTIONS = [
   { value: "OPEN", label: "Aberto" },
@@ -48,6 +49,7 @@ export const RentalPeriodsPage = () => {
   const [periods, setPeriods] = useState<RentalPeriod[]>([]);
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [contractVehicles, setContractVehicles] = useState<ContractVehicleLink[]>([]);
   const [form, setForm] = useState<Partial<RentalPeriod>>({
     status: "OPEN",
     start_datetime: new Date().toISOString().slice(0, 16),
@@ -75,6 +77,12 @@ export const RentalPeriodsPage = () => {
     vehicles.forEach((v) => map.set(v.id, `${v.license_plate} - ${v.brand} ${v.model}`));
     return map;
   }, [vehicles]);
+
+  const contractVehicleIds = useMemo(() => new Set(contractVehicles.map((link) => link.vehicle)), [contractVehicles]);
+  const linkedVehicles = useMemo(
+    () => vehicles.filter((v) => contractVehicleIds.has(v.id)),
+    [vehicles, contractVehicleIds],
+  );
 
   const loadPeriods = (nextPage = page, nextContract = filterContract, nextStatus = filterStatus, nextPageSize = pageSize) => {
     setLoading(true);
@@ -114,13 +122,35 @@ export const RentalPeriodsPage = () => {
     }).catch(() => { });
   };
 
+  const loadContractVehicles = (contractId?: number | null) => {
+    if (!contractId) {
+      setContractVehicles([]);
+      return;
+    }
+    api
+      .get<Paginated<ContractVehicleLink>>("/contract-vehicles/", { params: { contract: contractId, page_size: 500 } })
+      .then((res) => {
+        const data = res.data as any;
+        setContractVehicles(Array.isArray(data) ? data : data.results);
+      })
+      .catch(() => setContractVehicles([]));
+  };
+
   useEffect(() => {
     loadPeriods();
     loadOptions();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  useEffect(() => {
+    loadContractVehicles(form.contract as number | undefined);
+  }, [form.contract]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (form.vehicle && !contractVehicleIds.has(form.vehicle)) {
+      setError("Veículo selecionado não está vinculado ao contrato.");
+      return;
+    }
     const payload = { ...form };
     setSubmitting(true);
     try {
@@ -196,7 +226,13 @@ export const RentalPeriodsPage = () => {
             <select
               required
               value={form.contract ?? ""}
-              onChange={(e) => setForm((f) => ({ ...f, contract: Number(e.target.value) }))}
+              onChange={(e) =>
+                setForm((f) => ({
+                  ...f,
+                  contract: Number(e.target.value),
+                  vehicle: null,
+                }))
+              }
             >
               <option value="">Selecione</option>
               {contracts.map((c) => (
@@ -212,8 +248,10 @@ export const RentalPeriodsPage = () => {
               value={form.vehicle ?? ""}
               onChange={(e) => setForm((f) => ({ ...f, vehicle: e.target.value === "" ? null : Number(e.target.value) }))}
             >
-              <option value="">Selecione (opcional)</option>
-              {vehicles.map((v) => (
+              <option value="">
+                {form.contract ? (linkedVehicles.length ? "Selecione (opcional)" : "Nenhum veículo vinculado") : "Selecione um contrato"}
+              </option>
+              {linkedVehicles.map((v) => (
                 <option key={v.id} value={v.id}>
                   {vehicleLabel.get(v.id)}
                 </option>

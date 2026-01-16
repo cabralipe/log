@@ -33,6 +33,21 @@ type InventoryPart = {
   current_stock: string;
 };
 
+type InventoryMovementType = "IN" | "OUT" | "LOAN";
+type InventoryMovement = {
+  id: number;
+  part: number;
+  part_detail?: InventoryPart;
+  type: InventoryMovementType;
+  quantity: string | number;
+  unit_cost?: string | number;
+  reference?: string;
+  responsible_name?: string;
+  expected_return_date?: string | null;
+  notes?: string;
+  performed_at?: string;
+};
+
 type MaintenancePlan = {
   id: number;
   name: string;
@@ -96,6 +111,12 @@ const PRIORITY_LABEL: Record<ServiceOrderPriority, string> = {
   CRITICAL: "Crítica",
 };
 
+const MOVEMENT_LABEL: Record<InventoryMovementType, string> = {
+  IN: "Entrada",
+  OUT: "Saída",
+  LOAN: "Empréstimo",
+};
+
 const CONDITION_LABEL: Record<InspectionRow["condition_status"], string> = {
   OK: "Aprovado",
   ATTENTION: "Atenção",
@@ -104,6 +125,16 @@ const CONDITION_LABEL: Record<InspectionRow["condition_status"], string> = {
 const currency = (value: string | number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(value || 0));
 const formatDate = (value?: string | null) => (value ? new Date(value).toLocaleDateString("pt-BR") : "—");
+const formatDateTime = (value?: string | null) => (value ? new Date(value).toLocaleString("pt-BR") : "—");
+const vehicleLabel = (vehicle?: Vehicle | null) => {
+  if (!vehicle) return "—";
+  const name = `${vehicle.brand || ""} ${vehicle.model || ""}`.trim();
+  return name ? `${vehicle.license_plate} - ${name}` : vehicle.license_plate;
+};
+const partLabel = (part?: InventoryPart | null) => {
+  if (!part) return "—";
+  return part.sku ? `${part.name} (${part.sku})` : part.name;
+};
 
 const getErrorMessage = (err: any, fallback: string) => {
   const data = err?.response?.data;
@@ -121,6 +152,7 @@ export const MaintenancePage = () => {
   const [tab, setTab] = useState<"orders" | "inventory" | "plans" | "tires" | "inspections">("orders");
   const [orders, setOrders] = useState<ServiceOrder[]>([]);
   const [parts, setParts] = useState<InventoryPart[]>([]);
+  const [movements, setMovements] = useState<InventoryMovement[]>([]);
   const [plans, setPlans] = useState<MaintenancePlan[]>([]);
   const [tires, setTires] = useState<Tire[]>([]);
   const [inspections, setInspections] = useState<InspectionRow[]>([]);
@@ -161,6 +193,22 @@ export const MaintenancePage = () => {
     provider_name: "",
   });
   const [newPart, setNewPart] = useState({ name: "", sku: "", unit: "UN", minimum_stock: "", current_stock: "" });
+  const [newMovementIn, setNewMovementIn] = useState({
+    part: "",
+    quantity: "",
+    unit_cost: "",
+    performed_at: "",
+    notes: "",
+  });
+  const [newMovementOut, setNewMovementOut] = useState({
+    part: "",
+    quantity: "",
+    type: "OUT" as InventoryMovementType,
+    responsible_name: "",
+    performed_at: "",
+    expected_return_date: "",
+    notes: "",
+  });
   const [newPlan, setNewPlan] = useState({
     name: "",
     trigger_type: "KM" as "KM" | "TIME",
@@ -169,6 +217,19 @@ export const MaintenancePage = () => {
     vehicle: "",
   });
   const [newTire, setNewTire] = useState({ code: "", brand: "", model: "", size: "", max_km_life: 50000 });
+
+  const getVehicleLabel = (id?: number, plateFallback?: string) => {
+    const vehicle = vehicles.find((v) => v.id === id);
+    if (vehicle) return vehicleLabel(vehicle);
+    if (plateFallback) return plateFallback;
+    if (id) return String(id);
+    return "—";
+  };
+
+  const toIsoDateTime = (dateValue: string) => {
+    if (!dateValue) return undefined;
+    return `${dateValue}T00:00:00`;
+  };
 
   const statusTotals = useMemo(() => {
     const base: Record<ServiceOrderStatus, number> = {
@@ -195,6 +256,7 @@ export const MaintenancePage = () => {
     const results = await Promise.allSettled([
       api.get<Paginated<ServiceOrder>>("/service-orders/", { params: filters }),
       api.get<Paginated<InventoryPart>>("/inventory/parts/", { params: { page_size: 200 } }),
+      api.get<Paginated<InventoryMovement>>("/inventory/movements/", { params: { page_size: 200 } }),
       api.get<Paginated<MaintenancePlan>>("/maintenance-plans/", { params: { page_size: 200 } }),
       api.get<Paginated<Tire>>("/tires/", { params: { page_size: 200 } }),
       api.get<Paginated<InspectionRow>>("/vehicles/inspections/", { params: { page_size: 200 } }),
@@ -210,6 +272,7 @@ export const MaintenancePage = () => {
     const [
       ordersRes,
       partsRes,
+      movementsRes,
       plansRes,
       tiresRes,
       inspectionsRes,
@@ -224,6 +287,9 @@ export const MaintenancePage = () => {
 
     if (partsRes.status === "fulfilled") setParts(normalize<InventoryPart>(partsRes.value));
     else errors.push(getError(partsRes.reason));
+
+    if (movementsRes.status === "fulfilled") setMovements(normalize<InventoryMovement>(movementsRes.value));
+    else errors.push(getError(movementsRes.reason));
 
     if (plansRes.status === "fulfilled") setPlans(normalize<MaintenancePlan>(plansRes.value));
     else errors.push(getError(plansRes.reason));
@@ -351,6 +417,69 @@ export const MaintenancePage = () => {
     });
     setNewPart({ name: "", sku: "", unit: "UN", minimum_stock: "", current_stock: "" });
     loadAll();
+  };
+
+  const handleCreateMovementIn = async () => {
+    if (!newMovementIn.part || !newMovementIn.quantity) {
+      setError("Peça e quantidade são obrigatórios.");
+      return;
+    }
+    if (newMovementIn.unit_cost === "") {
+      setError("Custo unitário é obrigatório.");
+      return;
+    }
+    try {
+      await api.post("/inventory/movements/", {
+        part: Number(newMovementIn.part),
+        type: "IN",
+        quantity: Number(newMovementIn.quantity),
+        unit_cost: Number(newMovementIn.unit_cost),
+        performed_at: toIsoDateTime(newMovementIn.performed_at),
+        notes: newMovementIn.notes.trim() || undefined,
+      });
+      setNewMovementIn({ part: "", quantity: "", unit_cost: "", performed_at: "", notes: "" });
+      loadAll();
+    } catch (err: any) {
+      setError(getErrorMessage(err, "Erro ao registrar entrada."));
+    }
+  };
+
+  const handleCreateMovementOut = async () => {
+    if (!newMovementOut.part || !newMovementOut.quantity) {
+      setError("Peça e quantidade são obrigatórios.");
+      return;
+    }
+    if (!newMovementOut.responsible_name.trim()) {
+      setError("Responsável é obrigatório para saída/emprestimo.");
+      return;
+    }
+    if (newMovementOut.type === "LOAN" && !newMovementOut.expected_return_date) {
+      setError("Informe a data de devolução prevista.");
+      return;
+    }
+    try {
+      await api.post("/inventory/movements/", {
+        part: Number(newMovementOut.part),
+        type: newMovementOut.type,
+        quantity: Number(newMovementOut.quantity),
+        responsible_name: newMovementOut.responsible_name.trim(),
+        expected_return_date: newMovementOut.expected_return_date || undefined,
+        performed_at: toIsoDateTime(newMovementOut.performed_at),
+        notes: newMovementOut.notes.trim() || undefined,
+      });
+      setNewMovementOut({
+        part: "",
+        quantity: "",
+        type: "OUT",
+        responsible_name: "",
+        performed_at: "",
+        expected_return_date: "",
+        notes: "",
+      });
+      loadAll();
+    } catch (err: any) {
+      setError(getErrorMessage(err, "Erro ao registrar saída/emprestimo."));
+    }
   };
 
   const handleCreatePlan = async () => {
@@ -488,7 +617,7 @@ export const MaintenancePage = () => {
                 <option value="">Veículo</option>
                 {vehicles.map((v) => (
                   <option key={v.id} value={v.id}>
-                    {v.license_plate}
+                    {vehicleLabel(v)}
                   </option>
                 ))}
               </select>
@@ -516,7 +645,7 @@ export const MaintenancePage = () => {
                     <option value="">Selecione</option>
                     {vehicles.map((v) => (
                       <option key={v.id} value={v.id}>
-                        {v.license_plate} - {v.brand} {v.model}
+                        {vehicleLabel(v)}
                       </option>
                     ))}
                   </select>
@@ -586,7 +715,7 @@ export const MaintenancePage = () => {
                 {filteredOrders.map((order) => (
                   <tr key={order.id}>
                     <td>#{order.id}</td>
-                    <td>{order.vehicle_license_plate || order.vehicle}</td>
+                    <td>{getVehicleLabel(order.vehicle, order.vehicle_license_plate)}</td>
                     <td>{TYPE_LABEL[order.type]}</td>
                     <td>{statusChip(order.status)}</td>
                     <td>{priorityChip(order.priority)}</td>
@@ -649,7 +778,7 @@ export const MaintenancePage = () => {
                 <option value="">Selecione</option>
                 {vehicles.map((v) => (
                   <option key={v.id} value={v.id}>
-                    {v.license_plate} - {v.brand} {v.model}
+                    {vehicleLabel(v)}
                   </option>
                 ))}
               </select>
@@ -795,6 +924,178 @@ export const MaintenancePage = () => {
             </table>
             {!parts.length && <div className="empty">Nenhuma peça cadastrada.</div>}
           </div>
+
+          <div className="form-grid">
+            <div className="panel form-card">
+              <div className="panel-header small">
+                <h3>Entrada de peça</h3>
+                <Button onClick={handleCreateMovementIn}>
+                  <Plus size={14} /> Registrar
+                </Button>
+              </div>
+              <div className="form-row">
+                <label>
+                  Peça
+                  <select
+                    value={newMovementIn.part}
+                    onChange={(e) => setNewMovementIn((p) => ({ ...p, part: e.target.value }))}
+                  >
+                    <option value="">Selecione</option>
+                    {parts.map((part) => (
+                      <option key={part.id} value={part.id}>
+                        {partLabel(part)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  Quantidade
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={newMovementIn.quantity}
+                    onChange={(e) => setNewMovementIn((p) => ({ ...p, quantity: e.target.value }))}
+                  />
+                </label>
+                <label>
+                  Custo unitário
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={newMovementIn.unit_cost}
+                    onChange={(e) => setNewMovementIn((p) => ({ ...p, unit_cost: e.target.value }))}
+                  />
+                </label>
+              </div>
+              <div className="form-row">
+                <label>
+                  Data
+                  <input
+                    type="date"
+                    value={newMovementIn.performed_at}
+                    onChange={(e) => setNewMovementIn((p) => ({ ...p, performed_at: e.target.value }))}
+                  />
+                </label>
+              </div>
+              <label>
+                Observações
+                <textarea
+                  rows={2}
+                  value={newMovementIn.notes}
+                  onChange={(e) => setNewMovementIn((p) => ({ ...p, notes: e.target.value }))}
+                />
+              </label>
+            </div>
+            <div className="panel form-card">
+              <div className="panel-header small">
+                <h3>Saída / Empréstimo</h3>
+                <Button onClick={handleCreateMovementOut}>
+                  <Plus size={14} /> Registrar
+                </Button>
+              </div>
+              <div className="form-row">
+                <label>
+                  Peça
+                  <select
+                    value={newMovementOut.part}
+                    onChange={(e) => setNewMovementOut((p) => ({ ...p, part: e.target.value }))}
+                  >
+                    <option value="">Selecione</option>
+                    {parts.map((part) => (
+                      <option key={part.id} value={part.id}>
+                        {partLabel(part)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  Quantidade
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={newMovementOut.quantity}
+                    onChange={(e) => setNewMovementOut((p) => ({ ...p, quantity: e.target.value }))}
+                  />
+                </label>
+                <label>
+                  Tipo
+                  <select
+                    value={newMovementOut.type}
+                    onChange={(e) =>
+                      setNewMovementOut((p) => ({ ...p, type: e.target.value as InventoryMovementType }))
+                    }
+                  >
+                    <option value="OUT">Saída</option>
+                    <option value="LOAN">Empréstimo</option>
+                  </select>
+                </label>
+              </div>
+              <div className="form-row">
+                <label>
+                  Responsável
+                  <input
+                    value={newMovementOut.responsible_name}
+                    onChange={(e) => setNewMovementOut((p) => ({ ...p, responsible_name: e.target.value }))}
+                  />
+                </label>
+                <label>
+                  Data de saída
+                  <input
+                    type="date"
+                    value={newMovementOut.performed_at}
+                    onChange={(e) => setNewMovementOut((p) => ({ ...p, performed_at: e.target.value }))}
+                  />
+                </label>
+                <label>
+                  Devolução prevista
+                  <input
+                    type="date"
+                    disabled={newMovementOut.type !== "LOAN"}
+                    value={newMovementOut.expected_return_date}
+                    onChange={(e) => setNewMovementOut((p) => ({ ...p, expected_return_date: e.target.value }))}
+                  />
+                </label>
+              </div>
+              <label>
+                Observações
+                <textarea
+                  rows={2}
+                  value={newMovementOut.notes}
+                  onChange={(e) => setNewMovementOut((p) => ({ ...p, notes: e.target.value }))}
+                />
+              </label>
+            </div>
+          </div>
+
+          <div className="table-wrapper">
+            <table className="maintenance-table">
+              <thead>
+                <tr>
+                  <th>Data</th>
+                  <th>Tipo</th>
+                  <th>Peça</th>
+                  <th>Quantidade</th>
+                  <th>Responsável</th>
+                  <th>Devolução</th>
+                  <th>Observações</th>
+                </tr>
+              </thead>
+              <tbody>
+                {movements.map((movement) => (
+                  <tr key={movement.id}>
+                    <td>{formatDateTime(movement.performed_at)}</td>
+                    <td>{MOVEMENT_LABEL[movement.type]}</td>
+                    <td>{partLabel(movement.part_detail)}</td>
+                    <td>{movement.quantity}</td>
+                    <td>{movement.responsible_name || "—"}</td>
+                    <td>{movement.expected_return_date ? formatDate(movement.expected_return_date) : "—"}</td>
+                    <td className="col-description">{movement.notes || "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {!movements.length && <div className="empty">Nenhuma movimentação registrada.</div>}
+          </div>
         </section>
       )}
 
@@ -825,7 +1126,7 @@ export const MaintenancePage = () => {
                     <option value="">Selecione</option>
                     {vehicles.map((v) => (
                       <option key={v.id} value={v.id}>
-                        {v.license_plate}
+                        {vehicleLabel(v)}
                       </option>
                     ))}
                   </select>
@@ -879,7 +1180,7 @@ export const MaintenancePage = () => {
                 {plans.map((plan) => (
                   <tr key={plan.id}>
                     <td>{plan.name}</td>
-                    <td>{plan.vehicle_license_plate || plan.vehicle}</td>
+                    <td>{getVehicleLabel(plan.vehicle, plan.vehicle_license_plate)}</td>
                     <td>{plan.trigger_type === "KM" ? "KM" : "Tempo"}</td>
                     <td>
                       {plan.trigger_type === "KM" ? `${plan.interval_km || 0} km` : `${plan.interval_days || 0} dias`}
@@ -1013,7 +1314,7 @@ export const MaintenancePage = () => {
                 {inspections.map((inspection) => (
                   <tr key={inspection.id}>
                     <td>{formatDate(inspection.inspection_date)}</td>
-                    <td>{inspection.vehicle_plate || inspection.vehicle}</td>
+                    <td>{getVehicleLabel(inspection.vehicle, inspection.vehicle_plate)}</td>
                     <td>{inspection.driver_name || "—"}</td>
                     <td>{CONDITION_LABEL[inspection.condition_status]}</td>
                     <td>{inspection.odometer ? `${inspection.odometer} km` : "—"}</td>

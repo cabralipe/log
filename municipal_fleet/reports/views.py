@@ -1012,7 +1012,7 @@ class InventoryReportView(views.APIView):
         if end:
             movements = movements.filter(performed_at__date__lte=end)
         consumption = (
-            movements.filter(type=InventoryMovement.MovementType.OUT)
+            movements.filter(type__in=[InventoryMovement.MovementType.OUT, InventoryMovement.MovementType.LOAN])
             .values("part_id", "part__name", "part__sku", "part__unit")
             .annotate(total=Sum("quantity"))
         )

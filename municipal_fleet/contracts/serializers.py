@@ -1,4 +1,5 @@
 from decimal import Decimal
+from django.db import transaction
 from django.db.models import Q
 from django.utils import timezone
 from rest_framework import serializers
@@ -7,6 +8,8 @@ from fleet.models import Vehicle
 
 
 class ContractSerializer(serializers.ModelSerializer):
+    vehicle_ids = serializers.ListField(child=serializers.IntegerField(), write_only=True, required=False)
+
     class Meta:
         model = Contract
         fields = "__all__"
@@ -30,6 +33,51 @@ class ContractSerializer(serializers.ModelSerializer):
         if user and user.is_authenticated and user.role != "SUPERADMIN":
             attrs["municipality"] = user.municipality
         return attrs
+
+    def _sync_contract_vehicles(self, contract: Contract, vehicle_ids: list[int]):
+        if contract.status != Contract.Status.ACTIVE:
+            raise serializers.ValidationError("Apenas contratos ativos podem receber veículos.")
+
+        vehicles = Vehicle.objects.filter(id__in=vehicle_ids)
+        if vehicles.count() != len(set(vehicle_ids)):
+            raise serializers.ValidationError({"vehicle_ids": "Um ou mais veículos informados não existem."})
+
+        for vehicle in vehicles:
+            if vehicle.municipality_id != contract.municipality_id:
+                raise serializers.ValidationError("Contrato e veículo devem ser da mesma prefeitura.")
+
+        existing_links = {link.vehicle_id for link in contract.vehicles.all()}
+        incoming = set(vehicle_ids)
+        to_remove = existing_links - incoming
+        if to_remove:
+            contract.vehicles.filter(vehicle_id__in=to_remove).delete()
+
+        for vehicle in vehicles:
+            if vehicle.id in existing_links:
+                continue
+            ContractVehicle.objects.create(
+                contract=contract,
+                municipality=contract.municipality,
+                vehicle=vehicle,
+                start_date=contract.start_date,
+                end_date=contract.end_date,
+            )
+
+    def create(self, validated_data):
+        vehicle_ids = validated_data.pop("vehicle_ids", [])
+        with transaction.atomic():
+            contract = super().create(validated_data)
+            if vehicle_ids:
+                self._sync_contract_vehicles(contract, vehicle_ids)
+        return contract
+
+    def update(self, instance, validated_data):
+        vehicle_ids = validated_data.pop("vehicle_ids", None)
+        with transaction.atomic():
+            contract = super().update(instance, validated_data)
+            if vehicle_ids is not None:
+                self._sync_contract_vehicles(contract, vehicle_ids)
+        return contract
 
 
 class ContractVehicleSerializer(serializers.ModelSerializer):

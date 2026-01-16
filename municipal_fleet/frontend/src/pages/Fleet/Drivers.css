@@ -183,7 +183,7 @@
 
 .drivers-gallery-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
   gap: 1rem;
 }
 
@@ -199,6 +199,11 @@
   gap: 0.65rem;
   cursor: pointer;
   transition: all 0.2s ease;
+}
+
+.drivers-gallery-card:focus-visible {
+  outline: 2px solid rgba(74, 222, 128, 0.6);
+  outline-offset: 2px;
 }
 
 .drivers-gallery-card:hover {
@@ -240,6 +245,30 @@
 
 .drivers-gallery-info strong {
   font-size: 0.95rem;
+}
+
+.drivers-gallery-details {
+  display: grid;
+  gap: 0.25rem;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.drivers-gallery-details > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.drivers-gallery-details span:last-child {
+  color: var(--text);
+  font-weight: 500;
+}
+
+.drivers-gallery-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
 }
 
 .drivers-details {
