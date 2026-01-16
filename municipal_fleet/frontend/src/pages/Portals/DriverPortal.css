@@ -490,6 +490,10 @@
     gap: 1.5rem;
   }
 
+  .dp-shell {
+    padding-top: 1.5rem;
+  }
+
   .dp-header__meta {
     overflow-x: auto;
     padding-bottom: 0.5rem;
@@ -503,7 +507,8 @@
 
 @media (max-width: 600px) {
   .dp-shell {
-    padding-bottom: 7rem;
+    padding: 1rem 1rem 7rem;
+    width: 100%;
   }
 
   .dp-bottom-nav__label {
@@ -512,5 +517,25 @@
 
   .dp-bottom-nav__item {
     min-width: 50px;
+  }
+
+  .dp-header__brand h1 {
+    font-size: 1.8rem;
+  }
+
+  .dp-actions-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .dp-glass-card {
+    padding: 1rem;
+  }
+
+  .dp-header {
+    margin-bottom: 2rem;
+  }
+
+  .dp-kpi-grid {
+    grid-template-columns: 1fr 1fr;
   }
 }

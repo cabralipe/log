@@ -129,3 +129,13 @@
     pointer-events: none;
     opacity: 0.5;
 }
+
+@media (max-width: 600px) {
+    .dp-checklist-item__buttons {
+        grid-template-columns: 1fr;
+    }
+
+    .dp-checklist-btn {
+        padding: 1rem;
+    }
+}
