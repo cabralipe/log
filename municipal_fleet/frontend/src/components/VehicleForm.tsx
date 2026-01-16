@@ -3,6 +3,7 @@ import { Button } from "./Button";
 import "./VehicleForm.css";
 
 export type VehicleStatus = "AVAILABLE" | "IN_USE" | "MAINTENANCE" | "INACTIVE";
+export type VehicleCategory = "PASSENGER" | "CARGO" | "SERVICE" | "HOSPITAL";
 
 export interface VehicleFormData {
   license_plate: string;
@@ -11,6 +12,7 @@ export interface VehicleFormData {
   year: number;
   max_passengers: number;
   status: VehicleStatus;
+  category: VehicleCategory;
   image?: string | null;
   imageFile?: File | null;
   removeImage?: boolean;
@@ -33,6 +35,7 @@ export const VehicleForm = ({ initialData, vehicle, onSubmit, onClose }: Vehicle
     year: new Date().getFullYear(),
     max_passengers: 1,
     status: "AVAILABLE",
+    category: "PASSENGER",
     image: null,
   });
   const [imageFile, setImageFile] = useState<File | null>(null);
@@ -44,7 +47,11 @@ export const VehicleForm = ({ initialData, vehicle, onSubmit, onClose }: Vehicle
 
   useEffect(() => {
     if (data) {
-      setForm(data);
+      setForm((prev) => ({
+        ...prev,
+        ...data,
+        category: data.category ?? "PASSENGER",
+      }));
     }
     setImageFile(null);
     setRemoveImage(false);
@@ -112,6 +119,15 @@ export const VehicleForm = ({ initialData, vehicle, onSubmit, onClose }: Vehicle
         value={form.max_passengers}
         onChange={(e) => setForm({ ...form, max_passengers: Number(e.target.value) })}
       />
+      <select
+        value={form.category}
+        onChange={(e) => setForm({ ...form, category: e.target.value as VehicleCategory })}
+      >
+        <option value="PASSENGER">Transporte de passageiros</option>
+        <option value="CARGO">Carga</option>
+        <option value="SERVICE">Serviço</option>
+        <option value="HOSPITAL">Hospitalar</option>
+      </select>
       <select
         value={form.status}
         onChange={(e) => setForm({ ...form, status: e.target.value as VehicleStatus })}

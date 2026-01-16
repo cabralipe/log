@@ -8,6 +8,7 @@ import "./VehicleList.css";
 
 type Vehicle = VehicleFormData & {
   id: number;
+  current_contract?: number | null;
 };
 
 interface VehicleListProps {
@@ -40,6 +41,12 @@ export const VehicleList = ({
   onDelete,
 }: VehicleListProps) => {
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
+  const categoryLabels: Record<string, string> = {
+    PASSENGER: "Transporte de passageiros",
+    CARGO: "Carga",
+    SERVICE: "Serviço",
+    HOSPITAL: "Hospitalar",
+  };
 
   const openDetails = (vehicle: Vehicle) => {
     setSelectedVehicle(vehicle);
@@ -123,7 +130,12 @@ export const VehicleList = ({
                     </div>
                   )}
                   <div className="vehicle-overlay">
-                    <div className="vehicle-plate">{vehicle.license_plate}</div>
+                    <div className="vehicle-overlay-left">
+                      <div className="vehicle-plate">{vehicle.license_plate}</div>
+                      {vehicle.current_contract ? (
+                        <span className="vehicle-contract-badge">Contrato</span>
+                      ) : null}
+                    </div>
                     <StatusBadge status={vehicle.status} />
                   </div>
                 </div>
@@ -143,6 +155,10 @@ export const VehicleList = ({
                   <div className="vehicle-info-row">
                     <span className="vehicle-info-label">Capacidade</span>
                     <span>{vehicle.max_passengers}</span>
+                  </div>
+                  <div className="vehicle-info-row">
+                    <span className="vehicle-info-label">Categoria</span>
+                    <span>{categoryLabels[vehicle.category] ?? vehicle.category}</span>
                   </div>
                 </div>
               </button>
@@ -196,6 +212,12 @@ export const VehicleList = ({
               <div className="detail-item">
                 <span className="detail-label">Capacidade</span>
                 <span className="detail-value">{selectedVehicle.max_passengers}</span>
+              </div>
+              <div className="detail-item">
+                <span className="detail-label">Categoria</span>
+                <span className="detail-value">
+                  {categoryLabels[selectedVehicle.category] ?? selectedVehicle.category}
+                </span>
               </div>
               <div className="detail-item">
                 <span className="detail-label">Status</span>

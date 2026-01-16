@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { api, type Paginated } from "../../lib/api";
 import { useAuth } from "../../hooks/useAuth";
 import { ResponsiveVehicleLayout } from "../../components/ResponsiveVehicleLayout";
-import { type VehicleStatus } from "../../components/VehicleForm";
+import { type VehicleCategory, type VehicleStatus } from "../../components/VehicleForm";
 
 type Vehicle = {
   id: number;
@@ -12,6 +12,8 @@ type Vehicle = {
   year: number;
   max_passengers: number;
   status: VehicleStatus;
+  current_contract?: number | null;
+  category: VehicleCategory;
   municipality: number;
   image?: string | null;
 };
@@ -58,6 +60,7 @@ export const VehiclesPage = () => {
       "year",
       "max_passengers",
       "status",
+      "category",
       "municipality",
     ];
     fields.forEach((field) => {

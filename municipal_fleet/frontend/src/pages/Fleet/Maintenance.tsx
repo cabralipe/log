@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
-import { Plus, RefreshCcw, Search, Wrench, Package, ShieldCheck, CircleDot, CheckSquare } from "lucide-react";
+import { Plus, RefreshCcw, Search, Wrench, Package, ShieldCheck, CircleDot, CheckSquare, Pencil } from "lucide-react";
 import { api, type Paginated } from "../../lib/api";
 import { Card } from "../../components/Card";
 import { Button } from "../../components/Button";
+import { Modal } from "../../components/Modal";
 import "../../styles/MaintenanceDashboard.css";
 
 type Vehicle = { id: number; license_plate: string; brand: string; model: string };
@@ -104,6 +105,18 @@ const currency = (value: string | number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(Number(value || 0));
 const formatDate = (value?: string | null) => (value ? new Date(value).toLocaleDateString("pt-BR") : "—");
 
+const getErrorMessage = (err: any, fallback: string) => {
+  const data = err?.response?.data;
+  if (data?.detail) return data.detail;
+  if (data && typeof data === "object") {
+    const fieldErrors = Object.entries(data)
+      .map(([key, value]) => `${key}: ${Array.isArray(value) ? value.join(", ") : String(value)}`)
+      .join(" | ");
+    if (fieldErrors) return fieldErrors;
+  }
+  return fallback;
+};
+
 export const MaintenancePage = () => {
   const [tab, setTab] = useState<"orders" | "inventory" | "plans" | "tires" | "inspections">("orders");
   const [orders, setOrders] = useState<ServiceOrder[]>([]);
@@ -118,6 +131,7 @@ export const MaintenancePage = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [filters, setFilters] = useState<{ search?: string; status?: string; type?: string; vehicle?: string }>({});
+  const [editingOrder, setEditingOrder] = useState<ServiceOrder | null>(null);
   const [newOrder, setNewOrder] = useState<{
     vehicle: string;
     type: ServiceOrderType;
@@ -128,6 +142,21 @@ export const MaintenancePage = () => {
     vehicle: "",
     type: "CORRECTIVE",
     priority: "MEDIUM",
+    description: "",
+    provider_name: "",
+  });
+  const [editOrder, setEditOrder] = useState<{
+    vehicle: string;
+    type: ServiceOrderType;
+    priority: ServiceOrderPriority;
+    status: ServiceOrderStatus;
+    description: string;
+    provider_name: string;
+  }>({
+    vehicle: "",
+    type: "CORRECTIVE",
+    priority: "MEDIUM",
+    status: "OPEN",
     description: "",
     provider_name: "",
   });
@@ -236,31 +265,78 @@ export const MaintenancePage = () => {
         vehicle: Number(newOrder.vehicle),
         type: newOrder.type,
         priority: newOrder.priority,
-        description: newOrder.description,
-        provider_name: newOrder.provider_name || undefined,
+        status: "OPEN",
+        description: newOrder.description.trim(),
+        provider_name: newOrder.provider_name.trim() || undefined,
       });
       setNewOrder({ vehicle: "", type: "CORRECTIVE", priority: "MEDIUM", description: "", provider_name: "" });
       loadAll();
     } catch (err: any) {
-      setError(err?.response?.data?.detail || "Erro ao abrir OS.");
+      setError(getErrorMessage(err, "Erro ao abrir OS."));
+    }
+  };
+
+  const openEditOrder = (order: ServiceOrder) => {
+    setEditingOrder(order);
+    setEditOrder({
+      vehicle: String(order.vehicle),
+      type: order.type,
+      priority: order.priority,
+      status: order.status,
+      description: order.description,
+      provider_name: order.provider_name || "",
+    });
+  };
+
+  const handleUpdateOrder = async () => {
+    if (!editingOrder) return;
+    if (!editOrder.vehicle || !editOrder.description.trim()) {
+      setError("Selecione um veículo e descreva o problema.");
+      return;
+    }
+    try {
+      await api.patch(`/service-orders/${editingOrder.id}/`, {
+        vehicle: Number(editOrder.vehicle),
+        type: editOrder.type,
+        priority: editOrder.priority,
+        status: editOrder.status,
+        description: editOrder.description.trim(),
+        provider_name: editOrder.provider_name.trim() || undefined,
+      });
+      setEditingOrder(null);
+      loadAll();
+    } catch (err: any) {
+      setError(getErrorMessage(err, "Erro ao atualizar OS."));
     }
   };
 
   const handleStartOrder = async (id: number) => {
-    await api.post(`/service-orders/${id}/start/`);
-    loadAll();
+    try {
+      await api.post(`/service-orders/${id}/start/`);
+      loadAll();
+    } catch (err: any) {
+      setError(getErrorMessage(err, "Erro ao iniciar OS."));
+    }
   };
 
   const handleCompleteOrder = async (id: number) => {
     const km = window.prompt("KM de fechamento (opcional):");
-    await api.post(`/service-orders/${id}/complete/`, km ? { vehicle_odometer_close: km } : {});
-    loadAll();
+    try {
+      await api.post(`/service-orders/${id}/complete/`, km ? { vehicle_odometer_close: km } : {});
+      loadAll();
+    } catch (err: any) {
+      setError(getErrorMessage(err, "Erro ao concluir OS."));
+    }
   };
 
   const handleDeleteOrder = async (id: number) => {
     if (!window.confirm("Deseja remover esta OS?")) return;
-    await api.delete(`/service-orders/${id}/`);
-    loadAll();
+    try {
+      await api.delete(`/service-orders/${id}/`);
+      loadAll();
+    } catch (err: any) {
+      setError(getErrorMessage(err, "Erro ao excluir OS."));
+    }
   };
 
   const handleCreatePart = async () => {
@@ -523,6 +599,9 @@ export const MaintenancePage = () => {
                             <PlayIcon />
                           </button>
                         )}
+                        <button onClick={() => openEditOrder(order)} title="Editar">
+                          <Pencil size={16} />
+                        </button>
                         {order.status !== "COMPLETED" && order.status !== "CANCELLED" && (
                           <button onClick={() => handleCompleteOrder(order.id)} title="Concluir">
                             <CheckSquare size={16} />
@@ -544,6 +623,98 @@ export const MaintenancePage = () => {
           </div>
         </section>
       )}
+
+      <Modal
+        open={Boolean(editingOrder)}
+        onClose={() => setEditingOrder(null)}
+        title={editingOrder ? `Editar OS #${editingOrder.id}` : undefined}
+      >
+        <div className="panel form-card">
+          <div className="panel-header small">
+            <div>
+              <h3>Editar OS</h3>
+              <p className="muted">Atualize informações da ordem de serviço.</p>
+            </div>
+            <Button onClick={handleUpdateOrder}>
+              <Plus size={14} /> Salvar
+            </Button>
+          </div>
+          <div className="form-row">
+            <label>
+              Veículo
+              <select
+                value={editOrder.vehicle}
+                onChange={(e) => setEditOrder((p) => ({ ...p, vehicle: e.target.value }))}
+              >
+                <option value="">Selecione</option>
+                {vehicles.map((v) => (
+                  <option key={v.id} value={v.id}>
+                    {v.license_plate} - {v.brand} {v.model}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Tipo
+              <select
+                value={editOrder.type}
+                onChange={(e) => setEditOrder((p) => ({ ...p, type: e.target.value as ServiceOrderType }))}
+              >
+                {Object.keys(TYPE_LABEL).map((key) => (
+                  <option key={key} value={key}>
+                    {TYPE_LABEL[key as ServiceOrderType]}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Prioridade
+              <select
+                value={editOrder.priority}
+                onChange={(e) => setEditOrder((p) => ({ ...p, priority: e.target.value as ServiceOrderPriority }))}
+              >
+                {Object.keys(PRIORITY_LABEL).map((key) => (
+                  <option key={key} value={key}>
+                    {PRIORITY_LABEL[key as ServiceOrderPriority]}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+          <div className="form-row">
+            <label>
+              Status
+              <select
+                value={editOrder.status}
+                onChange={(e) => setEditOrder((p) => ({ ...p, status: e.target.value as ServiceOrderStatus }))}
+              >
+                {Object.keys(STATUS_LABEL).map((key) => (
+                  <option key={key} value={key}>
+                    {STATUS_LABEL[key as ServiceOrderStatus]}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+          <label>
+            Descrição
+            <textarea
+              value={editOrder.description}
+              onChange={(e) => setEditOrder((p) => ({ ...p, description: e.target.value }))}
+              rows={3}
+              placeholder="Problema relatado ou serviço previsto"
+            />
+          </label>
+          <label>
+            Oficina/fornecedor (opcional)
+            <input
+              value={editOrder.provider_name}
+              onChange={(e) => setEditOrder((p) => ({ ...p, provider_name: e.target.value }))}
+              placeholder="Nome da oficina"
+            />
+          </label>
+        </div>
+      </Modal>
 
       {tab === "inventory" && (
         <section className="panel">
