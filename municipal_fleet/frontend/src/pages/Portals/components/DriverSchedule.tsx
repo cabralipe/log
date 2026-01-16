@@ -194,7 +194,7 @@ export const DriverSchedule: React.FC<DriverScheduleProps> = ({
                         <button
                             type="button"
                             className="dp-btn dp-btn--primary"
-                            style={{ width: '48px', height: '48px', padding: 0, borderRadius: '14px' }}
+                            style={{ width: '48px', height: '48px', padding: 0, borderRadius: '14px', justifyContent: 'center' }}
                         >
                             <span className="material-symbols-outlined" style={{ margin: 0 }}>event_busy</span>
                         </button>

@@ -5,14 +5,15 @@
 }
 
 .dp-checklist-section {
-    margin-bottom: 2rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
 }
 
 .dp-checklist-section__header {
     display: flex;
     align-items: center;
     gap: 0.75rem;
-    margin-bottom: 1rem;
     padding: 0 0.5rem;
 }
 
@@ -30,7 +31,6 @@
     border: 1px solid var(--dp-border);
     border-radius: var(--dp-radius);
     padding: 1.25rem;
-    margin-bottom: 1rem;
     transition: all 0.2s ease;
 }
 

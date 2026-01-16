@@ -25,7 +25,7 @@
   background: radial-gradient(120% 120% at 20% 20%, #182132, #0c1118 60%);
   position: relative;
   overflow-x: hidden;
-  padding-top: calc(40px + 1rem);
+  padding-top: 4rem;
 }
 
 .pwa-status-bar {
@@ -44,7 +44,7 @@
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
 }
 
-.pwa-status-bar + .driver-portal {
+.pwa-status-bar+.driver-portal {
   margin-top: 40px;
 }
 
@@ -64,7 +64,7 @@
 .dp-shell {
   width: min(100%, 1200px);
   margin: 0 auto;
-  padding: clamp(1rem, 5vw, 2.5rem) 1.5rem 8rem;
+  padding: 0 1.5rem 8rem;
   position: relative;
   z-index: 1;
 }
@@ -156,7 +156,6 @@
   grid-template-columns: 1.4fr 0.6fr;
   gap: 2rem;
   margin-bottom: 3rem;
-  align-items: start;
   margin-top: 1.5rem;
 }
 
@@ -205,6 +204,8 @@
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+  justify-content: center;
+  height: 100%;
 }
 
 /* Actions Grid */
@@ -248,33 +249,6 @@
 .dp-action-card span {
   font-size: 0.8rem;
   color: var(--dp-muted);
-}
-
-/* KPI Grid */
-.dp-kpi-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 1rem;
-}
-
-.dp-kpi-card {
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid var(--dp-border);
-  border-radius: var(--dp-radius);
-  padding: 1rem;
-  text-align: center;
-}
-
-.dp-kpi-card span {
-  font-size: 0.75rem;
-  color: var(--dp-muted);
-  text-transform: uppercase;
-}
-
-.dp-kpi-card strong {
-  display: block;
-  font-size: 1.5rem;
-  margin-top: 0.5rem;
 }
 
 /* Bottom Navigation */
@@ -511,8 +485,22 @@
 
 @media (max-width: 900px) {
   .dp-header {
-    grid-template-columns: 1fr;
-    gap: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    margin-bottom: 4rem;
+    height: auto;
+    width: 100%;
+    position: relative;
+    z-index: 5;
+  }
+
+  .dp-header__brand {
+    display: block !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    text-align: left;
+    width: 100%;
   }
 
   .dp-shell {
@@ -532,7 +520,7 @@
 
 @media (max-width: 600px) {
   .dp-shell {
-    padding: 1rem 1rem 7rem;
+    padding: 0 1rem 7rem;
     width: 100%;
   }
 
@@ -558,9 +546,5 @@
 
   .dp-header {
     margin-bottom: 2rem;
-  }
-
-  .dp-kpi-grid {
-    grid-template-columns: 1fr 1fr;
   }
 }

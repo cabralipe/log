@@ -38,7 +38,7 @@ export const DriverFuel: React.FC<DriverFuelProps> = ({
 
     return (
         <div className="dp-fuel fade-in">
-            <form onSubmit={handleFuelSubmit}>
+            <form onSubmit={handleFuelSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                 {/* Vehicle & Station Selection */}
                 <div className="dp-glass-card">
                     <div className="dp-form-group">
@@ -145,8 +145,8 @@ export const DriverFuel: React.FC<DriverFuelProps> = ({
                 </div>
 
                 {/* Submit Button */}
-                <div className="dp-bottom-action">
-                    <button type="submit" className="dp-btn dp-btn--primary" style={{ width: '100%', padding: '1.25rem', fontSize: '1.1rem' }}>
+                <div className="dp-bottom-action" style={{ position: 'sticky', bottom: '1rem', zIndex: 10 }}>
+                    <button type="submit" className="dp-btn dp-btn--primary" style={{ width: '100%', padding: '1.25rem', fontSize: '1.1rem', boxShadow: '0 4px 20px rgba(0,0,0,0.4)' }}>
                         <span className="material-symbols-outlined">save</span>
                         SALVAR COMBUSTÍVEL
                     </button>
