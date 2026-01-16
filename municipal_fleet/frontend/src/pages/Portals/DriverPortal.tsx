@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { api, driverPortalApi } from "../../lib/api";
 import { InstallPrompt } from "../../components/InstallPrompt";
 import "./DriverPortal.css";
@@ -28,6 +29,7 @@ import { DriverIncidentModal } from "./components/DriverIncidentModal";
 import { DriverPassengersModal } from "./components/DriverPassengersModal";
 
 export const DriverPortalPage = () => {
+  const navigate = useNavigate();
   const [activeSection, setActiveSection] = useState("home");
   const [code, setCode] = useState("");
   const [token, setToken] = useState<string | null>(localStorage.getItem("driver_portal_token"));
@@ -416,6 +418,15 @@ export const DriverPortalPage = () => {
                 </button>
                 {error && <div className="dp-alert dp-alert--error" style={{ marginTop: '1rem' }}>{error}</div>}
               </form>
+              <button
+                type="button"
+                className="dp-btn dp-btn--ghost"
+                style={{ width: '100%', marginTop: '0.5rem', justifyContent: 'center' }}
+                onClick={() => navigate("/login")}
+              >
+                <span className="material-symbols-outlined">arrow_back</span>
+                Voltar ao Login
+              </button>
             </div>
           </section>
         </div>
