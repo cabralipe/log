@@ -198,7 +198,30 @@ class FuelProductSerializer(serializers.ModelSerializer):
     class Meta:
         model = FuelProduct
         fields = "__all__"
-        read_only_fields = ["id", "created_at", "updated_at", "municipality"]
+        read_only_fields = ["id", "created_at", "updated_at"]
+        read_only_fields = ["id", "created_at", "updated_at"]
+        extra_kwargs = {"municipality": {"required": False}}
+        validators = []
+
+    def validate(self, attrs):
+        request = self.context.get("request")
+        user = getattr(request, "user", None)
+        municipality = attrs.get("municipality")
+
+        # Logic to determine effective municipality for validation
+        if not municipality and user and getattr(user, "role", None) != "SUPERADMIN":
+            municipality = user.municipality
+
+        # Check for uniqueness manually
+        name = attrs.get("name")
+        if name and municipality:
+            qs = FuelProduct.objects.filter(municipality=municipality, name=name)
+            if self.instance:
+                qs = qs.exclude(id=self.instance.id)
+            if qs.exists():
+                raise serializers.ValidationError({"name": "Já existe um produto com este nome nesta prefeitura."})
+        
+        return attrs
 
 
 class FuelStationLimitSerializer(serializers.ModelSerializer):

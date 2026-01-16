@@ -5,6 +5,7 @@ import { Button } from "../../components/Button";
 import { StatusBadge } from "../../components/StatusBadge";
 import { Pagination } from "../../components/Pagination";
 import { Modal } from "../../components/Modal";
+import { SearchableSelect } from "../../components/SearchableSelect";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
 import "../../styles/DataPage.css";
 import "./FuelStations.css"; // Reusing styles
@@ -82,7 +83,7 @@ export const FuelManagementPage = () => {
     const [activeTab, setActiveTab] = useState<"LOGS" | "PRODUCTS" | "RULES" | "LIMITS" | "INVOICES" | "ALERTS">("LOGS");
 
     // Shared Data
-    const [vehicles, setVehicles] = useState<{ id: number, license_plate: string }[]>([]);
+    const [vehicles, setVehicles] = useState<{ id: number, license_plate: string, model: string }[]>([]);
     const [drivers, setDrivers] = useState<{ id: number, name: string }[]>([]);
     const [stations, setStations] = useState<{ id: number, name: string }[]>([]);
     const [products, setProducts] = useState<FuelProduct[]>([]);
@@ -157,7 +158,16 @@ const FuelLogsTab = ({ vehicles, drivers, stations, products }: any) => {
             else await api.post("/vehicles/fuel_logs/", form);
             setIsModalOpen(false);
             load();
-        } catch (err) { alert("Erro ao salvar."); }
+        } catch (err: any) {
+            console.error(err);
+            if (err.response?.data) {
+                const data = err.response.data;
+                const messages = Object.values(data).flat().join("\n");
+                alert(`Erro ao salvar:\n${messages}`);
+            } else {
+                alert("Erro ao salvar.");
+            }
+        }
     };
 
     return (
@@ -168,10 +178,10 @@ const FuelLogsTab = ({ vehicles, drivers, stations, products }: any) => {
             <Table
                 columns={[
                     { label: "Data", key: "filled_at", render: (d) => new Date(d.filled_at).toLocaleDateString("pt-BR") },
-                    { label: "Veículo", key: "vehicle_plate", render: (d) => d.vehicle_plate || "—" },
-                    { label: "Motorista", key: "driver_name", render: (d) => d.driver_name || "—" },
-                    { label: "Posto", key: "fuel_station" },
-                    { label: "Produto", key: "product_name", render: (d) => d.product_name || "—" },
+                    { label: "Veículo", key: "vehicle_plate", render: (d) => vehicles.find((v: any) => String(v.id) === String(d.vehicle))?.license_plate || d.vehicle_plate || "—" },
+                    { label: "Motorista", key: "driver_name", render: (d) => drivers.find((dr: any) => String(dr.id) === String(d.driver))?.name || d.driver_name || "—" },
+                    { label: "Posto", key: "fuel_station", render: (d) => stations.find((s: any) => s.name === d.fuel_station || String(s.id) === String(d.fuel_station))?.name || d.fuel_station || "—" },
+                    { label: "Produto", key: "product_name", render: (d) => products.find((p: any) => String(p.id) === String(d.product))?.name || d.product_name || "—" },
                     { label: "Litros", key: "liters" },
                     { label: "Total (R$)", key: "total_cost" },
                     { label: "Ações", key: "actions", render: (d) => <Button variant="ghost" size="sm" onClick={() => { setForm(d); setIsModalOpen(true); }}>Editar</Button> }
@@ -184,8 +194,26 @@ const FuelLogsTab = ({ vehicles, drivers, stations, products }: any) => {
                 <form onSubmit={handleSave} className="data-form">
                     <div className="data-form-grid">
                         <label className="full-width">Data * <input type="date" required value={form.filled_at || ""} onChange={e => setForm({ ...form, filled_at: e.target.value })} /></label>
-                        <label>Veículo * <select required value={form.vehicle || ""} onChange={e => setForm({ ...form, vehicle: Number(e.target.value) })}>{vehicles.map((v: any) => <option key={v.id} value={v.id}>{v.license_plate}</option>)}</select></label>
-                        <label>Motorista * <select required value={form.driver || ""} onChange={e => setForm({ ...form, driver: Number(e.target.value) })}>{drivers.map((d: any) => <option key={d.id} value={d.id}>{d.name}</option>)}</select></label>
+                        <label>
+                            Veículo *
+                            <SearchableSelect
+                                required
+                                value={form.vehicle}
+                                onChange={(val) => setForm({ ...form, vehicle: Number(val) })}
+                                options={vehicles.map((v: any) => ({ value: v.id, label: `${v.model} - ${v.license_plate}` }))}
+                                placeholder="Selecione o veículo"
+                            />
+                        </label>
+                        <label>
+                            Motorista *
+                            <SearchableSelect
+                                required
+                                value={form.driver}
+                                onChange={(val) => setForm({ ...form, driver: Number(val) })}
+                                options={drivers.map((d: any) => ({ value: d.id, label: d.name }))}
+                                placeholder="Selecione o motorista"
+                            />
+                        </label>
                         <label className="full-width">Posto <select value={form.fuel_station || ""} onChange={e => setForm({ ...form, fuel_station: e.target.value })}><option value="">Selecione</option>{stations.map((s: any) => <option key={s.id} value={s.name}>{s.name}</option>)}</select></label>
                         <label>Produto <select value={form.product || ""} onChange={e => setForm({ ...form, product: Number(e.target.value) })}>{products.map((p: any) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
                         <label>Litros * <input type="number" step="0.01" required value={form.liters || ""} onChange={e => setForm({ ...form, liters: e.target.value })} /></label>
@@ -215,7 +243,16 @@ const FuelProductsTab = () => {
             else await api.post("/vehicles/fuel_products/", form);
             setIsModalOpen(false);
             load();
-        } catch (err) { alert("Erro ao salvar."); }
+        } catch (err: any) {
+            console.error(err);
+            if (err.response?.data) {
+                const data = err.response.data;
+                const messages = Object.values(data).flat().join("\n");
+                alert(`Erro ao salvar:\n${messages}`);
+            } else {
+                alert("Erro ao salvar.");
+            }
+        }
     };
 
     return (
@@ -263,7 +300,16 @@ const FuelRulesTab = ({ vehicles }: any) => {
             else await api.post("/vehicles/fuel_rules/", form);
             setIsModalOpen(false);
             load();
-        } catch (err) { alert("Erro ao salvar."); }
+        } catch (err: any) {
+            console.error(err);
+            if (err.response?.data) {
+                const data = err.response.data;
+                const messages = Object.values(data).flat().join("\n");
+                alert(`Erro ao salvar:\n${messages}`);
+            } else {
+                alert("Erro ao salvar.");
+            }
+        }
     };
 
     return (
@@ -286,7 +332,15 @@ const FuelRulesTab = ({ vehicles }: any) => {
                     <div className="data-form-grid">
                         <label className="full-width">Escopo * <select value={form.scope} onChange={e => setForm({ ...form, scope: e.target.value as any })}><option value="MUNICIPALITY">Geral (Município)</option><option value="VEHICLE">Veículo Específico</option></select></label>
                         {form.scope === "VEHICLE" && (
-                            <label className="full-width">Veículo * <select value={form.vehicle || ""} onChange={e => setForm({ ...form, vehicle: Number(e.target.value) })}>{vehicles.map((v: any) => <option key={v.id} value={v.id}>{v.license_plate}</option>)}</select></label>
+                            <label className="full-width">
+                                Veículo *
+                                <SearchableSelect
+                                    value={form.vehicle}
+                                    onChange={(val) => setForm({ ...form, vehicle: Number(val) })}
+                                    options={vehicles.map((v: any) => ({ value: v.id, label: `${v.model} - ${v.license_plate}` }))}
+                                    placeholder="Selecione o veículo"
+                                />
+                            </label>
                         )}
                         <label>Início Permitido <input type="time" value={form.allowed_start_time || ""} onChange={e => setForm({ ...form, allowed_start_time: e.target.value })} /></label>
                         <label>Fim Permitido <input type="time" value={form.allowed_end_time || ""} onChange={e => setForm({ ...form, allowed_end_time: e.target.value })} /></label>
@@ -316,7 +370,16 @@ const FuelLimitsTab = ({ stations, products }: any) => {
             else await api.post("/vehicles/fuel_station_limits/", form);
             setIsModalOpen(false);
             load();
-        } catch (err) { alert("Erro ao salvar."); }
+        } catch (err: any) {
+            console.error(err);
+            if (err.response?.data) {
+                const data = err.response.data;
+                const messages = Object.values(data).flat().join("\n");
+                alert(`Erro ao salvar:\n${messages}`);
+            } else {
+                alert("Erro ao salvar.");
+            }
+        }
     };
 
     return (
@@ -373,7 +436,16 @@ const FuelInvoicesTab = ({ stations }: any) => {
             else await api.post("/vehicles/fuel_invoices/", form); // JSON for now
             setIsModalOpen(false);
             load();
-        } catch (err) { alert("Erro ao salvar."); }
+        } catch (err: any) {
+            console.error(err);
+            if (err.response?.data) {
+                const data = err.response.data;
+                const messages = Object.values(data).flat().join("\n");
+                alert(`Erro ao salvar:\n${messages}`);
+            } else {
+                alert("Erro ao salvar.");
+            }
+        }
     };
 
     return (

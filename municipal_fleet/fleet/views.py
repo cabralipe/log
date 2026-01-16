@@ -123,8 +123,13 @@ class FuelProductViewSet(MunicipalityQuerysetMixin, viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         user = self.request.user
-        municipality = serializer.validated_data.get("municipality") or user.municipality
-        serializer.save(municipality=municipality)
+        if getattr(user, "role", None) != "SUPERADMIN":
+            serializer.save(municipality=user.municipality)
+        else:
+            municipality = serializer.validated_data.get("municipality")
+            if not municipality:
+                raise ValidationError("Prefeitura é obrigatória para criação por SUPERADMIN.")
+            serializer.save(municipality=municipality)
 
 
 class FuelStationLimitViewSet(MunicipalityQuerysetMixin, viewsets.ModelViewSet):

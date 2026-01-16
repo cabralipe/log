@@ -6,6 +6,7 @@ import { Button } from "../../components/Button";
 import { StatusBadge } from "../../components/StatusBadge";
 import { Pagination } from "../../components/Pagination";
 import { Modal } from "../../components/Modal";
+import { SearchableSelect } from "../../components/SearchableSelect";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
 import "../../styles/DataPage.css";
 
@@ -26,7 +27,7 @@ type ServiceOrder = {
     created_at: string;
 };
 
-type Vehicle = { id: number; license_plate: string };
+type Vehicle = { id: number; license_plate: string; model: string };
 type Driver = { id: number; name: string };
 
 export const ServiceOrdersPage = () => {
@@ -171,17 +172,23 @@ export const ServiceOrdersPage = () => {
 
                         <label>
                             Veículo *
-                            <select required value={form.vehicle || ""} onChange={e => setForm({ ...form, vehicle: Number(e.target.value) })}>
-                                <option value="">Selecione</option>
-                                {vehicles.map(v => <option key={v.id} value={v.id}>{v.license_plate}</option>)}
-                            </select>
+                            <SearchableSelect
+                                required
+                                value={form.vehicle}
+                                onChange={(val) => setForm({ ...form, vehicle: Number(val) })}
+                                options={vehicles.map(v => ({ value: v.id, label: `${v.model} - ${v.license_plate}` }))}
+                                placeholder="Selecione o veículo"
+                            />
                         </label>
                         <label>
                             Motorista *
-                            <select required value={form.driver || ""} onChange={e => setForm({ ...form, driver: Number(e.target.value) })}>
-                                <option value="">Selecione</option>
-                                {drivers.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
-                            </select>
+                            <SearchableSelect
+                                required
+                                value={form.driver}
+                                onChange={(val) => setForm({ ...form, driver: Number(val) })}
+                                options={drivers.map(d => ({ value: d.id, label: d.name }))}
+                                placeholder="Selecione o motorista"
+                            />
                         </label>
 
                         <label>
