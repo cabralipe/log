@@ -2,6 +2,7 @@ import datetime
 import json
 from rest_framework import serializers
 from django.utils import timezone
+from accounts.models import User
 from fleet.models import (
     Vehicle,
     VehicleMaintenance,
@@ -22,6 +23,7 @@ class VehicleSerializer(serializers.ModelSerializer):
         model = Vehicle
         fields = "__all__"
         read_only_fields = ["id", "created_at", "updated_at"]
+        extra_kwargs = {"municipality": {"required": False}}
 
     def validate_year(self, value):
         current_year = datetime.date.today().year
@@ -30,6 +32,8 @@ class VehicleSerializer(serializers.ModelSerializer):
         return value
 
     def validate(self, attrs):
+        request = self.context.get("request")
+        user = getattr(request, "user", None)
         odometer_current = attrs.get("odometer_current", getattr(self.instance, "odometer_current", 0))
         odometer_initial = attrs.get("odometer_initial", getattr(self.instance, "odometer_initial", 0))
         current_contract = attrs.get("current_contract", getattr(self.instance, "current_contract", None))
@@ -37,6 +41,10 @@ class VehicleSerializer(serializers.ModelSerializer):
 
         if odometer_current < odometer_initial:
             raise serializers.ValidationError("Quilometragem atual não pode ser menor que a inicial.")
+
+        if user and getattr(user, "role", None) != "SUPERADMIN":
+            attrs["municipality"] = user.municipality
+            municipality = attrs.get("municipality", municipality)
 
         if current_contract:
             if municipality and current_contract.municipality_id != municipality.id:
@@ -47,6 +55,18 @@ class VehicleSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError("Contrato atual está vencido.")
 
         return attrs
+
+    def create(self, validated_data):
+        user = self.context["request"].user
+        if user.role != User.Roles.SUPERADMIN:
+            validated_data["municipality"] = user.municipality
+        return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        user = self.context["request"].user
+        if user.role != User.Roles.SUPERADMIN and "municipality" in validated_data:
+            validated_data.pop("municipality")
+        return super().update(instance, validated_data)
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
