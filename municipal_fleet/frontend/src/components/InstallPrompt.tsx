@@ -63,40 +63,39 @@ export const InstallPrompt = () => {
         }
     }, []);
 
+    const shouldShowStatusBar = !isOnline || pendingCount > 0;
+
     return (
         <>
             {/* Offline Status Bar */}
-            <div className={`pwa-status-bar ${!isOnline ? "offline" : pendingCount > 0 ? "pending" : "online"}`}>
-                <div className="pwa-status-content">
-                    {!isOnline ? (
-                        <>
-                            <WifiOff size={16} />
-                            <span>Modo offline</span>
-                            {pendingCount > 0 && (
-                                <span className="pwa-pending-badge">{pendingCount} pendente{pendingCount > 1 ? "s" : ""}</span>
-                            )}
-                        </>
-                    ) : pendingCount > 0 ? (
-                        <>
-                            <Wifi size={16} />
-                            <span>{isSyncing ? "Sincronizando..." : `${pendingCount} ação(ões) pendente(s)`}</span>
-                            {!isSyncing && (
-                                <button className="pwa-sync-btn" onClick={syncPendingActions}>
-                                    <RefreshCw size={14} />
-                                    Sincronizar
-                                </button>
-                            )}
-                            {isSyncing && <RefreshCw size={14} className="pwa-spinning" />}
-                        </>
-                    ) : (
-                        <>
-                            <CheckCircle size={16} />
-                            <span>Online</span>
-                        </>
-                    )}
+            {shouldShowStatusBar && (
+                <div className={`pwa-status-bar ${!isOnline ? "offline" : pendingCount > 0 ? "pending" : "online"}`}>
+                    <div className="pwa-status-content">
+                        {!isOnline ? (
+                            <>
+                                <WifiOff size={16} />
+                                <span>Modo offline</span>
+                                {pendingCount > 0 && (
+                                    <span className="pwa-pending-badge">{pendingCount} pendente{pendingCount > 1 ? "s" : ""}</span>
+                                )}
+                            </>
+                        ) : pendingCount > 0 ? (
+                            <>
+                                <Wifi size={16} />
+                                <span>{isSyncing ? "Sincronizando..." : `${pendingCount} ação(ões) pendente(s)`}</span>
+                                {!isSyncing && (
+                                    <button className="pwa-sync-btn" onClick={syncPendingActions}>
+                                        <RefreshCw size={14} />
+                                        Sincronizar
+                                    </button>
+                                )}
+                                {isSyncing && <RefreshCw size={14} className="pwa-spinning" />}
+                            </>
+                        ) : null}
+                    </div>
+                    {syncError && <div className="pwa-sync-error">{syncError}</div>}
                 </div>
-                {syncError && <div className="pwa-sync-error">{syncError}</div>}
-            </div>
+            )}
 
             {/* Install Banner */}
             {showInstallBanner && !isInstalled && deferredPrompt && (
