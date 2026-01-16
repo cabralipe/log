@@ -548,3 +548,11 @@
     margin-bottom: 2rem;
   }
 }
+
+@media (max-width: 480px) {
+
+  /* Increase bottom padding when install banner is visible to prevent overlap */
+  body:has(.pwa-install-banner) .dp-shell {
+    padding-bottom: 12rem;
+  }
+}
