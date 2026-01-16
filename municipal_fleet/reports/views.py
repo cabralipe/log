@@ -99,6 +99,12 @@ def _filter_odometer_range(qs, start: date | None, end: date | None):
         qs = qs.filter(Q(year__lt=end.year) | Q(year=end.year, month__lte=end.month))
     return qs
 
+
+def _percent_change(current: int, previous: int) -> int:
+    if previous == 0:
+        return 0 if current == 0 else 100
+    return round(((current - previous) / previous) * 100)
+
 class DashboardView(views.APIView):
     permission_classes = [permissions.IsAuthenticated]
 
@@ -109,6 +115,11 @@ class DashboardView(views.APIView):
         user = request.user
         today = timezone.localdate()
         now = timezone.now()
+        month_start = today.replace(day=1)
+        prev_month_end = month_start - timedelta(days=1)
+        prev_month_start = prev_month_end.replace(day=1)
+        week_start = today - timedelta(days=7)
+        prev_week_start = today - timedelta(days=14)
 
         qs_vehicle = Vehicle.objects.all()
         qs_trip = Trip.objects.all()
@@ -165,6 +176,10 @@ class DashboardView(views.APIView):
         ownership_stats = qs_vehicle.values("ownership_type").annotate(total=Count("id"))
         trips_month = qs_trip.filter(departure_datetime__month=now.month, departure_datetime__year=now.year)
         trips_month_total = trips_month.count()
+        trips_prev_month_total = qs_trip.filter(
+            departure_datetime__date__gte=prev_month_start,
+            departure_datetime__date__lte=prev_month_end,
+        ).count()
         trips_by_status = trips_month.values("status").annotate(total=Count("id"))
         passengers_month = trips_month.aggregate(total=Sum("passengers_count"))["total"] or 0
 
@@ -305,16 +320,32 @@ class DashboardView(views.APIView):
         users_by_role = qs_users.values("role").annotate(total=Count("id"))
         operators_total = qs_users.filter(role=User.Roles.OPERATOR).count()
 
+        open_orders_qs = qs_orders.exclude(
+            status__in=[ServiceOrder.Status.COMPLETED, ServiceOrder.Status.CANCELLED]
+        )
+        open_orders_week = open_orders_qs.filter(
+            created_at__date__gte=week_start,
+            created_at__date__lte=today,
+        ).count()
+        open_orders_prev_week = open_orders_qs.filter(
+            created_at__date__gte=prev_week_start,
+            created_at__date__lt=week_start,
+        ).count()
+        vehicles_prev_total = qs_vehicle.filter(created_at__date__lt=month_start).count()
+
         data = {
             "summary": {
                 "total_vehicles": vehicles_total,
                 "drivers_active": drivers_active_count,
                 "trips_month_total": trips_month_total,
-                "open_service_orders": qs_orders.exclude(
-                    status__in=[ServiceOrder.Status.COMPLETED, ServiceOrder.Status.CANCELLED]
-                ).count(),
+                "open_service_orders": open_orders_qs.count(),
                 "fuel_month_liters": fuel_month_liters,
                 "pending_applications": pending_applications,
+                "trends": {
+                    "vehicles_vs_prev_month": _percent_change(vehicles_total, vehicles_prev_total),
+                    "trips_vs_prev_month": _percent_change(trips_month_total, trips_prev_month_total),
+                    "open_service_orders_vs_prev_week": _percent_change(open_orders_week, open_orders_prev_week),
+                },
             },
             "vehicles": {
                 "total": vehicles_total,

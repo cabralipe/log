@@ -10,6 +10,12 @@ class Vehicle(models.Model):
         RENTED = "RENTED", "Alugado"
         THIRD_PARTY = "THIRD_PARTY", "Terceiro"
 
+    class Category(models.TextChoices):
+        PASSENGER = "PASSENGER", "Transporte de passageiros"
+        CARGO = "CARGO", "Carga"
+        SERVICE = "SERVICE", "Serviço"
+        HOSPITAL = "HOSPITAL", "Hospitalar"
+
     class Status(models.TextChoices):
         AVAILABLE = "AVAILABLE", "Disponivel"
         IN_USE = "IN_USE", "Em uso"
@@ -30,6 +36,7 @@ class Vehicle(models.Model):
     last_oil_change_date = models.DateField(null=True, blank=True)
     next_oil_change_date = models.DateField(null=True, blank=True)
     ownership_type = models.CharField(max_length=20, choices=OwnershipType.choices, default=OwnershipType.OWNED)
+    category = models.CharField(max_length=20, choices=Category.choices, default=Category.PASSENGER)
     current_contract = models.ForeignKey(
         "contracts.Contract",
         on_delete=models.SET_NULL,

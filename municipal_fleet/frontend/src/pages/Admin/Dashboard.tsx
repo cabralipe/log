@@ -66,6 +66,11 @@ type DashboardData = {
     open_service_orders: number;
     fuel_month_liters: number;
     pending_applications: number;
+    trends?: {
+      vehicles_vs_prev_month: number;
+      trips_vs_prev_month: number;
+      open_service_orders_vs_prev_week: number;
+    };
   };
   vehicles: {
     total: number;
@@ -153,9 +158,9 @@ export const DashboardPage = () => {
   const { user } = useAuth();
 
   const [maintenanceCosts, setMaintenanceCosts] = useState<{ name: string; value: number }[]>([]);
-  const [activeFilter, setActiveFilter] = useState("all");
 
   const vehiclesTotal = data?.summary?.total_vehicles ?? data?.total_vehicles ?? data?.vehicles?.total ?? 0;
+  const summaryTrends = data?.summary?.trends;
 
   // Calculate Fleet Health (Availability)
   const fleetHealth = useMemo(() => {
@@ -394,19 +399,6 @@ export const DashboardPage = () => {
         ))}
       </div>
 
-      {/* Quick Actions */}
-      <div className="quick-actions">
-        {["Todos", "Alertas", "Em Viagem", "Disponível", "Manutenção"].map(label => (
-          <button
-            key={label}
-            className={`status-pill ${activeFilter === label ? "active" : ""}`}
-            onClick={() => setActiveFilter(label)}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-
       {tab === "overview" && (
         <>
           <div className="overview-header animate-slide-up">
@@ -432,12 +424,12 @@ export const DashboardPage = () => {
             <div className="glass-card summary-card-content">
               <p className="muted">Veículos</p>
               <span className="summary-value">{formatNumber(vehiclesTotal)}</span>
-              <TrendLabel value={12} label="vs mês anterior" />
+              <TrendLabel value={summaryTrends?.vehicles_vs_prev_month ?? 0} label="vs mês anterior" />
             </div>
             <div className="glass-card summary-card-content">
               <p className="muted">Viagens</p>
               <span className="summary-value">{formatNumber(tripsMonth)}</span>
-              <TrendLabel value={5} label="vs mês anterior" />
+              <TrendLabel value={summaryTrends?.trips_vs_prev_month ?? 0} label="vs mês anterior" />
             </div>
             <div className="glass-card summary-card-content">
               <p className="muted">Abastecimentos</p>
@@ -446,7 +438,7 @@ export const DashboardPage = () => {
             <div className="glass-card summary-card-content">
               <p className="muted">OS Abertas</p>
               <span className="summary-value">{formatNumber(data.summary?.open_service_orders ?? 0)}</span>
-              <TrendLabel value={-2} label="vs semana passada" inverse />
+              <TrendLabel value={summaryTrends?.open_service_orders_vs_prev_week ?? 0} label="vs semana passada" inverse />
             </div>
             <div className="glass-card summary-card-content">
               <p className="muted">Solicitações</p>
@@ -480,7 +472,7 @@ export const DashboardPage = () => {
             </div>
             <span className="pill ghost">Alertas {formatNumber(data.vehicles?.maintenance_alerts?.length ?? 0)}</span>
           </div>
-          <div className="dashboard-grid three">
+          <div className="dashboard-grid two">
             <div className="glass-card">
               <div className="card-head">
                 <div>
@@ -511,6 +503,22 @@ export const DashboardPage = () => {
             <div className="glass-card">
               <div className="card-head">
                 <div>
+                  <p className="muted">Motoristas</p>
+                  <h4>CNH a vencer</h4>
+                </div>
+                <span className="pill ghost">{formatNumber(data.drivers?.cnh_expiring_soon?.length ?? 0)} próximos</span>
+              </div>
+              <Table
+                columns={[
+                  { key: "name", label: "Nome" },
+                  { key: "cnh_expiration_date", label: "Vencimento", render: (row) => formatDate((row as any).cnh_expiration_date) },
+                ]}
+                data={(data.drivers?.cnh_expiring_soon ?? []).map((item) => ({ ...item, id: item.id }))}
+              />
+            </div>
+            <div className="glass-card">
+              <div className="card-head">
+                <div>
                   <p className="muted">Manutenção</p>
                   <h4>Alertas de revisão</h4>
                 </div>
@@ -523,22 +531,6 @@ export const DashboardPage = () => {
                   { key: "next_oil_change_date", label: "Troca de óleo", render: (row) => formatDate((row as MaintenanceAlert).next_oil_change_date) },
                 ]}
                 data={(data.vehicles?.maintenance_alerts ?? data.maintenance_alerts ?? []).map((item) => ({ ...item, id: item.id }))}
-              />
-            </div>
-            <div className="glass-card">
-              <div className="card-head">
-                <div>
-                  <p className="muted">Motoristas</p>
-                  <h4>CNH a vencer</h4>
-                </div>
-                <span className="pill ghost">{formatNumber(data.drivers?.cnh_expiring_soon?.length ?? 0)} próximos</span>
-              </div>
-              <Table
-                columns={[
-                  { key: "name", label: "Nome" },
-                  { key: "cnh_expiration_date", label: "Vencimento", render: (row) => formatDate((row as any).cnh_expiration_date) },
-                ]}
-                data={(data.drivers?.cnh_expiring_soon ?? []).map((item) => ({ ...item, id: item.id }))}
               />
             </div>
             {isAdmin && (
@@ -657,7 +649,7 @@ export const DashboardPage = () => {
             </div>
             <span className="pill ghost">Planos ativos {formatNumber(data.maintenance?.active_plans ?? 0)}</span>
           </div>
-          <div className="dashboard-grid three">
+          <div className="dashboard-grid two">
             <div className="glass-card">
               <div className="card-head">
                 <div>
@@ -747,7 +739,7 @@ export const DashboardPage = () => {
             </div>
             <span className="pill ghost">Contratos ativos {formatNumber(data.contracts?.active ?? 0)}</span>
           </div>
-          <div className="dashboard-grid three">
+          <div className="dashboard-grid two">
             <div className="glass-card">
               <div className="card-head">
                 <div>
