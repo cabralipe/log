@@ -139,6 +139,11 @@ class FuelStationLimitViewSet(MunicipalityQuerysetMixin, viewsets.ModelViewSet):
     filter_backends = [filters.SearchFilter]
     search_fields = ["fuel_station__name", "product__name"]
 
+    def perform_create(self, serializer):
+        user = self.request.user
+        municipality = serializer.validated_data.get("municipality") or user.municipality
+        serializer.save(municipality=municipality)
+
 
 class FuelRuleViewSet(MunicipalityQuerysetMixin, viewsets.ModelViewSet):
     queryset = FuelRule.objects.select_related("vehicle", "contract", "municipality")
@@ -146,6 +151,11 @@ class FuelRuleViewSet(MunicipalityQuerysetMixin, viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated, IsMunicipalityAdminOrReadOnly]
     filter_backends = [filters.SearchFilter]
     search_fields = ["vehicle__license_plate", "contract__contract_number"]
+
+    def perform_create(self, serializer):
+        user = self.request.user
+        municipality = serializer.validated_data.get("municipality") or user.municipality
+        serializer.save(municipality=municipality)
 
 
 class FuelAlertViewSet(MunicipalityQuerysetMixin, viewsets.ModelViewSet):

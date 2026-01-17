@@ -1,0 +1,3 @@
+FuelStationLimit Errors: {'fuel_station': [ErrorDetail(string='Este campo é obrigatório.', code='required')], 'product': [ErrorDetail(string='Este campo é obrigatório.', code='required')]}
+Request Data: {'period': 'MONTHLY', 'max_quantity': '1000'}
+FuelStationLimit Errors: {'fuel_station': [ErrorDetail(string='Este campo é obrigatório.', code='required')], 'product': [ErrorDetail(string='Este campo é obrigatório.', code='required')]}
