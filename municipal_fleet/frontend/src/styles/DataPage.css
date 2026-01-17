@@ -32,6 +32,31 @@
   color: #fecdd3;
 }
 
+.data-filters {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.data-search {
+  flex: 1;
+  min-width: 200px;
+  padding: 0.75rem 1rem;
+  border-radius: 8px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  color: var(--foreground);
+}
+
+.data-select {
+  padding: 0.75rem 2rem 0.75rem 1rem;
+  border-radius: 8px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  color: var(--foreground);
+  min-width: 150px;
+}
+
 .data-form {
   display: flex;
   flex-direction: column;

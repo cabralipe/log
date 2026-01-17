@@ -63,7 +63,7 @@ type Trip = {
 };
 
 type ServiceOrder = { id: number; external_id: string };
-type Vehicle = { id: number; license_plate: string; model: string };
+type Vehicle = { id: number; license_plate: string; model: string; odometer_current: number };
 type Driver = { id: number; name: string };
 
 export const TripsPage = () => {
@@ -351,7 +351,14 @@ export const TripsPage = () => {
               <SearchableSelect
                 required
                 value={tripForm.vehicle}
-                onChange={(val) => setTripForm({ ...tripForm, vehicle: Number(val) })}
+                onChange={(val) => {
+                  const selectedVehicle = vehicles.find(v => v.id === Number(val));
+                  setTripForm({
+                    ...tripForm,
+                    vehicle: Number(val),
+                    odometer_start: selectedVehicle?.odometer_current
+                  });
+                }}
                 options={vehicles.map(v => ({ value: v.id, label: `${v.model} - ${v.license_plate}` }))}
                 placeholder="Selecione o veículo"
               />
