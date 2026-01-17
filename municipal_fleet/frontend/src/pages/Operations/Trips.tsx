@@ -7,6 +7,7 @@ import { StatusBadge } from "../../components/StatusBadge";
 import { Pagination } from "../../components/Pagination";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
 import { Modal } from "../../components/Modal";
+import { SearchableSelect } from "../../components/SearchableSelect";
 import "../../styles/DataPage.css";
 import "./Trips.css";
 
@@ -62,7 +63,7 @@ type Trip = {
 };
 
 type ServiceOrder = { id: number; external_id: string };
-type Vehicle = { id: number; license_plate: string };
+type Vehicle = { id: number; license_plate: string; model: string };
 type Driver = { id: number; name: string };
 
 export const TripsPage = () => {
@@ -316,8 +317,22 @@ export const TripsPage = () => {
             <label>Data Fim <input type="date" value={planForm.end_date || ""} onChange={e => setPlanForm({ ...planForm, end_date: e.target.value })} /></label>
             <label>Hora Saída * <input type="time" required value={planForm.departure_time || ""} onChange={e => setPlanForm({ ...planForm, departure_time: e.target.value })} /></label>
             <label>Hora Retorno * <input type="time" required value={planForm.return_time_expected || ""} onChange={e => setPlanForm({ ...planForm, return_time_expected: e.target.value })} /></label>
-            <label>Veículo <select value={planForm.vehicle || ""} onChange={e => setPlanForm({ ...planForm, vehicle: e.target.value ? Number(e.target.value) : undefined })}><option value="">Selecione</option>{vehicles.map(v => <option key={v.id} value={v.id}>{v.license_plate}</option>)}</select></label>
-            <label>Motorista <select value={planForm.driver || ""} onChange={e => setPlanForm({ ...planForm, driver: e.target.value ? Number(e.target.value) : undefined })}><option value="">Selecione</option>{drivers.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}</select></label>
+            <label className="full-width-mobile">Veículo
+              <SearchableSelect
+                value={planForm.vehicle}
+                onChange={(val) => setPlanForm({ ...planForm, vehicle: Number(val) })}
+                options={vehicles.map(v => ({ value: v.id, label: `${v.model} - ${v.license_plate}` }))}
+                placeholder="Selecione o veículo"
+              />
+            </label>
+            <label className="full-width-mobile">Motorista
+              <SearchableSelect
+                value={planForm.driver}
+                onChange={(val) => setPlanForm({ ...planForm, driver: Number(val) })}
+                options={drivers.map(d => ({ value: d.id, label: d.name }))}
+                placeholder="Selecione o motorista"
+              />
+            </label>
             <label className="full-width">Notas <textarea value={planForm.notes || ""} onChange={e => setPlanForm({ ...planForm, notes: e.target.value })} /></label>
             <label className="checkbox-label"><input type="checkbox" checked={planForm.active} onChange={e => setPlanForm({ ...planForm, active: e.target.checked })} /> Ativo</label>
           </div>
@@ -332,8 +347,24 @@ export const TripsPage = () => {
             <label>Destino * <input required value={tripForm.destination || ""} onChange={e => setTripForm({ ...tripForm, destination: e.target.value })} /></label>
             <label>Saída * <input type="datetime-local" required value={tripForm.departure_datetime ? tripForm.departure_datetime.slice(0, 16) : ""} onChange={e => setTripForm({ ...tripForm, departure_datetime: e.target.value })} /></label>
             <label>Retorno Previsto * <input type="datetime-local" required value={tripForm.return_datetime_expected ? tripForm.return_datetime_expected.slice(0, 16) : ""} onChange={e => setTripForm({ ...tripForm, return_datetime_expected: e.target.value })} /></label>
-            <label>Veículo * <select required value={tripForm.vehicle || ""} onChange={e => setTripForm({ ...tripForm, vehicle: Number(e.target.value) })}>{vehicles.map(v => <option key={v.id} value={v.id}>{v.license_plate}</option>)}</select></label>
-            <label>Motorista * <select required value={tripForm.driver || ""} onChange={e => setTripForm({ ...tripForm, driver: Number(e.target.value) })}>{drivers.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}</select></label>
+            <label className="full-width-mobile">Veículo *
+              <SearchableSelect
+                required
+                value={tripForm.vehicle}
+                onChange={(val) => setTripForm({ ...tripForm, vehicle: Number(val) })}
+                options={vehicles.map(v => ({ value: v.id, label: `${v.model} - ${v.license_plate}` }))}
+                placeholder="Selecione o veículo"
+              />
+            </label>
+            <label className="full-width-mobile">Motorista *
+              <SearchableSelect
+                required
+                value={tripForm.driver}
+                onChange={(val) => setTripForm({ ...tripForm, driver: Number(val) })}
+                options={drivers.map(d => ({ value: d.id, label: d.name }))}
+                placeholder="Selecione o motorista"
+              />
+            </label>
             <label>Ordem de Serviço <select value={tripForm.service_order || ""} onChange={e => setTripForm({ ...tripForm, service_order: Number(e.target.value) })}>
               <option value="">Nenhuma</option>
               {serviceOrders.map(os => <option key={os.id} value={os.id}>{os.external_id}</option>)}
