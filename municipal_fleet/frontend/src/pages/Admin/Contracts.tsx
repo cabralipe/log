@@ -63,6 +63,17 @@ const CONTRACT_STATUS = [
   { value: "EXPIRED", label: "Vencido" },
 ] as const;
 
+const normalizeError = (err: any, fallback: string) => {
+  const data = err?.response?.data;
+  if (!data) return fallback;
+  if (typeof data === "string") return data;
+  if (typeof data.detail === "string") return data.detail;
+  const first = Object.values(data)[0];
+  if (Array.isArray(first)) return String(first[0]);
+  if (typeof first === "string") return first;
+  return fallback;
+};
+
 export const ContractsPage = () => {
   const { user: current } = useAuth();
   const { isMobile } = useMediaQuery();
@@ -91,6 +102,7 @@ export const ContractsPage = () => {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [linkError, setLinkError] = useState<string | null>(null);
 
   const vehicleLabel = useMemo(() => {
     const map = new Map<number, string>();
@@ -146,13 +158,23 @@ export const ContractsPage = () => {
       })
       .catch(() => { });
 
-    api
-      .get<Paginated<Municipality>>("/municipalities/", { params: { page_size: 1000 } })
-      .then((res) => {
-        const data = res.data as any;
-        setMunicipalities(Array.isArray(data) ? data : data.results);
-      })
-      .catch(() => { });
+    if (current?.role === "SUPERADMIN") {
+      api
+        .get<Paginated<Municipality>>("/municipalities/", { params: { page_size: 1000 } })
+        .then((res) => {
+          const data = res.data as any;
+          setMunicipalities(Array.isArray(data) ? data : data.results);
+        })
+        .catch(() => { });
+      return;
+    }
+
+    if (current?.municipality) {
+      api
+        .get<Municipality>(`/municipalities/${current.municipality}/`)
+        .then((res) => setMunicipalities([res.data]))
+        .catch(() => { });
+    }
   };
 
   const loadContractVehicles = (contractId: number | null) => {
@@ -171,8 +193,13 @@ export const ContractsPage = () => {
 
   useEffect(() => {
     loadContracts();
-    loadOptions();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (current) {
+      loadOptions();
+    }
+  }, [current]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     loadContractVehicles(editingId);
@@ -246,14 +273,19 @@ export const ContractsPage = () => {
     e.preventDefault();
     if (!editingId) return;
     const payload = { ...linkForm, contract: editingId };
-    if (linkEditingId) {
-      await api.patch(`/contract-vehicles/${linkEditingId}/`, payload);
-    } else {
-      await api.post("/contract-vehicles/", payload);
+    try {
+      if (linkEditingId) {
+        await api.patch(`/contract-vehicles/${linkEditingId}/`, payload);
+      } else {
+        await api.post("/contract-vehicles/", payload);
+      }
+      setLinkError(null);
+      setLinkForm({ contract: editingId, custom_billing_model: null });
+      setLinkEditingId(null);
+      loadContractVehicles(editingId);
+    } catch (err: any) {
+      setLinkError(normalizeError(err, "Erro ao vincular veículo."));
     }
-    setLinkForm({ contract: editingId, custom_billing_model: null });
-    setLinkEditingId(null);
-    loadContractVehicles(editingId);
   };
 
   const handleLinkEdit = (link: ContractVehicle) => {
@@ -419,26 +451,6 @@ export const ContractsPage = () => {
                   ))}
                 </select>
                 {form.municipality && <p style={{ color: "var(--muted)", marginTop: "0.3rem" }}>{municipalityName.get(form.municipality)}</p>}
-              </div>
-              <div>
-                <label style={{ display: "block", marginBottom: "0.3rem" }}>Veículos vinculados</label>
-                <select
-                  multiple
-                  size={Math.min(6, Math.max(3, availableVehicles.length))}
-                  value={selectedVehicleIds.map(String)}
-                  onChange={(e) =>
-                    setSelectedVehicleIds(Array.from(e.target.selectedOptions, (opt) => Number(opt.value)))
-                  }
-                >
-                  {availableVehicles.map((v) => (
-                    <option key={v.id} value={v.id}>
-                      {vehicleLabel.get(v.id)}
-                    </option>
-                  ))}
-                </select>
-                <p style={{ color: "var(--muted)", marginTop: "0.3rem", fontSize: "0.85rem" }}>
-                  Selecione um ou mais veículos para vincular no cadastro.
-                </p>
               </div>
                   <div>
                     <label style={{ display: "block", marginBottom: "0.3rem" }}>Veículos vinculados</label>
@@ -621,6 +633,7 @@ export const ContractsPage = () => {
                 ]}
                 data={contractVehicles}
               />
+              {linkError && <div className="data-error">{linkError}</div>}
               <form className="grid form-grid responsive" style={{ marginTop: "0.75rem" }} onSubmit={handleLinkSubmit}>
                 <select
                   required
@@ -628,7 +641,7 @@ export const ContractsPage = () => {
                   onChange={(e) => setLinkForm((f) => ({ ...f, vehicle: Number(e.target.value) }))}
                 >
                   <option value="">Selecione um veículo</option>
-                  {vehicles.map((v) => (
+                  {availableVehicles.map((v) => (
                     <option key={v.id} value={v.id}>
                       {vehicleLabel.get(v.id)}
                     </option>
