@@ -21,6 +21,18 @@ class InventoryPartSerializer(serializers.ModelSerializer):
         fields = "__all__"
         read_only_fields = ["id", "created_at", "updated_at", "average_cost", "municipality"]
 
+    def validate(self, attrs):
+        user = self.context["request"].user
+        municipality = attrs.get("municipality") or getattr(self.instance, "municipality", None) or user.municipality
+        sku = attrs.get("sku", getattr(self.instance, "sku", None))
+        if municipality and sku:
+            qs = InventoryPart.objects.filter(municipality=municipality, sku=sku)
+            if self.instance:
+                qs = qs.exclude(pk=self.instance.pk)
+            if qs.exists():
+                raise serializers.ValidationError({"sku": "SKU já cadastrado para esta prefeitura."})
+        return attrs
+
 
 class InventoryMovementSerializer(serializers.ModelSerializer):
     part_detail = InventoryPartSerializer(source="part", read_only=True)

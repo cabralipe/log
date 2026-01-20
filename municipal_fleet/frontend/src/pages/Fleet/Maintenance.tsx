@@ -410,13 +410,17 @@ export const MaintenancePage = () => {
       setError("Nome e SKU são obrigatórios.");
       return;
     }
-    await api.post("/inventory/parts/", {
-      ...newPart,
-      minimum_stock: newPart.minimum_stock || "0",
-      current_stock: newPart.current_stock || "0",
-    });
-    setNewPart({ name: "", sku: "", unit: "UN", minimum_stock: "", current_stock: "" });
-    loadAll();
+    try {
+      await api.post("/inventory/parts/", {
+        ...newPart,
+        minimum_stock: newPart.minimum_stock || "0",
+        current_stock: newPart.current_stock || "0",
+      });
+      setNewPart({ name: "", sku: "", unit: "UN", minimum_stock: "", current_stock: "" });
+      loadAll();
+    } catch (err: any) {
+      setError(getErrorMessage(err, "Erro ao cadastrar peça."));
+    }
   };
 
   const handleCreateMovementIn = async () => {
