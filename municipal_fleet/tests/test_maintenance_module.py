@@ -143,6 +143,22 @@ class MaintenanceIntegrationTests(TestCase):
             "Deveria registrar saída no estoque",
         )
 
+    def test_inventory_part_create_sets_municipality_for_admin(self):
+        resp = self.client.post(
+            "/api/inventory/parts/",
+            {
+                "name": "Correia",
+                "sku": "CORREIA-001",
+                "unit": "UN",
+                "minimum_stock": "1",
+                "current_stock": "3",
+            },
+            format="json",
+        )
+        self.assertEqual(resp.status_code, 201, resp.data)
+        part = InventoryPart.objects.get(id=resp.data["id"])
+        self.assertEqual(part.municipality_id, self.municipality.id)
+
     def test_tires_update_after_trip(self):
         vehicle = self._create_vehicle(odometer=0)
         tire = Tire.objects.create(

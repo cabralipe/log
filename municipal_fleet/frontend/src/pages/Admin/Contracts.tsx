@@ -2,7 +2,23 @@ import { useEffect, useMemo, useState } from "react";
 import "./Contracts.css";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
 import { Modal } from "../../components/Modal";
-import { Plus } from "lucide-react";
+import {
+  Plus,
+  FileText,
+  CheckCircle,
+  Clock,
+  DollarSign,
+  Search,
+  Filter,
+  Car,
+  AlertTriangle,
+  Info,
+  Calendar,
+  Building2,
+  Trash2,
+  Edit3,
+  ChevronRight
+} from "lucide-react";
 import { api, type Paginated } from "../../lib/api";
 import { Table } from "../../components/Table";
 import { Button } from "../../components/Button";
@@ -103,6 +119,20 @@ export const ContractsPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [linkError, setLinkError] = useState<string | null>(null);
+
+  // Stats
+  const stats = useMemo(() => {
+    const active = contracts.filter(c => c.status === "ACTIVE").length;
+    const expired = contracts.filter(c => c.status === "EXPIRED").length;
+    const totalValue = contracts.reduce((acc, c) => acc + (c.status === "ACTIVE" ? Number(c.base_value) : 0), 0);
+
+    return {
+      total: total,
+      active,
+      expired,
+      totalValue
+    };
+  }, [contracts, total]);
 
   const vehicleLabel = useMemo(() => {
     const map = new Map<number, string>();
@@ -313,201 +343,83 @@ export const ContractsPage = () => {
     <div className="data-page">
       <div className="data-header">
         <div>
-          <h1 className="data-title">Contratos</h1>
-          <p className="data-subtitle">Gestão de contratos, vínculos e vigências.</p>
+          <h1 className="data-title">Gestão de Contratos</h1>
+          <p className="data-subtitle">Administre contratos de locação, leasing e serviços da frota municipal.</p>
+        </div>
+        {!isMobile && (
+          <Button icon={Plus} onClick={() => {
+            setEditingId(null);
+            setForm({ type: "RENTAL", billing_model: "FIXED", status: "ACTIVE" });
+            setShowFormModal(true);
+          }}>
+            Novo Contrato
+          </Button>
+        )}
+      </div>
+
+      {/* Summary Stats */}
+      <div className="stats-grid">
+        <div className="stat-card">
+          <div className="stat-icon">
+            <FileText size={24} />
+          </div>
+          <div className="stat-info">
+            <h4>Total de Contratos</h4>
+            <p>{stats.total}</p>
+          </div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-icon" style={{ color: "#10b981", background: "rgba(16, 185, 129, 0.1)" }}>
+            <CheckCircle size={24} />
+          </div>
+          <div className="stat-info">
+            <h4>Contratos Ativos</h4>
+            <p>{stats.active}</p>
+          </div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-icon" style={{ color: "#f59e0b", background: "rgba(245, 158, 11, 0.1)" }}>
+            <Clock size={24} />
+          </div>
+          <div className="stat-info">
+            <h4>Vencidos/Inativos</h4>
+            <p>{stats.expired}</p>
+          </div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-icon" style={{ color: "#3b82f6", background: "rgba(59, 130, 246, 0.1)" }}>
+            <DollarSign size={24} />
+          </div>
+          <div className="stat-info">
+            <h4>Valor Ativo Mensal</h4>
+            <p>{new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(stats.totalValue)}</p>
+          </div>
         </div>
       </div>
+
       <div className="contracts-layout">
-        {isMobile && (
-          <button
-            className="fab-button"
-            aria-haspopup="dialog"
-            aria-controls="contract-modal"
-            aria-expanded={showFormModal}
-            title={editingId ? "Editar contrato" : "Novo contrato"}
-            onClick={() => setShowFormModal(true)}
-          >
-            <Plus size={18} />
-            {editingId ? "Editar" : "Novo"}
-          </button>
-        )}
-        <div className="grid" style={{ gap: "1rem" }}>
-          <div>
-            {!isMobile && (
-              <div className="card contracts-form-card">
-                <h3>{editingId ? "Editar contrato" : "Novo contrato"}</h3>
-                <form className="grid form-grid responsive" onSubmit={handleSubmit}>
-                  <input
-                    placeholder="Número do contrato"
-                    required
-                    value={form.contract_number ?? ""}
-                    onChange={(e) => setForm((f) => ({ ...f, contract_number: e.target.value }))}
-                  />
-                  <input
-                    placeholder="Fornecedor"
-                    required
-                    value={form.provider_name ?? ""}
-                    onChange={(e) => setForm((f) => ({ ...f, provider_name: e.target.value }))}
-                  />
-                  <input
-                    placeholder="CNPJ do fornecedor"
-                    value={form.provider_cnpj ?? ""}
-                    onChange={(e) => setForm((f) => ({ ...f, provider_cnpj: formatCnpj(e.target.value) }))}
-                    inputMode="numeric"
-                    maxLength={18}
-                  />
-                  <textarea
-                    placeholder="Descrição"
-                    value={form.description ?? ""}
-                    onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-                    rows={3}
-                  />
-                  <div className="grid" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "0.6rem" }}>
-                    <select value={form.type} onChange={(e) => setForm((f) => ({ ...f, type: e.target.value as Contract["type"] }))}>
-                      {CONTRACT_TYPES.map((t) => (
-                        <option key={t.value} value={t.value}>
-                          {t.label}
-                        </option>
-                      ))}
-                    </select>
-                    <select
-                      value={form.billing_model}
-                      onChange={(e) => setForm((f) => ({ ...f, billing_model: e.target.value as Contract["billing_model"] }))}
-                    >
-                      {BILLING_MODELS.map((m) => (
-                        <option key={m.value} value={m.value}>
-                          {m.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="grid" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "0.6rem" }}>
-                    <input
-                      type="date"
-                      required
-                      value={form.start_date ?? ""}
-                      onChange={(e) => setForm((f) => ({ ...f, start_date: e.target.value }))}
-                    />
-                    <input
-                      type="date"
-                      required
-                      value={form.end_date ?? ""}
-                      onChange={(e) => setForm((f) => ({ ...f, end_date: e.target.value }))}
-                    />
-                  </div>
-                  <div className="grid" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "0.6rem" }}>
-                    <input
-                      type="number"
-                      step="0.01"
-                      placeholder="Valor base"
-                      required
-                      value={form.base_value ?? ""}
-                      onChange={(e) => setForm((f) => ({ ...f, base_value: e.target.value === "" ? undefined : Number(e.target.value) }))}
-                    />
-                    <input
-                      type="number"
-                      step="0.01"
-                      placeholder="Valor por KM extra"
-                      value={form.extra_km_rate ?? ""}
-                      onChange={(e) => setForm((f) => ({ ...f, extra_km_rate: e.target.value === "" ? undefined : Number(e.target.value) }))}
-                    />
-                  </div>
-                  <div className="grid" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "0.6rem" }}>
-                    <input
-                      type="number"
-                      placeholder="Franquia de KM/mês"
-                      value={form.included_km_per_month ?? ""}
-                      onChange={(e) => setForm((f) => ({ ...f, included_km_per_month: e.target.value === "" ? undefined : Number(e.target.value) }))}
-                    />
-                    <select
-                      value={form.status}
-                      onChange={(e) => setForm((f) => ({ ...f, status: e.target.value as Contract["status"] }))}
-                    >
-                      {CONTRACT_STATUS.map((s) => (
-                        <option key={s.value} value={s.value}>
-                          {s.label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <textarea
-                    placeholder="Observações"
-                    value={form.notes ?? ""}
-                    onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
-                    rows={3}
-                  />
-              <div>
-                <label style={{ display: "block", marginBottom: "0.3rem" }}>Prefeitura</label>
-                <select
-                  disabled={disableMunicipalitySelect}
-                  value={form.municipality ?? current?.municipality ?? ""}
-                  onChange={(e) => setForm((f) => ({ ...f, municipality: Number(e.target.value) }))}
-                >
-                  <option value="">Selecione</option>
-                  {municipalities.map((m) => (
-                    <option key={m.id} value={m.id}>
-                      {m.name}
-                    </option>
-                  ))}
-                </select>
-                {form.municipality && <p style={{ color: "var(--muted)", marginTop: "0.3rem" }}>{municipalityName.get(form.municipality)}</p>}
-              </div>
-                  <div>
-                    <label style={{ display: "block", marginBottom: "0.3rem" }}>Veículos vinculados</label>
-                    <select
-                      multiple
-                      size={Math.min(6, Math.max(3, availableVehicles.length))}
-                      value={selectedVehicleIds.map(String)}
-                      onChange={(e) =>
-                        setSelectedVehicleIds(Array.from(e.target.selectedOptions, (opt) => Number(opt.value)))
-                      }
-                    >
-                      {availableVehicles.map((v) => (
-                        <option key={v.id} value={v.id}>
-                          {vehicleLabel.get(v.id)}
-                        </option>
-                      ))}
-                    </select>
-                    <p style={{ color: "var(--muted)", marginTop: "0.3rem", fontSize: "0.85rem" }}>
-                      Selecione um ou mais veículos para vincular no cadastro.
-                    </p>
-                  </div>
-                  <div className="grid" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "0.5rem" }}>
-                    <Button type="submit">{editingId ? "Atualizar" : "Salvar"}</Button>
-                    {editingId && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        onClick={() => {
-                          setEditingId(null);
-                          setForm({ type: "RENTAL", billing_model: "FIXED", status: "ACTIVE" });
-                          setLinkForm({ custom_billing_model: null });
-                          setLinkEditingId(null);
-                          setContractVehicles([]);
-                        }}
-                      >
-                        Cancelar
-                      </Button>
-                    )}
-                  </div>
-                </form>
-              </div>
-            )}
-            <h2>Contratos</h2>
-            {error && <div className="data-error">{error}</div>}
-            <div style={{ marginBottom: "0.75rem", display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+        <div className="main-content">
+          {/* Controls & Filters */}
+          <div className="contracts-controls">
+            <div className="search-bar-container">
+              <Search className="search-icon" size={18} />
               <input
-                placeholder="Buscar por número, fornecedor ou descrição"
+                className="search-input"
+                placeholder="Buscar por número, fornecedor ou descrição..."
                 value={search}
                 onChange={(e) => {
                   setSearch(e.target.value);
                   setPage(1);
                   loadContracts(1, e.target.value);
                 }}
-                style={{ width: "100%", padding: "0.6rem", borderRadius: 10, border: "1px solid var(--border)", background: "#0f1724", color: "var(--text)" }}
               />
-              <div className="contracts-filters">
+            </div>
+            <div className="filters-row">
+              <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                <Filter size={14} style={{ position: 'absolute', left: '0.75rem', color: 'var(--muted)' }} />
                 <select
+                  className="filter-select"
+                  style={{ paddingLeft: '2.25rem' }}
                   value={statusFilter}
                   onChange={(e) => {
                     const next = e.target.value;
@@ -515,16 +427,19 @@ export const ContractsPage = () => {
                     setPage(1);
                     loadContracts(1, search, pageSize, next, typeFilter);
                   }}
-                  style={{ padding: "0.5rem", borderRadius: 8, border: "1px solid var(--border)", background: "#0f1724", color: "var(--text)" }}
                 >
-                  <option value="">Status (todos)</option>
+                  <option value="">Todos os Status</option>
                   {CONTRACT_STATUS.map((s) => (
-                    <option key={s.value} value={s.value}>
-                      {s.label}
-                    </option>
+                    <option key={s.value} value={s.value}>{s.label}</option>
                   ))}
                 </select>
+              </div>
+
+              <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                <Building2 size={14} style={{ position: 'absolute', left: '0.75rem', color: 'var(--muted)' }} />
                 <select
+                  className="filter-select"
+                  style={{ paddingLeft: '2.25rem' }}
                   value={typeFilter}
                   onChange={(e) => {
                     const next = e.target.value;
@@ -532,58 +447,110 @@ export const ContractsPage = () => {
                     setPage(1);
                     loadContracts(1, search, pageSize, statusFilter, next);
                   }}
-                  style={{ padding: "0.5rem", borderRadius: 8, border: "1px solid var(--border)", background: "#0f1724", color: "var(--text)" }}
                 >
-                  <option value="">Tipo (todos)</option>
+                  <option value="">Todos os Tipos</option>
                   {CONTRACT_TYPES.map((t) => (
-                    <option key={t.value} value={t.value}>
-                      {t.label}
-                    </option>
+                    <option key={t.value} value={t.value}>{t.label}</option>
                   ))}
                 </select>
-                <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", justifyContent: "flex-end" }}>
-                  <span style={{ color: "var(--muted)", fontSize: "0.9rem" }}>Itens por página</span>
-                  <select
-                    value={pageSize}
-                    onChange={(e) => {
-                      const size = Number(e.target.value);
-                      setPageSize(size);
-                      setPage(1);
-                      loadContracts(1, search, size, statusFilter, typeFilter);
-                    }}
-                    style={{ padding: "0.4rem", borderRadius: 8, border: "1px solid var(--border)", background: "#0f1724", color: "var(--text)" }}
-                  >
-                    {[5, 8, 10, 20, 50].map((n) => (
-                      <option key={n} value={n}>
-                        {n}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+              </div>
+
+              <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <span style={{ color: "var(--muted)", fontSize: "0.85rem" }}>Exibir:</span>
+                <select
+                  className="filter-select"
+                  style={{ minWidth: '80px' }}
+                  value={pageSize}
+                  onChange={(e) => {
+                    const size = Number(e.target.value);
+                    setPageSize(size);
+                    setPage(1);
+                    loadContracts(1, search, size, statusFilter, typeFilter);
+                  }}
+                >
+                  {[8, 15, 30, 50].map((n) => (
+                    <option key={n} value={n}>{n}</option>
+                  ))}
+                </select>
               </div>
             </div>
+          </div>
+
+          {/* Table */}
+          <div className="contract-table-container">
+            {error && <div className="data-error" style={{ margin: '1rem' }}>{error}</div>}
             {loading ? (
-              <p>Carregando...</p>
+              <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--muted)' }}>
+                <Clock className="spin" size={24} style={{ marginBottom: '0.5rem' }} />
+                <p>Carregando contratos...</p>
+              </div>
             ) : (
               <Table
                 columns={[
-                  { key: "contract_number", label: "Contrato" },
-                  { key: "provider_name", label: "Fornecedor" },
-                  { key: "type", label: "Tipo" },
-                  { key: "billing_model", label: "Modelo" },
-                  { key: "start_date", label: "Início" },
-                  { key: "end_date", label: "Fim" },
+                  {
+                    key: "contract_number",
+                    label: "Contrato",
+                    render: (row) => (
+                      <div style={{ display: 'flex', flexDirection: 'column' }}>
+                        <span style={{ fontWeight: 600, color: 'var(--text)' }}>{(row as Contract).contract_number}</span>
+                        <span style={{ fontSize: '0.75rem', color: 'var(--muted)' }}>{(row as Contract).provider_name}</span>
+                      </div>
+                    )
+                  },
+                  {
+                    key: "type",
+                    label: "Tipo",
+                    render: (row) => (
+                      <span style={{ fontSize: '0.85rem' }}>
+                        {CONTRACT_TYPES.find(t => t.value === (row as Contract).type)?.label}
+                      </span>
+                    )
+                  },
+                  {
+                    key: "billing_model",
+                    label: "Modelo",
+                    render: (row) => (
+                      <span style={{ fontSize: '0.85rem', color: 'var(--muted)' }}>
+                        {BILLING_MODELS.find(m => m.value === (row as Contract).billing_model)?.label}
+                      </span>
+                    )
+                  },
+                  {
+                    key: "dates",
+                    label: "Vigência",
+                    render: (row) => (
+                      <div style={{ fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                        <span>{new Date((row as Contract).start_date).toLocaleDateString()}</span>
+                        <ChevronRight size={12} style={{ color: 'var(--muted)' }} />
+                        <span>{new Date((row as Contract).end_date).toLocaleDateString()}</span>
+                      </div>
+                    )
+                  },
                   { key: "status", label: "Status", render: (row) => <StatusBadge status={(row as Contract).status} /> },
                   {
                     key: "actions",
                     label: "Ações",
                     render: (row) => (
-                      <div className="grid" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "0.3rem" }}>
-                        <Button variant="ghost" onClick={() => handleEdit(row as Contract)}>
-                          Editar
+                      <div style={{ display: "flex", gap: "0.5rem" }}>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => {
+                            handleEdit(row as Contract);
+                            if (isMobile) setShowFormModal(true);
+                          }}
+                          title="Editar"
+                        >
+                          <Edit3 size={16} />
                         </Button>
-                        <Button variant="ghost" onClick={() => handleDelete((row as Contract).id)}>
-                          Excluir
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDelete((row as Contract).id)}
+                          title="Excluir"
+                          style={{ color: 'var(--danger)' }}
+                        >
+                          <Trash2 size={16} />
                         </Button>
                       </div>
                     ),
@@ -592,109 +559,192 @@ export const ContractsPage = () => {
                 data={contracts}
               />
             )}
-            <Pagination
-              page={page}
-              pageSize={pageSize}
-              total={total}
-              onChange={(p) => {
-                setPage(p);
-                loadContracts(p, search, pageSize, statusFilter, typeFilter);
-              }}
-            />
           </div>
+          <Pagination
+            page={page}
+            pageSize={pageSize}
+            total={total}
+            onChange={(p) => {
+              setPage(p);
+              loadContracts(p, search, pageSize, statusFilter, typeFilter);
+            }}
+          />
+        </div>
 
-          {editingId && (
-            <div className="card">
-              <h3>Veículos vinculados</h3>
-              <p style={{ marginTop: "-0.25rem", color: "var(--muted)", fontSize: "0.9rem" }}>
-                Gerencie a cobertura de veículos para o contrato selecionado.
-              </p>
-              <Table
-                columns={[
-                  { key: "vehicle", label: "Veículo", render: (row) => vehicleLabel.get((row as ContractVehicle).vehicle) ?? (row as ContractVehicle).vehicle },
-                  { key: "start_date", label: "Início" },
-                  { key: "end_date", label: "Fim" },
-                  { key: "custom_billing_model", label: "Modelo" },
-                  { key: "custom_rate", label: "Tarifa" },
-                  {
-                    key: "actions",
-                    label: "Ações",
-                    render: (row) => (
-                      <div className="grid" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "0.3rem" }}>
-                        <Button variant="ghost" onClick={() => handleLinkEdit(row as ContractVehicle)}>
-                          Editar
-                        </Button>
-                        <Button variant="ghost" onClick={() => handleLinkDelete((row as ContractVehicle).id)}>
-                          Excluir
-                        </Button>
-                      </div>
-                    ),
-                  },
-                ]}
-                data={contractVehicles}
-              />
-              {linkError && <div className="data-error">{linkError}</div>}
-              <form className="grid form-grid responsive" style={{ marginTop: "0.75rem" }} onSubmit={handleLinkSubmit}>
-                <select
-                  required
-                  value={linkForm.vehicle ?? ""}
-                  onChange={(e) => setLinkForm((f) => ({ ...f, vehicle: Number(e.target.value) }))}
-                >
-                  <option value="">Selecione um veículo</option>
-                  {availableVehicles.map((v) => (
-                    <option key={v.id} value={v.id}>
-                      {vehicleLabel.get(v.id)}
-                    </option>
-                  ))}
-                </select>
-                <div className="grid" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "0.6rem" }}>
+        {/* Sidebar Form (Desktop) or Modal (Mobile) */}
+        {!isMobile && (
+          <aside className="contracts-sidebar">
+            <div className="card contracts-form-card">
+              <h3>
+                {editingId ? <Edit3 size={20} /> : <Plus size={20} />}
+                {editingId ? "Editar Contrato" : "Novo Contrato"}
+              </h3>
+
+              <form className="grid form-grid" onSubmit={handleSubmit} style={{ gap: '1rem' }}>
+                <div className="form-section-title">Informações Básicas</div>
+                <div className="grid responsive" style={{ gap: '0.75rem' }}>
+                  <div className="input-group">
+                    <label>Número do Contrato</label>
+                    <input
+                      placeholder="Ex: 001/2024"
+                      required
+                      value={form.contract_number ?? ""}
+                      onChange={(e) => setForm((f) => ({ ...f, contract_number: e.target.value }))}
+                    />
+                  </div>
+                  <div className="input-group">
+                    <label>Fornecedor</label>
+                    <input
+                      placeholder="Nome da empresa"
+                      required
+                      value={form.provider_name ?? ""}
+                      onChange={(e) => setForm((f) => ({ ...f, provider_name: e.target.value }))}
+                    />
+                  </div>
+                </div>
+
+                <div className="input-group">
+                  <label>CNPJ do Fornecedor</label>
                   <input
-                    type="date"
-                    required
-                    value={linkForm.start_date ?? ""}
-                    onChange={(e) => setLinkForm((f) => ({ ...f, start_date: e.target.value }))}
-                  />
-                  <input
-                    type="date"
-                    value={linkForm.end_date ?? ""}
-                    onChange={(e) => setLinkForm((f) => ({ ...f, end_date: e.target.value || null }))}
-                    placeholder="Fim (opcional)"
+                    placeholder="00.000.000/0000-00"
+                    value={form.provider_cnpj ?? ""}
+                    onChange={(e) => setForm((f) => ({ ...f, provider_cnpj: formatCnpj(e.target.value) }))}
+                    inputMode="numeric"
+                    maxLength={18}
                   />
                 </div>
-                <div className="grid" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "0.6rem" }}>
+
+                <div className="input-group">
+                  <label>Descrição / Objeto</label>
+                  <textarea
+                    placeholder="Breve descrição do contrato..."
+                    value={form.description ?? ""}
+                    onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+                    rows={2}
+                  />
+                </div>
+
+                <div className="form-section-title">Configurações e Valores</div>
+                <div className="grid responsive" style={{ gap: '0.75rem' }}>
+                  <div className="input-group">
+                    <label>Tipo</label>
+                    <select value={form.type} onChange={(e) => setForm((f) => ({ ...f, type: e.target.value as Contract["type"] }))}>
+                      {CONTRACT_TYPES.map((t) => (
+                        <option key={t.value} value={t.value}>{t.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="input-group">
+                    <label>Modelo de Cobrança</label>
+                    <select
+                      value={form.billing_model}
+                      onChange={(e) => setForm((f) => ({ ...f, billing_model: e.target.value as Contract["billing_model"] }))}
+                    >
+                      {BILLING_MODELS.map((m) => (
+                        <option key={m.value} value={m.value}>{m.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="grid responsive" style={{ gap: '0.75rem' }}>
+                  <div className="input-group">
+                    <label>Data Início</label>
+                    <input
+                      type="date"
+                      required
+                      value={form.start_date ?? ""}
+                      onChange={(e) => setForm((f) => ({ ...f, start_date: e.target.value }))}
+                    />
+                  </div>
+                  <div className="input-group">
+                    <label>Data Fim</label>
+                    <input
+                      type="date"
+                      required
+                      value={form.end_date ?? ""}
+                      onChange={(e) => setForm((f) => ({ ...f, end_date: e.target.value }))}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid responsive" style={{ gap: '0.75rem' }}>
+                  <div className="input-group">
+                    <label>Valor Base</label>
+                    <div style={{ position: 'relative' }}>
+                      <span style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--muted)', fontSize: '0.85rem' }}>R$</span>
+                      <input
+                        type="number"
+                        step="0.01"
+                        style={{ paddingLeft: '2.25rem' }}
+                        placeholder="0,00"
+                        required
+                        value={form.base_value ?? ""}
+                        onChange={(e) => setForm((f) => ({ ...f, base_value: e.target.value === "" ? undefined : Number(e.target.value) }))}
+                      />
+                    </div>
+                  </div>
+                  <div className="input-group">
+                    <label>KM Extra (R$)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      placeholder="0,00"
+                      value={form.extra_km_rate ?? ""}
+                      onChange={(e) => setForm((f) => ({ ...f, extra_km_rate: e.target.value === "" ? undefined : Number(e.target.value) }))}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid responsive" style={{ gap: '0.75rem' }}>
+                  <div className="input-group">
+                    <label>Franquia KM</label>
+                    <input
+                      type="number"
+                      placeholder="KM/mês"
+                      value={form.included_km_per_month ?? ""}
+                      onChange={(e) => setForm((f) => ({ ...f, included_km_per_month: e.target.value === "" ? undefined : Number(e.target.value) }))}
+                    />
+                  </div>
+                  <div className="input-group">
+                    <label>Status</label>
+                    <select
+                      value={form.status}
+                      onChange={(e) => setForm((f) => ({ ...f, status: e.target.value as Contract["status"] }))}
+                    >
+                      {CONTRACT_STATUS.map((s) => (
+                        <option key={s.value} value={s.value}>{s.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div className="input-group">
+                  <label>Prefeitura</label>
                   <select
-                    value={linkForm.custom_billing_model ?? ""}
-                    onChange={(e) =>
-                      setLinkForm((f) => ({
-                        ...f,
-                        custom_billing_model: (e.target.value || null) as ContractVehicle["custom_billing_model"],
-                      }))
-                    }
+                    disabled={disableMunicipalitySelect}
+                    value={form.municipality ?? current?.municipality ?? ""}
+                    onChange={(e) => setForm((f) => ({ ...f, municipality: Number(e.target.value) }))}
                   >
-                    <option value="">Modelo padrão</option>
-                    {BILLING_MODELS.map((m) => (
-                      <option key={m.value} value={m.value}>
-                        {m.label}
-                      </option>
+                    <option value="">Selecione</option>
+                    {municipalities.map((m) => (
+                      <option key={m.id} value={m.id}>{m.name}</option>
                     ))}
                   </select>
-                  <input
-                    type="number"
-                    step="0.01"
-                    placeholder="Tarifa customizada"
-                    value={linkForm.custom_rate ?? ""}
-                    onChange={(e) => setLinkForm((f) => ({ ...f, custom_rate: e.target.value === "" ? undefined : Number(e.target.value) }))}
-                  />
                 </div>
-                <div className="grid" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "0.5rem" }}>
-                  <Button type="submit">{linkEditingId ? "Atualizar vínculo" : "Adicionar veículo"}</Button>
-                  {linkEditingId && (
+
+                <div className="form-actions" style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
+                  <Button type="submit" style={{ flex: 1 }}>{editingId ? "Atualizar" : "Salvar Contrato"}</Button>
+                  {editingId && (
                     <Button
                       type="button"
                       variant="ghost"
                       onClick={() => {
+                        setEditingId(null);
+                        setForm({ type: "RENTAL", billing_model: "FIXED", status: "ACTIVE" });
+                        setLinkForm({ custom_billing_model: null });
                         setLinkEditingId(null);
-                        setLinkForm({ contract: editingId, custom_billing_model: null });
+                        setContractVehicles([]);
                       }}
                     >
                       Cancelar
@@ -702,120 +752,213 @@ export const ContractsPage = () => {
                   )}
                 </div>
               </form>
-            </div>
-          )}
-        </div>
 
-        {!isMobile && null}
+              {/* Vehicle Linking Section in Sidebar */}
+              {editingId && (
+                <div className="vehicle-link-section">
+                  <div className="vehicle-link-header">
+                    <h4 style={{ margin: 0, fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                      <Car size={16} /> Veículos Vinculados
+                    </h4>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--accent-strong)' }}>{contractVehicles.length} total</span>
+                  </div>
+
+                  <div style={{ maxHeight: '200px', overflowY: 'auto', marginBottom: '1rem', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '8px' }}>
+                    {contractVehicles.length === 0 ? (
+                      <p style={{ padding: '1rem', textAlign: 'center', fontSize: '0.8rem', color: 'var(--muted)' }}>Nenhum veículo vinculado.</p>
+                    ) : (
+                      <table style={{ width: '100%', fontSize: '0.75rem', borderCollapse: 'collapse' }}>
+                        <thead>
+                          <tr style={{ background: 'rgba(255,255,255,0.02)', textAlign: 'left' }}>
+                            <th style={{ padding: '0.5rem' }}>Placa</th>
+                            <th style={{ padding: '0.5rem' }}>Ações</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {contractVehicles.map(cv => (
+                            <tr key={cv.id} style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+                              <td style={{ padding: '0.5rem' }}>{vehicleLabel.get(cv.vehicle)?.split(' - ')[0]}</td>
+                              <td style={{ padding: '0.5rem' }}>
+                                <div style={{ display: 'flex', gap: '0.25rem' }}>
+                                  <button onClick={() => handleLinkEdit(cv)} style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer' }}><Edit3 size={12} /></button>
+                                  <button onClick={() => handleLinkDelete(cv.id)} style={{ background: 'none', border: 'none', color: 'var(--danger)', cursor: 'pointer' }}><Trash2 size={12} /></button>
+                                </div>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    )}
+                  </div>
+
+                  <form onSubmit={handleLinkSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    <select
+                      required
+                      style={{ fontSize: '0.8rem', padding: '0.4rem' }}
+                      value={linkForm.vehicle ?? ""}
+                      onChange={(e) => setLinkForm((f) => ({ ...f, vehicle: Number(e.target.value) }))}
+                    >
+                      <option value="">Vincular novo veículo...</option>
+                      {availableVehicles.map((v) => (
+                        <option key={v.id} value={v.id}>{vehicleLabel.get(v.id)}</option>
+                      ))}
+                    </select>
+                    <Button type="submit" size="sm" variant="ghost" style={{ fontSize: '0.75rem' }}>
+                      {linkEditingId ? "Atualizar Vínculo" : "Adicionar Veículo"}
+                    </Button>
+                  </form>
+                </div>
+              )}
+            </div>
+          </aside>
+        )}
+
         {isMobile && (
+          <button
+            className="fab-button"
+            onClick={() => {
+              setEditingId(null);
+              setForm({ type: "RENTAL", billing_model: "FIXED", status: "ACTIVE" });
+              setShowFormModal(true);
+            }}
+          >
+            <Plus size={24} />
+          </button>
+        )}
+
+        {showFormModal && isMobile && (
           <Modal
             open={showFormModal}
             onClose={() => setShowFormModal(false)}
-            title={editingId ? "Editar contrato" : "Novo contrato"}
+            title={editingId ? "Editar Contrato" : "Novo Contrato"}
             id="contract-modal"
           >
-            <form className="grid form-grid responsive" onSubmit={handleSubmit}>
-              <input
-                placeholder="Número do contrato"
-                required
-                value={form.contract_number ?? ""}
-                onChange={(e) => setForm((f) => ({ ...f, contract_number: e.target.value }))}
-              />
-              <input
-                placeholder="Fornecedor"
-                required
-                value={form.provider_name ?? ""}
-                onChange={(e) => setForm((f) => ({ ...f, provider_name: e.target.value }))}
-              />
-              <input
-                placeholder="CNPJ do fornecedor"
-                value={form.provider_cnpj ?? ""}
-                onChange={(e) => setForm((f) => ({ ...f, provider_cnpj: formatCnpj(e.target.value) }))}
-                inputMode="numeric"
-                maxLength={18}
-              />
-              <textarea
-                placeholder="Descrição"
-                value={form.description ?? ""}
-                onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-                rows={3}
-              />
-              <div className="grid" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "0.6rem" }}>
-                <select value={form.type} onChange={(e) => setForm((f) => ({ ...f, type: e.target.value as Contract["type"] }))}>
-                  {CONTRACT_TYPES.map((t) => (
-                    <option key={t.value} value={t.value}>
-                      {t.label}
-                    </option>
-                  ))}
-                </select>
-                <select
-                  value={form.billing_model}
-                  onChange={(e) => setForm((f) => ({ ...f, billing_model: e.target.value as Contract["billing_model"] }))}
-                >
-                  {BILLING_MODELS.map((m) => (
-                    <option key={m.value} value={m.value}>
-                      {m.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="grid" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "0.6rem" }}>
+            <form className="grid form-grid responsive" onSubmit={handleSubmit} style={{ gap: '1rem' }}>
+              <div className="input-group">
+                <label>Número do Contrato</label>
                 <input
-                  type="date"
+                  placeholder="Número"
                   required
-                  value={form.start_date ?? ""}
-                  onChange={(e) => setForm((f) => ({ ...f, start_date: e.target.value }))}
+                  value={form.contract_number ?? ""}
+                  onChange={(e) => setForm((f) => ({ ...f, contract_number: e.target.value }))}
                 />
+              </div>
+              <div className="input-group">
+                <label>Fornecedor</label>
                 <input
-                  type="date"
+                  placeholder="Fornecedor"
                   required
-                  value={form.end_date ?? ""}
-                  onChange={(e) => setForm((f) => ({ ...f, end_date: e.target.value }))}
+                  value={form.provider_name ?? ""}
+                  onChange={(e) => setForm((f) => ({ ...f, provider_name: e.target.value }))}
                 />
               </div>
-              <div className="grid" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "0.6rem" }}>
+              <div className="input-group">
+                <label>CNPJ</label>
                 <input
-                  type="number"
-                  step="0.01"
-                  placeholder="Valor base"
-                  required
-                  value={form.base_value ?? ""}
-                  onChange={(e) => setForm((f) => ({ ...f, base_value: e.target.value === "" ? undefined : Number(e.target.value) }))}
-                />
-                <input
-                  type="number"
-                  step="0.01"
-                  placeholder="Valor por KM extra"
-                  value={form.extra_km_rate ?? ""}
-                  onChange={(e) => setForm((f) => ({ ...f, extra_km_rate: e.target.value === "" ? undefined : Number(e.target.value) }))}
+                  placeholder="CNPJ"
+                  value={form.provider_cnpj ?? ""}
+                  onChange={(e) => setForm((f) => ({ ...f, provider_cnpj: formatCnpj(e.target.value) }))}
+                  inputMode="numeric"
+                  maxLength={18}
                 />
               </div>
-              <div className="grid" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "0.6rem" }}>
-                <input
-                  type="number"
-                  placeholder="Franquia de KM/mês"
-                  value={form.included_km_per_month ?? ""}
-                  onChange={(e) => setForm((f) => ({ ...f, included_km_per_month: e.target.value === "" ? undefined : Number(e.target.value) }))}
+              <div className="input-group">
+                <label>Descrição</label>
+                <textarea
+                  placeholder="Descrição"
+                  value={form.description ?? ""}
+                  onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+                  rows={3}
                 />
-                <select
-                  value={form.status}
-                  onChange={(e) => setForm((f) => ({ ...f, status: e.target.value as Contract["status"] }))}
-                >
-                  {CONTRACT_STATUS.map((s) => (
-                    <option key={s.value} value={s.value}>
-                      {s.label}
-                    </option>
-                  ))}
-                </select>
               </div>
-              <textarea
-                placeholder="Observações"
-                value={form.notes ?? ""}
-                onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
-                rows={3}
-              />
-              <div>
-                <label style={{ display: "block", marginBottom: "0.3rem" }}>Prefeitura</label>
+              <div className="grid responsive" style={{ gap: '0.75rem' }}>
+                <div className="input-group">
+                  <label>Tipo</label>
+                  <select value={form.type} onChange={(e) => setForm((f) => ({ ...f, type: e.target.value as Contract["type"] }))}>
+                    {CONTRACT_TYPES.map((t) => (
+                      <option key={t.value} value={t.value}>{t.label}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="input-group">
+                  <label>Modelo</label>
+                  <select
+                    value={form.billing_model}
+                    onChange={(e) => setForm((f) => ({ ...f, billing_model: e.target.value as Contract["billing_model"] }))}
+                  >
+                    {BILLING_MODELS.map((m) => (
+                      <option key={m.value} value={m.value}>{m.label}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <div className="grid responsive" style={{ gap: '0.75rem' }}>
+                <div className="input-group">
+                  <label>Início</label>
+                  <input
+                    type="date"
+                    required
+                    value={form.start_date ?? ""}
+                    onChange={(e) => setForm((f) => ({ ...f, start_date: e.target.value }))}
+                  />
+                </div>
+                <div className="input-group">
+                  <label>Fim</label>
+                  <input
+                    type="date"
+                    required
+                    value={form.end_date ?? ""}
+                    onChange={(e) => setForm((f) => ({ ...f, end_date: e.target.value }))}
+                  />
+                </div>
+              </div>
+              <div className="grid responsive" style={{ gap: '0.75rem' }}>
+                <div className="input-group">
+                  <label>Valor Base</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    placeholder="Valor base"
+                    required
+                    value={form.base_value ?? ""}
+                    onChange={(e) => setForm((f) => ({ ...f, base_value: e.target.value === "" ? undefined : Number(e.target.value) }))}
+                  />
+                </div>
+                <div className="input-group">
+                  <label>KM Extra</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    placeholder="Valor KM extra"
+                    value={form.extra_km_rate ?? ""}
+                    onChange={(e) => setForm((f) => ({ ...f, extra_km_rate: e.target.value === "" ? undefined : Number(e.target.value) }))}
+                  />
+                </div>
+              </div>
+              <div className="grid responsive" style={{ gap: '0.75rem' }}>
+                <div className="input-group">
+                  <label>Franquia KM</label>
+                  <input
+                    type="number"
+                    placeholder="Franquia KM"
+                    value={form.included_km_per_month ?? ""}
+                    onChange={(e) => setForm((f) => ({ ...f, included_km_per_month: e.target.value === "" ? undefined : Number(e.target.value) }))}
+                  />
+                </div>
+                <div className="input-group">
+                  <label>Status</label>
+                  <select
+                    value={form.status}
+                    onChange={(e) => setForm((f) => ({ ...f, status: e.target.value as Contract["status"] }))}
+                  >
+                    {CONTRACT_STATUS.map((s) => (
+                      <option key={s.value} value={s.value}>{s.label}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <div className="input-group">
+                <label>Prefeitura</label>
                 <select
                   disabled={disableMunicipalitySelect}
                   value={form.municipality ?? current?.municipality ?? ""}
@@ -823,32 +966,13 @@ export const ContractsPage = () => {
                 >
                   <option value="">Selecione</option>
                   {municipalities.map((m) => (
-                    <option key={m.id} value={m.id}>
-                      {m.name}
-                    </option>
+                    <option key={m.id} value={m.id}>{m.name}</option>
                   ))}
                 </select>
-                {form.municipality && (
-                  <p style={{ color: "var(--muted)", marginTop: "0.3rem" }}>{municipalityName.get(form.municipality)}</p>
-                )}
               </div>
-              <div className="grid" style={{ gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: "0.5rem" }}>
-                <Button type="submit">{editingId ? "Atualizar" : "Salvar"}</Button>
-                {editingId && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    onClick={() => {
-                      setEditingId(null);
-                      setForm({ type: "RENTAL", billing_model: "FIXED", status: "ACTIVE" });
-                      setLinkForm({ custom_billing_model: null });
-                      setLinkEditingId(null);
-                      setContractVehicles([]);
-                    }}
-                  >
-                    Cancelar
-                  </Button>
-                )}
+              <div className="form-actions" style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
+                <Button type="submit" style={{ flex: 1 }}>{editingId ? "Atualizar" : "Salvar"}</Button>
+                <Button variant="ghost" onClick={() => setShowFormModal(false)}>Fechar</Button>
               </div>
             </form>
           </Modal>

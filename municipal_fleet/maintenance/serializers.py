@@ -21,6 +21,14 @@ class InventoryPartSerializer(serializers.ModelSerializer):
         fields = "__all__"
         read_only_fields = ["id", "created_at", "updated_at", "average_cost", "municipality"]
 
+    def create(self, validated_data):
+        user = self.context["request"].user
+        if user.role != User.Roles.SUPERADMIN:
+            validated_data["municipality"] = user.municipality
+        elif "municipality" not in validated_data and user.municipality:
+            validated_data["municipality"] = user.municipality
+        return super().create(validated_data)
+
     def validate(self, attrs):
         user = self.context["request"].user
         municipality = attrs.get("municipality") or getattr(self.instance, "municipality", None) or user.municipality

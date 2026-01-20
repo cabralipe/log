@@ -851,16 +851,44 @@ export const MaintenancePage = () => {
 
       {tab === "inventory" && (
         <section className="panel">
-          <div className="panel-header">
-            <div>
-              <h2>Estoque de Peças</h2>
-              <p className="muted">Consumo automático quando uma peça é usada na OS.</p>
+          <div className="inventory-grid">
+            <div className="glass-card">
+              <div className="section-title">
+                <Package size={18} /> Peças em Estoque
+              </div>
+              <div className="table-wrapper">
+                <table className="maintenance-table">
+                  <thead>
+                    <tr>
+                      <th>Nome</th>
+                      <th>SKU</th>
+                      <th>Estoque</th>
+                      <th>Mínimo</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {parts.map((part) => {
+                      const low = Number(part.current_stock) <= Number(part.minimum_stock || 0);
+                      return (
+                        <tr key={part.id} className={low ? "low-stock" : ""}>
+                          <td>{part.name}</td>
+                          <td>{part.sku}</td>
+                          <td>
+                            <strong>{part.current_stock}</strong> {part.unit}
+                          </td>
+                          <td>{part.minimum_stock}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+                {!parts.length && <div className="empty">Nenhuma peça cadastrada.</div>}
+              </div>
             </div>
-          </div>
-          <div className="form-grid">
+
             <div className="panel form-card">
               <div className="panel-header small">
-                <h3>Nova peça</h3>
+                <h3>Nova Peça</h3>
                 <Button onClick={handleCreatePart}>
                   <Plus size={14} /> Salvar
                 </Button>
@@ -870,6 +898,8 @@ export const MaintenancePage = () => {
                   Nome
                   <input value={newPart.name} onChange={(e) => setNewPart((p) => ({ ...p, name: e.target.value }))} />
                 </label>
+              </div>
+              <div className="form-row">
                 <label>
                   SKU
                   <input value={newPart.sku} onChange={(e) => setNewPart((p) => ({ ...p, sku: e.target.value }))} />
@@ -900,41 +930,12 @@ export const MaintenancePage = () => {
             </div>
           </div>
 
-          <div className="table-wrapper">
-            <table className="maintenance-table">
-              <thead>
-                <tr>
-                  <th>Nome</th>
-                  <th>SKU</th>
-                  <th>Estoque</th>
-                  <th>Mínimo</th>
-                </tr>
-              </thead>
-              <tbody>
-                {parts.map((part) => {
-                  const low = Number(part.current_stock) <= Number(part.minimum_stock || 0);
-                  return (
-                    <tr key={part.id} className={low ? "low-stock" : ""}>
-                      <td>{part.name}</td>
-                      <td>{part.sku}</td>
-                      <td>
-                        {part.current_stock} {part.unit}
-                      </td>
-                      <td>{part.minimum_stock}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-            {!parts.length && <div className="empty">Nenhuma peça cadastrada.</div>}
-          </div>
-
-          <div className="form-grid">
+          <div className="inventory-ops">
             <div className="panel form-card">
               <div className="panel-header small">
-                <h3>Entrada de peça</h3>
+                <h3><Plus size={16} /> Entrada de Peça</h3>
                 <Button onClick={handleCreateMovementIn}>
-                  <Plus size={14} /> Registrar
+                  Registrar
                 </Button>
               </div>
               <div className="form-row">
@@ -961,6 +962,8 @@ export const MaintenancePage = () => {
                     onChange={(e) => setNewMovementIn((p) => ({ ...p, quantity: e.target.value }))}
                   />
                 </label>
+              </div>
+              <div className="form-row">
                 <label>
                   Custo unitário
                   <input
@@ -970,8 +973,6 @@ export const MaintenancePage = () => {
                     onChange={(e) => setNewMovementIn((p) => ({ ...p, unit_cost: e.target.value }))}
                   />
                 </label>
-              </div>
-              <div className="form-row">
                 <label>
                   Data
                   <input
@@ -990,11 +991,12 @@ export const MaintenancePage = () => {
                 />
               </label>
             </div>
+
             <div className="panel form-card">
               <div className="panel-header small">
-                <h3>Saída / Empréstimo</h3>
+                <h3><RefreshCcw size={16} /> Saída / Empréstimo</h3>
                 <Button onClick={handleCreateMovementOut}>
-                  <Plus size={14} /> Registrar
+                  Registrar
                 </Button>
               </div>
               <div className="form-row">
@@ -1021,6 +1023,8 @@ export const MaintenancePage = () => {
                     onChange={(e) => setNewMovementOut((p) => ({ ...p, quantity: e.target.value }))}
                   />
                 </label>
+              </div>
+              <div className="form-row">
                 <label>
                   Tipo
                   <select
@@ -1033,8 +1037,6 @@ export const MaintenancePage = () => {
                     <option value="LOAN">Empréstimo</option>
                   </select>
                 </label>
-              </div>
-              <div className="form-row">
                 <label>
                   Responsável
                   <input
@@ -1042,6 +1044,8 @@ export const MaintenancePage = () => {
                     onChange={(e) => setNewMovementOut((p) => ({ ...p, responsible_name: e.target.value }))}
                   />
                 </label>
+              </div>
+              <div className="form-row">
                 <label>
                   Data de saída
                   <input
@@ -1071,34 +1075,43 @@ export const MaintenancePage = () => {
             </div>
           </div>
 
-          <div className="table-wrapper">
-            <table className="maintenance-table">
-              <thead>
-                <tr>
-                  <th>Data</th>
-                  <th>Tipo</th>
-                  <th>Peça</th>
-                  <th>Quantidade</th>
-                  <th>Responsável</th>
-                  <th>Devolução</th>
-                  <th>Observações</th>
-                </tr>
-              </thead>
-              <tbody>
-                {movements.map((movement) => (
-                  <tr key={movement.id}>
-                    <td>{formatDateTime(movement.performed_at)}</td>
-                    <td>{MOVEMENT_LABEL[movement.type]}</td>
-                    <td>{partLabel(movement.part_detail)}</td>
-                    <td>{movement.quantity}</td>
-                    <td>{movement.responsible_name || "—"}</td>
-                    <td>{movement.expected_return_date ? formatDate(movement.expected_return_date) : "—"}</td>
-                    <td className="col-description">{movement.notes || "—"}</td>
+          <div className="movement-history glass-card">
+            <div className="section-title">
+              <RefreshCcw size={18} /> Histórico de Movimentações
+            </div>
+            <div className="table-wrapper">
+              <table className="maintenance-table">
+                <thead>
+                  <tr>
+                    <th>Data</th>
+                    <th>Tipo</th>
+                    <th>Peça</th>
+                    <th>Qtd</th>
+                    <th>Responsável</th>
+                    <th>Devolução</th>
+                    <th>Observações</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-            {!movements.length && <div className="empty">Nenhuma movimentação registrada.</div>}
+                </thead>
+                <tbody>
+                  {movements.map((movement) => (
+                    <tr key={movement.id}>
+                      <td>{formatDateTime(movement.performed_at)}</td>
+                      <td>
+                        <span className={`movement-type-badge movement-${movement.type.toLowerCase()}`}>
+                          {MOVEMENT_LABEL[movement.type]}
+                        </span>
+                      </td>
+                      <td>{partLabel(movement.part_detail)}</td>
+                      <td><strong>{movement.quantity}</strong></td>
+                      <td>{movement.responsible_name || "—"}</td>
+                      <td>{movement.expected_return_date ? formatDate(movement.expected_return_date) : "—"}</td>
+                      <td className="col-description">{movement.notes || "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {!movements.length && <div className="empty">Nenhuma movimentação registrada.</div>}
+            </div>
           </div>
         </section>
       )}
