@@ -35,6 +35,7 @@ export const UsersPage = () => {
   const [pageSize, setPageSize] = useState(8);
   const [total, setTotal] = useState(0);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const canCreate = current?.role === "SUPERADMIN";
 
   const municipalityName = useMemo(() => {
     const map = new Map<number, string>();
@@ -75,6 +76,10 @@ export const UsersPage = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!editingId && !canCreate) {
+      setError("Apenas superadmin pode criar usuários.");
+      return;
+    }
     try {
       if (editingId) {
         await api.patch(`/auth/users/${editingId}/`, form);
@@ -85,7 +90,7 @@ export const UsersPage = () => {
       setEditingId(null);
       load();
     } catch (err: any) {
-      if (err.response?.status === 403) setError("Apenas admin pode criar usuários.");
+      if (err.response?.status === 403) setError("Apenas superadmin pode criar usuários.");
     }
   };
 
@@ -179,14 +184,14 @@ export const UsersPage = () => {
 
   return (
     <div className="data-page">
-      <div className="data-header">
-        <div>
-          <h1 className="data-title">Usuários</h1>
-          <p className="data-subtitle">Perfis, credenciais e prefeitura vinculada.</p>
+        <div className="data-header">
+          <div>
+            <h1 className="data-title">Usuários</h1>
+            <p className="data-subtitle">Perfis, credenciais e prefeitura vinculada.</p>
+          </div>
         </div>
-      </div>
       <div className="users-layout">
-        {!isMobile && <div className="users-form-card">{FormCard}</div>}
+        {!isMobile && (canCreate || editingId) && <div className="users-form-card">{FormCard}</div>}
         <div className="users-content">
           {error && <div className="card data-error">{error}</div>}
           {!error && (
@@ -260,20 +265,24 @@ export const UsersPage = () => {
         </div>
         {isMobile && (
           <>
-            <FloatingActionButton
-              onClick={() => setIsModalOpen(true)}
-              aria-label="Novo usuário"
-              ariaControls="users-modal"
-              ariaExpanded={isModalOpen}
-            />
-            <Modal
-              open={isModalOpen}
-              onClose={() => setIsModalOpen(false)}
-              title={editingId ? "Editar usuário" : "Novo usuário"}
-              id="users-modal"
-            >
-              {FormCard}
-            </Modal>
+            {canCreate && (
+              <FloatingActionButton
+                onClick={() => setIsModalOpen(true)}
+                aria-label="Novo usuário"
+                ariaControls="users-modal"
+                ariaExpanded={isModalOpen}
+              />
+            )}
+            {(canCreate || editingId) && (
+              <Modal
+                open={isModalOpen}
+                onClose={() => setIsModalOpen(false)}
+                title={editingId ? "Editar usuário" : "Novo usuário"}
+                id="users-modal"
+              >
+                {FormCard}
+              </Modal>
+            )}
           </>
         )}
       </div>

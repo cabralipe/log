@@ -95,6 +95,7 @@ class ServiceOrderSerializer(serializers.ModelSerializer):
             "created_at",
             "updated_at",
             "vehicle_license_plate",
+            "municipality",
         ]
 
     def validate(self, attrs):

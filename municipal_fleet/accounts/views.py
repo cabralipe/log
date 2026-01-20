@@ -24,7 +24,9 @@ class UserViewSet(MunicipalityQuerysetMixin, viewsets.ModelViewSet):
     search_fields = ["email", "role"]
 
     def get_permissions(self):
-        if self.action in ["create", "destroy", "update", "partial_update", "list"]:
+        if self.action in ["create"]:
+            return [permissions.IsAuthenticated(), IsSuperAdmin()]
+        if self.action in ["destroy", "update", "partial_update", "list"]:
             return [permissions.IsAuthenticated(), IsMunicipalityAdmin()]
         if self.action in ["retrieve"]:
             return [permissions.IsAuthenticated(), IsSelfOrMunicipalityAdmin()]
@@ -39,13 +41,9 @@ class UserViewSet(MunicipalityQuerysetMixin, viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         user = self.request.user
-        role = serializer.validated_data.get("role")
-        if user.role != User.Roles.SUPERADMIN and role == User.Roles.SUPERADMIN:
-            raise PermissionDenied("Apenas superadmin pode criar outro superadmin.")
         if user.role != User.Roles.SUPERADMIN:
-            serializer.save(municipality=user.municipality)
-        else:
-            serializer.save()
+            raise PermissionDenied("Apenas superadmin pode criar usuários.")
+        serializer.save()
 
     def perform_update(self, serializer):
         user = self.request.user

@@ -484,6 +484,7 @@ class PlannedTripSerializer(serializers.ModelSerializer):
         model = PlannedTrip
         fields = "__all__"
         read_only_fields = ["id", "created_at", "updated_at"]
+        extra_kwargs = {"municipality": {"required": False}}
 
     def validate(self, attrs):
         vehicle = attrs.get("vehicle", getattr(self.instance, "vehicle", None))
