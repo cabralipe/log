@@ -5,6 +5,7 @@ from django.utils import timezone
 from rest_framework import serializers
 from contracts.models import Contract, ContractVehicle, RentalPeriod
 from fleet.models import Vehicle
+from tenants.utils import resolve_municipality
 
 
 class ContractSerializer(serializers.ModelSerializer):
@@ -32,6 +33,11 @@ class ContractSerializer(serializers.ModelSerializer):
 
         if user and user.is_authenticated and user.role != "SUPERADMIN":
             attrs["municipality"] = user.municipality
+        elif user and user.is_authenticated and user.role == "SUPERADMIN":
+            municipality = resolve_municipality(request, attrs.get("municipality"))
+            if not municipality:
+                raise serializers.ValidationError({"municipality": "Prefeitura é obrigatória."})
+            attrs["municipality"] = municipality
         return attrs
 
     def _sync_contract_vehicles(self, contract: Contract, vehicle_ids: list[int]):

@@ -1,5 +1,6 @@
 from django.contrib.auth import get_user_model
 from rest_framework import serializers
+from tenants.utils import resolve_municipality
 
 User = get_user_model()
 
@@ -16,10 +17,11 @@ class UserSerializer(serializers.ModelSerializer):
             "password",
             "role",
             "municipality",
+            "active_municipality",
             "is_active",
             "date_joined",
         ]
-        read_only_fields = ["id", "date_joined"]
+        read_only_fields = ["id", "date_joined", "active_municipality"]
 
     def validate(self, attrs):
         request = self.context.get("request")
@@ -30,6 +32,10 @@ class UserSerializer(serializers.ModelSerializer):
             if request_user and request_user.is_authenticated and request_user.role != User.Roles.SUPERADMIN:
                 municipality = request_user.municipality
                 attrs["municipality"] = municipality
+            elif request_user and request_user.is_authenticated and request_user.role == User.Roles.SUPERADMIN:
+                municipality = resolve_municipality(request)
+                if municipality:
+                    attrs["municipality"] = municipality
         if role != User.Roles.SUPERADMIN and not municipality:
             raise serializers.ValidationError("Usuários não superadmin precisam de uma prefeitura.")
         if role == User.Roles.SUPERADMIN:

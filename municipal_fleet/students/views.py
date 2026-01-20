@@ -2,6 +2,7 @@ from django.utils import timezone
 from rest_framework import viewsets, permissions, exceptions, response, status
 from rest_framework.views import APIView
 from tenants.mixins import MunicipalityQuerysetMixin
+from tenants.utils import resolve_municipality
 from accounts.permissions import IsMunicipalityAdminOrReadOnly, IsMunicipalityAdmin
 from students.models import School, Student, StudentCard, StudentTransportRegistration, ClassGroup
 from forms.models import FormSubmission
@@ -20,10 +21,10 @@ class BaseMunicipalityCreateMixin:
     """
 
     def get_municipality(self, serializer):
-        user = self.request.user
-        if user.role == "SUPERADMIN":
-            return serializer.validated_data.get("municipality")
-        return user.municipality
+        municipality = resolve_municipality(self.request, serializer.validated_data.get("municipality"))
+        if not municipality:
+            raise exceptions.ValidationError("Informe a prefeitura.")
+        return municipality
 
 
 class SchoolViewSet(BaseMunicipalityCreateMixin, MunicipalityQuerysetMixin, viewsets.ModelViewSet):

@@ -14,6 +14,7 @@ from trips.models import Trip
 from fleet.models import Vehicle
 from drivers.models import Driver
 from scheduling.models import DriverAvailabilityBlock
+from tenants.utils import resolve_municipality
 
 
 class FormOptionSerializer(serializers.ModelSerializer):
@@ -94,10 +95,10 @@ class FormTemplateSerializer(serializers.ModelSerializer):
         form_type = attrs.get("form_type", getattr(self.instance, "form_type", None))
         attrs = self._cleanup_slug(attrs)
 
-        if not attrs.get("municipality") and user and getattr(user, "role", None) != "SUPERADMIN":
-            # Municipal admins should not need to send municipality explicitly.
-            attrs["municipality"] = getattr(user, "municipality", None)
-
+        if not attrs.get("municipality"):
+            municipality = resolve_municipality(request, attrs.get("municipality"))
+            if municipality:
+                attrs["municipality"] = municipality
         if not attrs.get("municipality"):
             raise serializers.ValidationError({"municipality": "Informe a prefeitura."})
 

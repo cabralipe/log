@@ -8,6 +8,7 @@ from rest_framework_simplejwt.views import TokenObtainPairView
 from accounts.permissions import IsSuperAdmin, IsMunicipalityAdmin, IsSelfOrMunicipalityAdmin
 from accounts.serializers import UserSerializer
 from tenants.mixins import MunicipalityQuerysetMixin
+from tenants.models import Municipality
 
 User = get_user_model()
 
@@ -58,6 +59,25 @@ class UserViewSet(MunicipalityQuerysetMixin, viewsets.ModelViewSet):
 
     @action(detail=False, methods=["get"])
     def me(self, request):
+        serializer = self.get_serializer(request.user)
+        return Response(serializer.data)
+
+    @action(detail=False, methods=["post"], permission_classes=[IsSuperAdmin])
+    def active_municipality(self, request):
+        municipality_id = request.data.get("municipality_id")
+        if municipality_id in ("", None):
+            request.user.active_municipality = None
+            request.user.save(update_fields=["active_municipality"])
+            return Response({"active_municipality": None})
+        try:
+            municipality_id = int(municipality_id)
+        except (TypeError, ValueError):
+            return Response({"detail": "municipality_id inválido."}, status=status.HTTP_400_BAD_REQUEST)
+        municipality = Municipality.objects.filter(id=municipality_id).first()
+        if not municipality:
+            return Response({"detail": "Prefeitura não encontrada."}, status=status.HTTP_404_NOT_FOUND)
+        request.user.active_municipality = municipality
+        request.user.save(update_fields=["active_municipality"])
         serializer = self.get_serializer(request.user)
         return Response(serializer.data)
 

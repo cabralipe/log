@@ -25,6 +25,7 @@ from scheduling.models import DriverAvailabilityBlock
 from destinations.models import Destination
 from students.models import Student
 from health.models import Patient, Companion
+from tenants.utils import resolve_municipality
 
 
 SPECIAL_NEED_CHOICES = {"NONE", "TEA", "ELDERLY", "PCD", "OTHER"}
@@ -211,7 +212,10 @@ class TripSerializer(serializers.ModelSerializer):
         if user and getattr(user, "role", None) != "SUPERADMIN":
             validated_data["municipality"] = user.municipality
         else:
-            validated_data["municipality"] = validated_data.get("municipality")
+            municipality = resolve_municipality(self.context.get("request"), validated_data.get("municipality"))
+            if not municipality:
+                raise serializers.ValidationError("Prefeitura é obrigatória.")
+            validated_data["municipality"] = municipality
         trip = super().create(validated_data)
         self._update_odometer(trip)
         return trip
@@ -300,6 +304,10 @@ class FreeTripSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError("Viagem livre não liberada para este motorista.")
         elif user and getattr(user, "role", None) != "SUPERADMIN":
             attrs["municipality"] = user.municipality
+        elif user and getattr(user, "role", None) == "SUPERADMIN":
+            municipality = resolve_municipality(request, attrs.get("municipality"))
+            if municipality:
+                attrs["municipality"] = municipality
 
         if not driver:
             raise serializers.ValidationError("Motorista é obrigatório.")
@@ -358,8 +366,11 @@ class FreeTripSerializer(serializers.ModelSerializer):
             validated_data["municipality"] = portal_driver.municipality
         elif user and getattr(user, "role", None) != "SUPERADMIN":
             validated_data["municipality"] = user.municipality
-        elif "municipality" not in validated_data and not portal_driver:
-            raise serializers.ValidationError("Prefeitura é obrigatória.")
+        elif not portal_driver:
+            municipality = resolve_municipality(self.context.get("request"), validated_data.get("municipality"))
+            if not municipality:
+                raise serializers.ValidationError("Prefeitura é obrigatória.")
+            validated_data["municipality"] = municipality
         return super().create(validated_data)
 
     def update(self, instance, validated_data):
@@ -513,8 +524,11 @@ class PlannedTripSerializer(serializers.ModelSerializer):
         user = request_user if request_user and getattr(request_user, "is_authenticated", False) else None
         if user and user.role != "SUPERADMIN":
             validated_data["municipality"] = user.municipality
-        elif not validated_data.get("municipality"):
-            raise serializers.ValidationError("Prefeitura é obrigatória.")
+        else:
+            municipality = resolve_municipality(self.context.get("request"), validated_data.get("municipality"))
+            if not municipality:
+                raise serializers.ValidationError("Prefeitura é obrigatória.")
+            validated_data["municipality"] = municipality
         plan = super().create(validated_data)
         municipality_id = plan.municipality_id
         for stop in stops_data:
@@ -911,6 +925,11 @@ class TripExecutionSerializer(serializers.ModelSerializer):
                 validated_data["municipality"] = planned_trip.municipality
             elif validated_data.get("vehicle"):
                 validated_data["municipality"] = validated_data["vehicle"].municipality
+            if not validated_data.get("municipality"):
+                municipality = resolve_municipality(self.context.get("request"), validated_data.get("municipality"))
+                if not municipality:
+                    raise serializers.ValidationError("Prefeitura é obrigatória.")
+                validated_data["municipality"] = municipality
         execution = super().create(validated_data)
 
         for stop in stops_data:

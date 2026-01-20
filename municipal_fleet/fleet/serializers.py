@@ -3,6 +3,7 @@ import json
 from rest_framework import serializers
 from django.utils import timezone
 from accounts.models import User
+from tenants.utils import resolve_municipality
 from fleet.models import (
     Vehicle,
     VehicleMaintenance,
@@ -45,6 +46,11 @@ class VehicleSerializer(serializers.ModelSerializer):
         if user and getattr(user, "role", None) != "SUPERADMIN":
             attrs["municipality"] = user.municipality
             municipality = attrs.get("municipality", municipality)
+        elif user and getattr(user, "role", None) == "SUPERADMIN":
+            municipality = resolve_municipality(request, municipality)
+            if not municipality:
+                raise serializers.ValidationError({"municipality": "Prefeitura é obrigatória."})
+            attrs["municipality"] = municipality
 
         if current_contract:
             if municipality and current_contract.municipality_id != municipality.id:
@@ -57,9 +63,15 @@ class VehicleSerializer(serializers.ModelSerializer):
         return attrs
 
     def create(self, validated_data):
-        user = self.context["request"].user
-        if user.role != User.Roles.SUPERADMIN:
+        request = self.context.get("request")
+        user = request.user if request else None
+        if user and user.role != User.Roles.SUPERADMIN:
             validated_data["municipality"] = user.municipality
+        elif user and user.role == User.Roles.SUPERADMIN:
+            municipality = resolve_municipality(request, validated_data.get("municipality"))
+            if not municipality:
+                raise serializers.ValidationError({"municipality": "Prefeitura é obrigatória."})
+            validated_data["municipality"] = municipality
         return super().create(validated_data)
 
     def update(self, instance, validated_data):

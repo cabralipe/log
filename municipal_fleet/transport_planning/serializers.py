@@ -20,6 +20,7 @@ from fleet.models import Vehicle
 from drivers.models import Driver
 from contracts.models import Contract
 from transport_planning import services as planning_services
+from tenants.utils import resolve_municipality
 
 
 ALLOWED_PERSON_CATEGORIES = {"STUDENT", "PCD", "ELDERLY", "PATIENT", "CITIZEN", "OTHER"}
@@ -54,8 +55,9 @@ class PersonSerializer(serializers.ModelSerializer):
         return attrs
 
     def create(self, validated_data):
-        user = self.context["request"].user
-        municipality = user.municipality if user.role != "SUPERADMIN" else validated_data.get("municipality")
+        municipality = resolve_municipality(self.context.get("request"), validated_data.get("municipality"))
+        if not municipality:
+            raise serializers.ValidationError("Prefeitura é obrigatória.")
         validated_data["municipality"] = municipality
         return super().create(validated_data)
 
@@ -73,8 +75,9 @@ class TransportServiceSerializer(serializers.ModelSerializer):
         return attrs
 
     def create(self, validated_data):
-        user = self.context["request"].user
-        municipality = user.municipality if user.role != "SUPERADMIN" else validated_data.get("municipality")
+        municipality = resolve_municipality(self.context.get("request"), validated_data.get("municipality"))
+        if not municipality:
+            raise serializers.ValidationError("Prefeitura é obrigatória.")
         validated_data["municipality"] = municipality
         return super().create(validated_data)
 
@@ -86,8 +89,9 @@ class ServiceUnitSerializer(serializers.ModelSerializer):
         read_only_fields = ["id", "municipality", "created_at", "updated_at"]
 
     def create(self, validated_data):
-        user = self.context["request"].user
-        municipality = user.municipality if user.role != "SUPERADMIN" else validated_data.get("municipality")
+        municipality = resolve_municipality(self.context.get("request"), validated_data.get("municipality"))
+        if not municipality:
+            raise serializers.ValidationError("Prefeitura é obrigatória.")
         validated_data["municipality"] = municipality
         return super().create(validated_data)
 
@@ -143,8 +147,9 @@ class RouteSerializer(serializers.ModelSerializer):
         return attrs
 
     def create(self, validated_data):
-        user = self.context["request"].user
-        municipality = user.municipality if user.role != "SUPERADMIN" else validated_data.get("municipality")
+        municipality = resolve_municipality(self.context.get("request"), validated_data.get("municipality"))
+        if not municipality:
+            raise serializers.ValidationError("Prefeitura é obrigatória.")
         validated_data["municipality"] = municipality
         return super().create(validated_data)
 
@@ -190,8 +195,9 @@ class EligibilityPolicySerializer(serializers.ModelSerializer):
         return attrs
 
     def create(self, validated_data):
-        user = self.context["request"].user
-        municipality = user.municipality if user.role != "SUPERADMIN" else validated_data.get("municipality")
+        municipality = resolve_municipality(self.context.get("request"), validated_data.get("municipality"))
+        if not municipality:
+            raise serializers.ValidationError("Prefeitura é obrigatória.")
         validated_data["municipality"] = municipality
         return super().create(validated_data)
 
@@ -224,8 +230,9 @@ class ServiceApplicationSerializer(serializers.ModelSerializer):
         return planning_services.evaluate_eligibility(application.transport_service, application.route)
 
     def create(self, validated_data):
-        user = self.context["request"].user
-        municipality = user.municipality if user.role != "SUPERADMIN" else validated_data.get("municipality")
+        municipality = resolve_municipality(self.context.get("request"), validated_data.get("municipality"))
+        if not municipality:
+            raise serializers.ValidationError("Prefeitura é obrigatória.")
         validated_data["municipality"] = municipality
         application = ServiceApplication(**validated_data)
         status, notes = self._evaluate_policy(application)
@@ -336,8 +343,9 @@ class AssignmentSerializer(serializers.ModelSerializer):
         return attrs
 
     def create(self, validated_data):
-        user = self.context["request"].user
-        municipality = user.municipality if user.role != "SUPERADMIN" else validated_data.get("municipality")
+        municipality = resolve_municipality(self.context.get("request"), validated_data.get("municipality"))
+        if not municipality:
+            raise serializers.ValidationError("Prefeitura é obrigatória.")
         validated_data["municipality"] = municipality
         assignment = super().create(validated_data)
         self._ensure_trip(assignment)

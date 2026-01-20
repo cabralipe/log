@@ -20,6 +20,13 @@ class User(AbstractUser):
         blank=True,
         related_name="users",
     )
+    active_municipality = models.ForeignKey(
+        "tenants.Municipality",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="active_superadmins",
+    )
 
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = []
