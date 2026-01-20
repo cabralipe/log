@@ -2,6 +2,7 @@ import urllib.parse
 from datetime import timedelta, datetime
 from django.utils import timezone
 from rest_framework import viewsets, permissions, response, decorators, filters, status, views
+from django.db import transaction
 from trips.models import Trip, FreeTrip, TripGpsPing, PlannedTrip, TripExecution, TripManifest, TripExecutionStop
 from drivers.models import DriverGeofence
 from trips.serializers import (
@@ -399,13 +400,17 @@ class TripExecutionViewSet(MunicipalityQuerysetMixin, viewsets.ModelViewSet):
         stop_map = {}
         for stop in stops:
             stop_map.setdefault(stop.destination_id, []).append(stop)
-        for idx, destination in enumerate(ordered):
-            candidates = stop_map.get(destination.id, [])
-            if not candidates:
-                continue
-            stop = candidates.pop(0)
-            stop.order = idx + 1
-            stop.save(update_fields=["order"])
+        with transaction.atomic():
+            for stop in stops:
+                stop.order = stop.order + 1000
+                stop.save(update_fields=["order"])
+            for idx, destination in enumerate(ordered):
+                candidates = stop_map.get(destination.id, [])
+                if not candidates:
+                    continue
+                stop = candidates.pop(0)
+                stop.order = idx + 1
+                stop.save(update_fields=["order"])
         distance_km, duration_minutes = route_summary(ordered)
         execution.route_geometry = build_route_geometry(ordered)
         execution.route_distance_km = round(distance_km, 2)

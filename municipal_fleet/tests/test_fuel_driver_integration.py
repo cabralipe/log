@@ -1,4 +1,5 @@
 from django.test import TestCase
+from decimal import Decimal
 from django.utils import timezone
 from rest_framework.test import APIClient
 
@@ -87,7 +88,7 @@ class FuelDriverIntegrationTests(TestCase):
             {"start_date": timezone.localdate().isoformat(), "end_date": timezone.localdate().isoformat()},
         )
         self.assertEqual(report_resp.status_code, 200)
-        self.assertEqual(str(report_resp.data["summary"]["total_liters"]), "50")
+        self.assertEqual(Decimal(str(report_resp.data["summary"]["total_liters"])), Decimal("50"))
 
     def test_portal_fuel_log_rejects_lower_odometer(self):
         payload = {

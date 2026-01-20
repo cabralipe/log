@@ -105,6 +105,13 @@ def _percent_change(current: int, previous: int) -> int:
         return 0 if current == 0 else 100
     return round(((current - previous) / previous) * 100)
 
+def _format_decimal(value):
+    if value is None:
+        return 0
+    if isinstance(value, Decimal):
+        return int(value) if value == value.to_integral() else float(value)
+    return value
+
 class DashboardView(views.APIView):
     permission_classes = [permissions.IsAuthenticated]
 
@@ -570,13 +577,15 @@ class FuelReportView(views.APIView):
         if end_date:
             qs = qs.filter(filled_at__lte=end_date)
 
+        total_liters = qs.aggregate(total=Sum("liters"))["total"] or 0
+        total_cost = qs.aggregate(total=Sum("total_cost"))["total"] or 0
         summary = {
             "total_logs": qs.count(),
-            "total_liters": qs.aggregate(total=Sum("liters"))["total"] or 0,
-            "total_cost": qs.aggregate(total=Sum("total_cost"))["total"] or 0,
+            "total_liters": _format_decimal(total_liters),
+            "total_cost": _format_decimal(total_cost),
         }
-        if summary["total_liters"]:
-            summary["avg_price_per_liter"] = Decimal(summary["total_cost"]) / Decimal(summary["total_liters"])
+        if total_liters:
+            summary["avg_price_per_liter"] = _format_decimal(Decimal(total_cost) / Decimal(total_liters))
         else:
             summary["avg_price_per_liter"] = None
         summary["budget"] = _fuel_budget_status(user.municipality if user.role != "SUPERADMIN" else None, qs_budget)
