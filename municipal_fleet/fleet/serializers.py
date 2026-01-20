@@ -231,7 +231,7 @@ class FuelStationLimitSerializer(serializers.ModelSerializer):
     class Meta:
         model = FuelStationLimit
         fields = "__all__"
-        read_only_fields = ["id", "created_at", "updated_at"]
+        read_only_fields = ["id", "created_at", "updated_at", "municipality"]
 
 
 class FuelRuleSerializer(serializers.ModelSerializer):
@@ -241,7 +241,7 @@ class FuelRuleSerializer(serializers.ModelSerializer):
     class Meta:
         model = FuelRule
         fields = "__all__"
-        read_only_fields = ["id", "created_at", "updated_at"]
+        read_only_fields = ["id", "created_at", "updated_at", "municipality"]
 
 
 class FuelAlertSerializer(serializers.ModelSerializer):

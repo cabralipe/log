@@ -215,7 +215,7 @@ const FuelLogsTab = ({ vehicles, drivers, stations, products }: any) => {
                             />
                         </label>
                         <label className="full-width">Posto <select value={form.fuel_station || ""} onChange={e => setForm({ ...form, fuel_station: e.target.value })}><option value="">Selecione</option>{stations.map((s: any) => <option key={s.id} value={s.name}>{s.name}</option>)}</select></label>
-                        <label>Produto <select value={form.product || ""} onChange={e => setForm({ ...form, product: Number(e.target.value) })}>{products.map((p: any) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
+                        <label>Produto <select value={form.product || ""} onChange={e => setForm({ ...form, product: Number(e.target.value) })}><option value="">Selecione</option>{products.map((p: any) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
                         <label>Litros * <input type="number" step="0.01" required value={form.liters || ""} onChange={e => setForm({ ...form, liters: e.target.value })} /></label>
                         <label>Preço/L * <input type="number" step="0.01" required value={form.price_per_liter || ""} onChange={e => setForm({ ...form, price_per_liter: e.target.value })} /></label>
                     </div>
@@ -400,8 +400,8 @@ const FuelLimitsTab = ({ stations, products }: any) => {
             <Modal open={isModalOpen} onClose={() => setIsModalOpen(false)} title="Cota de Abastecimento">
                 <form onSubmit={handleSave} className="data-form">
                     <div className="data-form-grid">
-                        <label className="full-width">Posto * <select required value={form.fuel_station || ""} onChange={e => setForm({ ...form, fuel_station: Number(e.target.value) })}>{stations.map((s: any) => <option key={s.id} value={s.id}>{s.name}</option>)}</select></label>
-                        <label>Produto * <select required value={form.product || ""} onChange={e => setForm({ ...form, product: Number(e.target.value) })}>{products.map((p: any) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
+                        <label className="full-width">Posto * <select required value={form.fuel_station || ""} onChange={e => setForm({ ...form, fuel_station: Number(e.target.value) })}><option value="">Selecione</option>{stations.map((s: any) => <option key={s.id} value={s.id}>{s.name}</option>)}</select></label>
+                        <label>Produto * <select required value={form.product || ""} onChange={e => setForm({ ...form, product: Number(e.target.value) })}><option value="">Selecione</option>{products.map((p: any) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
                         <label>Período * <select value={form.period} onChange={e => setForm({ ...form, period: e.target.value as any })}><option value="DAILY">Diário</option><option value="WEEKLY">Semanal</option><option value="MONTHLY">Mensal</option></select></label>
                         <label className="full-width">Quantidade Máx. * <input type="number" step="0.01" required value={form.max_quantity || ""} onChange={e => setForm({ ...form, max_quantity: e.target.value })} /></label>
                     </div>
@@ -466,7 +466,7 @@ const FuelInvoicesTab = ({ stations }: any) => {
             <Modal open={isModalOpen} onClose={() => setIsModalOpen(false)} title="Fatura de Combustível">
                 <form onSubmit={handleSave} className="data-form">
                     <div className="data-form-grid">
-                        <label className="full-width">Posto * <select required value={form.fuel_station || ""} onChange={e => setForm({ ...form, fuel_station: Number(e.target.value) })}>{stations.map((s: any) => <option key={s.id} value={s.id}>{s.name}</option>)}</select></label>
+                        <label className="full-width">Posto * <select required value={form.fuel_station || ""} onChange={e => setForm({ ...form, fuel_station: Number(e.target.value) })}><option value="">Selecione</option>{stations.map((s: any) => <option key={s.id} value={s.id}>{s.name}</option>)}</select></label>
                         <label>Início * <input type="date" required value={form.period_start || ""} onChange={e => setForm({ ...form, period_start: e.target.value })} /></label>
                         <label>Fim * <input type="date" required value={form.period_end || ""} onChange={e => setForm({ ...form, period_end: e.target.value })} /></label>
                         <label className="full-width">Valor Total <input type="number" step="0.01" value={form.total_value || ""} onChange={e => setForm({ ...form, total_value: e.target.value })} /></label>

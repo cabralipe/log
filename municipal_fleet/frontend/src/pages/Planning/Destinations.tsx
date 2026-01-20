@@ -291,64 +291,74 @@ export const DestinationsPage = () => {
                                     placeholder="Digite o endereço para buscar (ex: Av. Paulista, 1000, São Paulo)"
                                     id="address-search-input"
                                     autoComplete="off"
-                                    onChange={async (e) => {
+                                    onChange={(e) => {
                                         const term = e.target.value.trim();
                                         const dropdown = document.getElementById("address-suggestions");
                                         if (!dropdown) return;
+                                        
+                                        // Clear previous timeout
+                                        if ((window as any).__searchTimeout) {
+                                            clearTimeout((window as any).__searchTimeout);
+                                        }
+
                                         if (term.length < 5) {
                                             dropdown.innerHTML = "";
                                             dropdown.style.display = "none";
                                             return;
                                         }
-                                        try {
-                                            const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&limit=5&q=${encodeURIComponent(term)}`);
-                                            if (!res.ok) {
+
+                                        // Set new timeout (debounce)
+                                        (window as any).__searchTimeout = setTimeout(async () => {
+                                            try {
+                                                const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&addressdetails=1&limit=5&countrycodes=br&accept-language=pt-BR&dedupe=1&q=${encodeURIComponent(term)}`);
+                                                if (!res.ok) {
+                                                    dropdown.innerHTML = "<div style='padding:0.5rem;color:var(--muted)'>Erro na busca</div>";
+                                                    dropdown.style.display = "block";
+                                                    return;
+                                                }
+                                                const data = await res.json();
+                                                if (Array.isArray(data) && data.length > 0) {
+                                                    dropdown.innerHTML = data.map((item: any, idx: number) =>
+                                                        `<div class="address-suggestion-item" data-idx="${idx}" style="padding:0.75rem;cursor:pointer;border-bottom:1px solid var(--border)">
+                                                            <strong>${item.display_name.split(",")[0]}</strong><br/>
+                                                            <small style="color:var(--muted)">${item.display_name}</small>
+                                                        </div>`
+                                                    ).join("");
+                                                    dropdown.style.display = "block";
+                                                    // Store data for click handlers
+                                                    (window as any).__addressSearchResults = data;
+                                                    dropdown.querySelectorAll(".address-suggestion-item").forEach(el => {
+                                                        el.addEventListener("click", () => {
+                                                            const idx = parseInt(el.getAttribute("data-idx") || "0");
+                                                            const result = (window as any).__addressSearchResults?.[idx];
+                                                            if (result) {
+                                                                const addr = result.address || {};
+                                                                setForm(prev => ({
+                                                                    ...prev,
+                                                                    address: result.display_name.split(",")[0] || prev.address,
+                                                                    number: addr.house_number || prev.number,
+                                                                    district: addr.suburb || addr.neighbourhood || addr.district || prev.district,
+                                                                    city: addr.city || addr.town || addr.municipality || prev.city,
+                                                                    state: addr.state_code?.toUpperCase() || addr.state?.substring(0, 2)?.toUpperCase() || prev.state,
+                                                                    postal_code: addr.postcode || prev.postal_code,
+                                                                    latitude: parseFloat(result.lat),
+                                                                    longitude: parseFloat(result.lon)
+                                                                }));
+                                                                const input = document.getElementById("address-search-input") as HTMLInputElement;
+                                                                if (input) input.value = "";
+                                                                dropdown.style.display = "none";
+                                                            }
+                                                        });
+                                                    });
+                                                } else {
+                                                    dropdown.innerHTML = "<div style='padding:0.5rem;color:var(--muted)'>Nenhum resultado encontrado</div>";
+                                                    dropdown.style.display = "block";
+                                                }
+                                            } catch {
                                                 dropdown.innerHTML = "<div style='padding:0.5rem;color:var(--muted)'>Erro na busca</div>";
                                                 dropdown.style.display = "block";
-                                                return;
                                             }
-                                            const data = await res.json();
-                                            if (Array.isArray(data) && data.length > 0) {
-                                                dropdown.innerHTML = data.map((item: any, idx: number) =>
-                                                    `<div class="address-suggestion-item" data-idx="${idx}" style="padding:0.75rem;cursor:pointer;border-bottom:1px solid var(--border)">
-                                                        <strong>${item.display_name.split(",")[0]}</strong><br/>
-                                                        <small style="color:var(--muted)">${item.display_name}</small>
-                                                    </div>`
-                                                ).join("");
-                                                dropdown.style.display = "block";
-                                                // Store data for click handlers
-                                                (window as any).__addressSearchResults = data;
-                                                dropdown.querySelectorAll(".address-suggestion-item").forEach(el => {
-                                                    el.addEventListener("click", () => {
-                                                        const idx = parseInt(el.getAttribute("data-idx") || "0");
-                                                        const result = (window as any).__addressSearchResults?.[idx];
-                                                        if (result) {
-                                                            const addr = result.address || {};
-                                                            setForm(prev => ({
-                                                                ...prev,
-                                                                address: result.display_name.split(",")[0] || prev.address,
-                                                                number: addr.house_number || prev.number,
-                                                                district: addr.suburb || addr.neighbourhood || addr.district || prev.district,
-                                                                city: addr.city || addr.town || addr.municipality || prev.city,
-                                                                state: addr.state_code?.toUpperCase() || addr.state?.substring(0, 2)?.toUpperCase() || prev.state,
-                                                                postal_code: addr.postcode || prev.postal_code,
-                                                                latitude: parseFloat(result.lat),
-                                                                longitude: parseFloat(result.lon)
-                                                            }));
-                                                            const input = document.getElementById("address-search-input") as HTMLInputElement;
-                                                            if (input) input.value = "";
-                                                            dropdown.style.display = "none";
-                                                        }
-                                                    });
-                                                });
-                                            } else {
-                                                dropdown.innerHTML = "<div style='padding:0.5rem;color:var(--muted)'>Nenhum resultado encontrado</div>";
-                                                dropdown.style.display = "block";
-                                            }
-                                        } catch {
-                                            dropdown.innerHTML = "<div style='padding:0.5rem;color:var(--muted)'>Erro na busca</div>";
-                                            dropdown.style.display = "block";
-                                        }
+                                        }, 800); // 800ms delay
                                     }}
                                     onBlur={() => {
                                         setTimeout(() => {
