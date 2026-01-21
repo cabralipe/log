@@ -111,6 +111,11 @@ export const DriverPortalPage = () => {
       prev.inspection_date ? prev : { ...prev, inspection_date: toInputDate(new Date()) }
     );
   }, []);
+  useEffect(() => {
+    setFuelForm((prev) =>
+      prev.filled_at ? prev : { ...prev, filled_at: toInputDate(new Date()) }
+    );
+  }, []);
 
   useEffect(() => {
     if (token) loadPortalData();
@@ -268,12 +273,32 @@ export const DriverPortalPage = () => {
     );
   };
 
+  const getApiErrorMessage = (error: unknown, fallback: string) => {
+    const err = error as { response?: { data?: any } };
+    const data = err?.response?.data;
+    if (!data) return fallback;
+    if (typeof data === "string") return data;
+    if (typeof data?.detail === "string") return data.detail;
+    if (Array.isArray(data?.detail)) return data.detail.join(" ");
+    if (typeof data === "object") {
+      for (const value of Object.values(data)) {
+        if (typeof value === "string") return value;
+        if (Array.isArray(value)) {
+          const message = value.find((item) => typeof item === "string");
+          if (message) return message;
+        }
+      }
+    }
+    return fallback;
+  };
+
   const handleFuelSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const filledAt = fuelForm.filled_at || toInputDate(new Date());
     const fd = new FormData();
     fd.append("vehicle", String(fuelForm.vehicle));
     fd.append("fuel_station_id", String(fuelForm.fuel_station_id));
-    fd.append("filled_at", fuelForm.filled_at);
+    fd.append("filled_at", filledAt);
     fd.append("liters", fuelForm.liters);
     fd.append("price_per_liter", fuelForm.price_per_liter);
     if (fuelForm.notes) fd.append("notes", fuelForm.notes);
@@ -283,11 +308,15 @@ export const DriverPortalPage = () => {
       setInfo("Abastecimento salvo!");
       loadPortalData();
       setActiveSection("home");
-    } catch (e) { setError("Erro ao salvar abastecimento."); }
+    } catch (e) { setError(getApiErrorMessage(e, "Erro ao salvar abastecimento.")); }
   };
 
   const handleInspectionSubmit = async (e: React.FormEvent, signatureDataUrl: string) => {
     e.preventDefault();
+    if (!signatureDataUrl) {
+      setError("Assinatura é obrigatória.");
+      return;
+    }
     const fd = new FormData();
     fd.append("vehicle", String(inspectionForm.vehicle));
     fd.append("inspection_date", inspectionForm.inspection_date);
@@ -295,12 +324,14 @@ export const DriverPortalPage = () => {
     const signatureBlob = await (await fetch(signatureDataUrl)).blob();
     fd.append("signature_image", new File([signatureBlob], "signature.png", { type: "image/png" }));
     fd.append("checklist_items", JSON.stringify(inspectionChecklist));
+    if (inspectionForm.odometer) fd.append("odometer", inspectionForm.odometer);
+    if (inspectionForm.notes) fd.append("notes", inspectionForm.notes);
     try {
       await driverPortalApi.post("/drivers/portal/inspections/", fd);
       setInfo("Inspeção salva!");
       loadPortalData();
       setActiveSection("home");
-    } catch (e) { setError("Erro ao salvar inspeção."); }
+    } catch (e) { setError(getApiErrorMessage(e, "Erro ao salvar inspeção.")); }
   };
 
   const startFreeTrip = async () => {

@@ -70,5 +70,9 @@ export default defineConfig({
     hmr: {
       overlay: false,
     },
+    watch: {
+      usePolling: true,
+      interval: 100,
+    },
   },
 });

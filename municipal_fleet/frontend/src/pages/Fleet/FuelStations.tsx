@@ -9,6 +9,7 @@ import { FloatingActionButton } from "../../components/FloatingActionButton";
 import { Modal } from "../../components/Modal";
 import { useAuth } from "../../hooks/useAuth";
 import { formatCnpj } from "../../utils/masks";
+import { Plus } from "lucide-react";
 import "../../styles/DataPage.css";
 import "./FuelStations.css";
 
@@ -79,6 +80,7 @@ export const FuelStationsPage = () => {
       }
       setForm({ active: true });
       setEditingId(null);
+      setIsModalOpen(false);
       load();
     } catch (err: any) {
       setError(err.response?.data?.detail || "Erro ao salvar posto.");
@@ -92,10 +94,9 @@ export const FuelStationsPage = () => {
       cnpj: station.cnpj,
       address: station.address,
       active: station.active,
+      municipality: station.municipality,
     });
-    if (isMobile) {
-      setIsModalOpen(true);
-    }
+    setIsModalOpen(true);
   };
 
   const handleDelete = async (id: number) => {
@@ -113,8 +114,8 @@ export const FuelStationsPage = () => {
   }, [isMobile, editingId]);
 
   const FormCard = (
-    <div className="card" style={{ marginBottom: "1rem" }}>
-      <h3>{editingId ? "Editar posto" : "Novo posto credenciado"}</h3>
+    <div className="card" style={{ marginBottom: "1rem", border: "none", boxShadow: "none", background: "transparent", padding: 0 }}>
+      {/* <h3>{editingId ? "Editar posto" : "Novo posto credenciado"}</h3> */}
       <form className="grid form-grid responsive" onSubmit={handleSubmit}>
         <input placeholder="Nome" required value={form.name ?? ""} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
         <input placeholder="CNPJ" value={form.cnpj ?? ""} onChange={(e) => setForm((f) => ({ ...f, cnpj: formatCnpj(e.target.value) }))} inputMode="numeric" maxLength={18} />
@@ -148,6 +149,7 @@ export const FuelStationsPage = () => {
               onClick={() => {
                 setEditingId(null);
                 setForm({ active: true });
+                setIsModalOpen(false);
               }}
             >
               Cancelar
@@ -165,9 +167,16 @@ export const FuelStationsPage = () => {
           <h1 className="data-title">Postos credenciados</h1>
           <p className="data-subtitle">Cadastre postos de combustível e acompanhe status de credenciamento.</p>
         </div>
+        <Button icon={Plus} onClick={() => {
+          setEditingId(null);
+          setForm({ active: true });
+          setIsModalOpen(true);
+        }}>
+          Novo Posto
+        </Button>
       </div>
       <div className="fuel-layout">
-        {!isMobile && <div className="fuel-form-card">{FormCard}</div>}
+        {/* {!isMobile && <div className="fuel-form-card">{FormCard}</div>} */}
         <div className="fuel-content">
           {error && <div className="data-error">{error}</div>}
           <div className="data-card data-toolbar fuel-toolbar">
@@ -237,24 +246,14 @@ export const FuelStationsPage = () => {
             />
           </div>
         </div>
-        {isMobile && (
-          <>
-            <FloatingActionButton
-              onClick={() => setIsModalOpen(true)}
-              aria-label="Novo posto credenciado"
-              ariaControls="fuel-station-modal"
-              ariaExpanded={isModalOpen}
-            />
-            <Modal
-              open={isModalOpen}
-              onClose={() => setIsModalOpen(false)}
-              title={editingId ? "Editar posto" : "Novo posto credenciado"}
-              id="fuel-station-modal"
-            >
-              {FormCard}
-            </Modal>
-          </>
-        )}
+        <Modal
+          open={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          title={editingId ? "Editar posto" : "Novo posto credenciado"}
+          id="fuel-station-modal"
+        >
+          {FormCard}
+        </Modal>
       </div>
     </div>
   );

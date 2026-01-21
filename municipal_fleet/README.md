@@ -75,12 +75,13 @@ THROTTLE_LOGIN_RATE=5/min
 - Recalcular odômetro mensal (apoio/virada de mês): `python manage.py rebuild_monthly_odometer`
 
 ## Docker / docker-compose (dev)
-1. `docker compose up --build`
-2. Backend em `http://localhost:8000` (docs em `/api/docs/`, health em `/api/health/`).
+1. Dev com hot reload (somente `db`, `backend`, `frontend`): `docker compose --profile dev up --build`
+2. Backend em `http://localhost:8001` (docs em `/api/docs/`, health em `/api/health/`).
 3. Frontend em `http://localhost:5173` (env `VITE_API_URL` já apontando para o backend do compose).
-4. Volumes: `pgdata` (DB), `staticfiles`, `media`. `collectstatic` roda no start do backend.
-5. Para servir frontend buildado + proxy reverso: suba `frontend-build` e `nginx` (`docker compose up frontend-build nginx backend db`). Nginx expõe em `http://localhost:8080`, proxyando `/api/` para o backend e servindo `dist` em `/`.
-6. Nginx envia cabeçalhos de segurança básicos (X-Content-Type-Options, Referrer-Policy, Permissions-Policy). Ajuste conforme necessidade de CSP.
+4. Dica: para evitar `--profile dev` sempre, use `COMPOSE_PROFILES=dev` no shell ou `.env`.
+5. Volumes: `pgdata` (DB), `staticfiles`, `media`. `collectstatic` roda no start do backend.
+6. Para servir frontend buildado + proxy reverso: `docker compose --profile prod up frontend-build nginx backend db`. Nginx expõe em `http://localhost:8080`, proxyando `/api/` para o backend e servindo `dist` em `/`.
+7. Nginx envia cabeçalhos de segurança básicos (X-Content-Type-Options, Referrer-Policy, Permissions-Policy). Ajuste conforme necessidade de CSP.
 
 ## CI
 - Workflow em `.github/workflows/ci.yml` roda `ruff check .`, `python manage.py test` com SQLite e `npm run build` no frontend em pushes/PRs.

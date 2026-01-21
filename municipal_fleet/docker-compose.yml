@@ -3,6 +3,7 @@ version: "3.9"
 services:
   db:
     image: postgres:15
+    profiles: ["dev"]
     environment:
       POSTGRES_DB: municipal_fleet
       POSTGRES_USER: postgres
@@ -19,6 +20,7 @@ services:
 
   backend:
     build: .
+    profiles: ["dev"]
     command: >
       sh -c "python manage.py migrate &&
              python manage.py collectstatic --noinput &&
@@ -52,12 +54,15 @@ services:
   frontend:
     image: node:20
     working_dir: /app
+    profiles: ["dev"]
     command: sh -c "npm install && npm run dev -- --host --port 5173"
     volumes:
       - ./frontend:/app
       - frontend_node_modules:/app/node_modules
     environment:
       VITE_API_URL: http://localhost:8001/api
+      CHOKIDAR_USEPOLLING: "true"
+      CHOKIDAR_INTERVAL: "100"
     ports:
       - "5173:5173"
     depends_on:
@@ -67,6 +72,7 @@ services:
   frontend-build:
     image: node:20
     working_dir: /app
+    profiles: ["prod"]
     command: sh -c "npm install && npm run build"
     environment:
       VITE_API_URL: http://backend:8000/api
@@ -82,6 +88,7 @@ services:
 
   nginx:
     image: nginx:1.25
+    profiles: ["prod"]
     depends_on:
       - backend
       - frontend-build

@@ -375,7 +375,7 @@ export const HelpPage = () => {
                     <div className="help-icon-wrapper">
                         <HelpCircle size={32} />
                     </div>
-                    <div>
+                    <div className="help-header-text">
                         <h1>Central de Ajuda</h1>
                         <p>Guia completo de uso do sistema de gestão de frotas municipais</p>
                     </div>
@@ -430,7 +430,7 @@ export const HelpPage = () => {
                                 </button>
 
                                 {isExpanded && (
-                                    <div className="help-section-content">
+                                    <div className="help-section-content help-timeline">
                                         {section.steps.map((step, index) => (
                                             <div key={index} className="help-step">
                                                 <div className="help-step-number">{index + 1}</div>
